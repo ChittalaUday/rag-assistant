@@ -1,0 +1,236 @@
+{
+  "sources": [
+    {
+      "id": "S1",
+      "title": "Niruthi homepage",
+      "url": "https://niruthi.com/",
+      "retrieved_at": "2026-10-05",
+      "type": "primary",
+      "note": "Company self-published marketing site. Marketing claims attributed to Niruthi, not independently verified."
+    },
+    {
+      "id": "S2",
+      "title": "Niruthi privacy policy",
+      "url": "https://niruthi.com/privacy.html",
+      "retrieved_at": "2026-10-05",
+      "type": "primary",
+      "note": "Company legal page. Page states last updated 2024-03-01."
+    },
+    {
+      "id": "S3",
+      "title": "GIIF innovator interview: How does Niruthi use technology to improve the livelihoods of smallholder farmers?",
+      "url": "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+      "retrieved_at": "2026-10-05",
+      "type": "primary",
+      "note": "World Bank Group Global Inclusive Insurance Forum interview page, published 2021-08-31."
+    },
+    {
+      "id": "S4",
+      "title": "NASA Earthdata: Terrestrial Observation and Prediction System (TOPS)",
+      "url": "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+      "retrieved_at": "2026-10-05",
+      "type": "primary",
+      "note": "NASA ACCESS program description. Lists Ramakrishna Nemani as PI; does not reference Niruthi."
+    },
+    {
+      "id": "S5",
+      "title": "PIB release: Crop Damage Assessment System for Pradhan Mantri Fasal Bima Yojana (Ministry of Agriculture & Farmers Welfare)",
+      "url": "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179",
+      "retrieved_at": "2026-10-05",
+      "type": "primary",
+      "note": "Government of India press release dated 17 Dec 2024. Describes YES-TECH under PMFBY; does not name Niruthi."
+    },
+    {
+      "id": "S_UNVERIFIED_CASPIAN",
+      "title": "Caspian Debt portfolio (fetch failed)",
+      "url": "https://caspiandebt.in/our-portfolio/",
+      "retrieved_at": "2026-10-05",
+      "type": "unavailable",
+      "note": "Fetch returned HTTP 403 from a SiteWALL bot filter. Caspian funding claims are not sourced in this fixture."
+    }
+  ],
+  "claims": [
+    {
+      "id": "C01",
+      "claim": "Niruthi describes itself as a deep tech company addressing climate risk mitigation. Its public brand is Niruthi Climate & Ecosystem Services.",
+      "document": "company-identity.md",
+      "source_ids": [
+        "S1",
+        "S2"
+      ],
+      "evidence_text": "Niruthi describes itself as a deep tech company addressing climate risk mitigation. Its public brand is Niruthi Climate & Ecosystem Services."
+    },
+    {
+      "id": "C02",
+      "claim": "The privacy policy identifies the registered entity as Niruthi Climate and Ecosystems Pvt. Ltd. in Hyderabad, Telangana, India. These are a brand and a registered legal name, respectively. The snapshot records public statements and does not establish the current legal registration independently.",
+      "document": "company-identity.md",
+      "source_ids": [
+        "S1",
+        "S2"
+      ],
+      "evidence_text": "The privacy policy identifies the registered entity as Niruthi Climate and Ecosystems Pvt. Ltd. in Hyderabad, Telangana, India. These are a brand and a registered legal name, respectively. The snapshot records public statements and does not establish the current legal registration independently."
+    },
+    {
+      "id": "C03",
+      "claim": "Niruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.",
+      "document": "leadership-and-products.md",
+      "source_ids": [
+        "S1"
+      ],
+      "evidence_text": "Niruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri."
+    },
+    {
+      "id": "C04",
+      "claim": "WeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.",
+      "document": "leadership-and-products.md",
+      "source_ids": [
+        "S1"
+      ],
+      "evidence_text": "WeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring."
+    },
+    {
+      "id": "C05",
+      "claim": "These roles and offerings are company website statements at the snapshot date. This note does not establish employee reporting lines, internal ownership or present contractual obligations.",
+      "document": "leadership-and-products.md",
+      "source_ids": [
+        "S1"
+      ],
+      "evidence_text": "These roles and offerings are company website statements at the snapshot date. This note does not establish employee reporting lines, internal ownership or present contractual obligations."
+    },
+    {
+      "id": "C06",
+      "claim": "Niruthi says its satellite and ground-data approach is derived from NASA TOPS, the Terrestrial Observation and Prediction System.",
+      "document": "technology.md",
+      "source_ids": [
+        "S1",
+        "S4"
+      ],
+      "evidence_text": "Niruthi says its satellite and ground-data approach is derived from NASA TOPS, the Terrestrial Observation and Prediction System."
+    },
+    {
+      "id": "C07",
+      "claim": "NASA Earthdata describes TOPS as combining ecosystem simulations with satellite measurements and surface weather observations to generate ecosystem nowcasts and forecasts. Its program page lists Ramakrishna Nemani as Principal Investigator at NASA Ames Research Center and places deployment at NASA Earth Exchange. Applications discussed include natural-resource management, public health and disaster management.",
+      "document": "technology.md",
+      "source_ids": [
+        "S1",
+        "S4"
+      ],
+      "evidence_text": "NASA Earthdata describes TOPS as combining ecosystem simulations with satellite measurements and surface weather observations to generate ecosystem nowcasts and forecasts. Its program page lists Ramakrishna Nemani as Principal Investigator at NASA Ames Research Center and places deployment at NASA Earth Exchange. Applications discussed include natural-resource management, public health and disaster management."
+    },
+    {
+      "id": "C08",
+      "claim": "The NASA page does not reference Niruthi. It explains a research system, while Niruthi supplies the commercial-technology linkage. The source does not establish NASA endorsement of Niruthi, employment today or a license agreement.",
+      "document": "technology.md",
+      "source_ids": [
+        "S1",
+        "S4"
+      ],
+      "evidence_text": "The NASA page does not reference Niruthi. It explains a research system, while Niruthi supplies the commercial-technology linkage. The source does not establish NASA endorsement of Niruthi, employment today or a license agreement."
+    },
+    {
+      "id": "C09",
+      "claim": "The World Bank Group GIIF interview dated 31 August 2021 describes Niruthi as an agritech business supporting crop monitoring and yield forecasting. Interviewees were Cristina Milesi, then described as Director, and Mallikarjun Kukunuri, then described as Chief Executive. GIIF reports a Gold Award in the Data & Analytics category at the 2019 Insuretech Innovation Challenge in Mumbai. It discusses smallholder farmers, financial institutions, insurers and government agencies.",
+      "document": "public-programs.md",
+      "source_ids": [
+        "S3",
+        "S5"
+      ],
+      "evidence_text": "The World Bank Group GIIF interview dated 31 August 2021 describes Niruthi as an agritech business supporting crop monitoring and yield forecasting. Interviewees were Cristina Milesi, then described as Director, and Mallikarjun Kukunuri, then described as Chief Executive. GIIF reports a Gold Award in the Data & Analytics category at the 2019 Insuretech Innovation Challenge in Mumbai. It discusses smallholder farmers, financial institutions, insurers and government agencies."
+    },
+    {
+      "id": "C10",
+      "claim": "The Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH, Yield Estimation System Based on Technology, under PMFBY from Kharif 2023. It refers readers to the YES-TECH manual for Technology Implementation Partners. This release does not name Niruthi. Program existence alone does not establish a Niruthi contract or empanelment.",
+      "document": "public-programs.md",
+      "source_ids": [
+        "S3",
+        "S5"
+      ],
+      "evidence_text": "The Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH, Yield Estimation System Based on Technology, under PMFBY from Kharif 2023. It refers readers to the YES-TECH manual for Technology Implementation Partners. This release does not name Niruthi. Program existence alone does not establish a Niruthi contract or empanelment."
+    },
+    {
+      "id": "C11",
+      "claim": "Niruthi's privacy policy displays a last-updated date of 1 March 2024. It identifies Niruthi Climate and Ecosystems Pvt. Ltd., Hyderabad, Telangana, India, and contact@niruthi.com.",
+      "document": "privacy.md",
+      "source_ids": [
+        "S2"
+      ],
+      "evidence_text": "Niruthi's privacy policy displays a last-updated date of 1 March 2024. It identifies Niruthi Climate and Ecosystems Pvt. Ltd., Hyderabad, Telangana, India, and contact@niruthi.com."
+    },
+    {
+      "id": "C12",
+      "claim": "Listed data categories include email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access and storage access. The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. It describes sharing with providers, affiliates, partners and transaction participants, while stating that personal data is not sold or shared for advertising or tracking.",
+      "document": "privacy.md",
+      "source_ids": [
+        "S2"
+      ],
+      "evidence_text": "Listed data categories include email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access and storage access. The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. It describes sharing with providers, affiliates, partners and transaction participants, while stating that personal data is not sold or shared for advertising or tracking."
+    },
+    {
+      "id": "C13",
+      "claim": "The notice lists access, correction, deletion, withdrawal of consent and complaints, with account deletion within seven working days. Retrieval on 2026-10-05 does not prove that all current operations follow this notice.",
+      "document": "privacy.md",
+      "source_ids": [
+        "S2"
+      ],
+      "evidence_text": "The notice lists access, correction, deletion, withdrawal of consent and complaints, with account deletion within seven working days. Retrieval on 2026-10-05 does not prove that all current operations follow this notice."
+    },
+    {
+      "id": "C14",
+      "claim": "This collection distinguishes company-published homepage and privacy policy statements from NASA, World Bank GIIF and Ministry of Agriculture & Farmers Welfare publications.",
+      "document": "public-source-boundaries.md",
+      "source_ids": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "evidence_text": "This collection distinguishes company-published homepage and privacy policy statements from NASA, World Bank GIIF and Ministry of Agriculture & Farmers Welfare publications."
+    },
+    {
+      "id": "C15",
+      "claim": "Niruthi's homepage calls it a Caspian portfolio company. Independent Caspian confirmation was unavailable: the attempted portfolio fetch returned HTTP 403. No investment amount is established.",
+      "document": "public-source-boundaries.md",
+      "source_ids": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "evidence_text": "Niruthi's homepage calls it a Caspian portfolio company. Independent Caspian confirmation was unavailable: the attempted portfolio fetch returned HTTP 403. No investment amount is established."
+    },
+    {
+      "id": "C16",
+      "claim": "Company marketing claims are not independently verified by this collection. Logos do not establish client contracts, and displayed certification badges do not establish certification validity. NASA's TOPS description is not a Niruthi endorsement; the reviewed PIB YES-TECH release does not name Niruthi.",
+      "document": "public-source-boundaries.md",
+      "source_ids": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "evidence_text": "Company marketing claims are not independently verified by this collection. Logos do not establish client contracts, and displayed certification badges do not establish certification validity. NASA's TOPS description is not a Niruthi endorsement; the reviewed PIB YES-TECH release does not name Niruthi."
+    },
+    {
+      "id": "C17",
+      "claim": "Current headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources. This is a limit of the collection, not a claim that the company lacks that information. Policy publication dates and source retrieval dates have different meanings.",
+      "document": "public-source-boundaries.md",
+      "source_ids": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "evidence_text": "Current headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources. This is a limit of the collection, not a claim that the company lacks that information. Policy publication dates and source retrieval dates have different meanings."
+    }
+  ],
+  "snapshot_date": "2026-10-05",
+  "source_budget_review": {
+    "homepage_derived_words_upper_bound": 174,
+    "privacy_derived_words_upper_bound": 155,
+    "method": "Sum source-specific factual paragraphs; editorial boundaries are original analysis, URLs/headers excluded. No direct prose quotations retained."
+  }
+}

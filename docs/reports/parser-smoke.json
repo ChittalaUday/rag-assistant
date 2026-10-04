@@ -1,0 +1,14 @@
+[
+  {
+    "format": ".docx",
+    "seconds": 38.193,
+    "text": "# Parser verification\n\nLena leads Project Cedar.",
+    "passed": true
+  },
+  {
+    "format": ".pdf",
+    "seconds": 99.884,
+    "text": "Lena leads Project Cedar.",
+    "passed": true
+  }
+]

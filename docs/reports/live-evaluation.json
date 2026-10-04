@@ -1,0 +1,1090 @@
+{
+  "provider": "real local Ollama",
+  "health": {
+    "status": "ok",
+    "ollama_available": true,
+    "models": [
+      "qwen3.5:9b",
+      "qwen3:1.7b",
+      "gemma3:1b",
+      "smollm2:135m",
+      "all-minilm:l6-v2",
+      "qwen3:0.6b"
+    ],
+    "chat_model": "qwen3.5:9b",
+    "embedding_model": "all-minilm:l6-v2",
+    "warnings": []
+  },
+  "metric": "Expected-term/source coverage smoke check, not semantic correctness",
+  "passed": 17,
+  "total": 30,
+  "results": [
+    {
+      "id": 1,
+      "question": "How does Niruthi describe itself on its homepage?",
+      "seconds": 3.896,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its homepage, Niruthi describes itself as a deep tech company addressing climate risk mitigation. Its public brand is Niruthi Climate & Ecosystem Services.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "ed9515a0-20e1-4310-81bf-f24b89f96260",
+          "document_id": "65f70b74-1db9-4096-bb12-874f1ea53236",
+          "document_name": "company-identity.md",
+          "text": "# Company identity\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://niruthi.com/privacy.html\n\nNiruthi describes itself as a deep tech company addressing climate risk mitigation. Its public brand is Niruthi Climate & Ecosystem Services.\n\nThe privacy policy identifies the registered entity as Niruthi Climate and Ecosystems Pvt. Ltd. in Hyderabad, Telangana, India. These are a brand and a registered legal name, respectively. The snapshot records public statements and does not establish the current legal registration independently.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "18595a090f9d5f79b0fa9f80"
+      ]
+    },
+    {
+      "id": 2,
+      "question": "Who is listed as the Founder of Niruthi?",
+      "seconds": 2.673,
+      "smoke_pass": false,
+      "keyword_coverage": 0.6666666666666666,
+      "missing_keywords": [
+        "retired NASA scientist"
+      ],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its homepage, Niruthi lists Founder Dr. Rama Nemani.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "32ad0e79-55be-4503-836b-9c5cfec78641",
+          "document_id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+          "document_name": "leadership-and-products.md",
+          "text": "# Leadership and products\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\n\nNiruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.\n\nWeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "1e0c062c76871b114a14db82"
+      ]
+    },
+    {
+      "id": 3,
+      "question": "Who is listed as CEO of Niruthi on the homepage?",
+      "seconds": 2.51,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its homepage, Niruthi lists Mallikarjun Kukunuri as Co-Founder & CEO.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "32ad0e79-55be-4503-836b-9c5cfec78641",
+          "document_id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+          "document_name": "leadership-and-products.md",
+          "text": "# Leadership and products\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\n\nNiruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.\n\nWeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "1e0c062c76871b114a14db82"
+      ]
+    },
+    {
+      "id": 4,
+      "question": "What is WeatherSnap and at what spatial resolution does the homepage describe it?",
+      "seconds": 2.801,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "WeatherSnap supplies weather information at a 2 km by 2 km grid, according to its homepage.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "32ad0e79-55be-4503-836b-9c5cfec78641",
+          "document_id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+          "document_name": "leadership-and-products.md",
+          "text": "# Leadership and products\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\n\nNiruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.\n\nWeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "92c944d643980b72292283c4"
+      ]
+    },
+    {
+      "id": 5,
+      "question": "Which NASA system does Niruthi's homepage say its approach is derived from?",
+      "seconds": 2.997,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its homepage, Niruthi says its approach is derived from NASA's Terrestrial Observation and Prediction System (TOPS).",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "db83c2bc-1e95-431a-a6cc-93e022429a1c",
+          "document_id": "a0899254-a65f-4e5e-b566-0f9f2bf87327",
+          "document_name": "technology.md",
+          "text": "# Technology\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system\n\nNiruthi says its satellite and ground-data approach is derived from NASA TOPS, the Terrestrial Observation and Prediction System.\n\nNASA Earthdata describes TOPS as combining ecosystem simulations with satellite measurements and surface weather observations to generate ecosystem nowcasts and forecasts. Its program page lists Ramakrishna Nemani as Principal Investigator at NASA Ames Research Center and places deployment at NASA Earth Exchange. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "e600b415f4c0b3c8d11af1ea"
+      ]
+    },
+    {
+      "id": 6,
+      "question": "Who is listed as the Principal Investigator of NASA TOPS?",
+      "seconds": 3.661,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its program page, Ramakrishna Nemani is listed as the Principal Investigator of NASA TOPS at NASA Ames Research Center.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "db83c2bc-1e95-431a-a6cc-93e022429a1c",
+          "document_id": "a0899254-a65f-4e5e-b566-0f9f2bf87327",
+          "document_name": "technology.md",
+          "text": "# Technology\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system\n\nNiruthi says its satellite and ground-data approach is derived from NASA TOPS, the Terrestrial Observation and Prediction System.\n\nNASA Earthdata describes TOPS as combining ecosystem simulations with satellite measurements and surface weather observations to generate ecosystem nowcasts and forecasts. Its program page lists Ramakrishna Nemani as Principal Investigator at NASA Ames Research Center and places deployment at NASA Earth Exchange. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system"
+          ]
+        },
+        {
+          "chunk_id": "d956dda7-00c7-4661-ae38-07f182f42b2c",
+          "document_id": "a0899254-a65f-4e5e-b566-0f9f2bf87327",
+          "document_name": "technology.md",
+          "text": "Its program page lists Ramakrishna Nemani as Principal Investigator at NASA Ames Research Center and places deployment at NASA Earth Exchange. Applications discussed include natural-resource management, public health and disaster management.\n\nThe NASA page does not reference Niruthi. It explains a research system, while Niruthi supplies the commercial-technology linkage. The source does not establish NASA endorsement of Niruthi, employment today or a license agreement.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "6d44b5ec6e170fcc87f8b1dc"
+      ]
+    },
+    {
+      "id": 7,
+      "question": "What recognition from GIIF does the public interview describe Niruthi receiving?",
+      "seconds": 2.5,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "The public interview describes Niruthi receiving a Gold Award in the Data & Analytics category at the 2019 Insuretech Innovation Challenge in Mumbai.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "5f0a9588-d3ee-46e3-a142-150a37133768",
+          "document_id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+          "document_name": "public-programs.md",
+          "text": "Interviewees were Cristina Milesi, then described as Director, and Mallikarjun Kukunuri, then described as Chief Executive. GIIF reports a Gold Award in the Data & Analytics category at the 2019 Insuretech Innovation Challenge in Mumbai. It discusses smallholder farmers, financial institutions, insurers and government agencies.\n\nThe Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH, Yield Estimation System Based on Technology, under PMFBY from Kharif 2023. It refers readers to the YES-TECH manual for Technology Implementation Partners. This release does not name Niruthi. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "de87640f6770721d4125426a"
+      ]
+    },
+    {
+      "id": 8,
+      "question": "What is Niruthi's registered legal entity name?",
+      "seconds": 2.391,
+      "smoke_pass": false,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 0.5,
+      "missing_sources": [
+        "privacy.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its privacy policy, Niruthi's registered legal entity name is Niruthi Climate and Ecosystems Pvt. Ltd.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "ed9515a0-20e1-4310-81bf-f24b89f96260",
+          "document_id": "65f70b74-1db9-4096-bb12-874f1ea53236",
+          "document_name": "company-identity.md",
+          "text": "# Company identity\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://niruthi.com/privacy.html\n\nNiruthi describes itself as a deep tech company addressing climate risk mitigation. Its public brand is Niruthi Climate & Ecosystem Services.\n\nThe privacy policy identifies the registered entity as Niruthi Climate and Ecosystems Pvt. Ltd. in Hyderabad, Telangana, India. These are a brand and a registered legal name, respectively. The snapshot records public statements and does not establish the current legal registration independently.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "5f3e208f9c8c31106d386ee8"
+      ]
+    },
+    {
+      "id": 9,
+      "question": "When was the Niruthi privacy policy last updated?",
+      "seconds": 2.348,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its privacy policy, Niruthi's last-updated date is 1 March 2024.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "e2e9c5e3-9390-488b-8859-6b3d25702ff6",
+          "document_id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+          "document_name": "privacy.md",
+          "text": "# Privacy policy\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/privacy.html\n\nNiruthi's privacy policy displays a last-updated date of 1 March 2024. It identifies Niruthi Climate and Ecosystems Pvt. Ltd., Hyderabad, Telangana, India, and contact@niruthi.com.\n\nListed data categories include email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access and storage access. The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "f8c2a3a535980f082db7269f"
+      ]
+    },
+    {
+      "id": 10,
+      "question": "What email contact is published on the Niruthi privacy policy?",
+      "seconds": 1.491,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 0,
+      "answer": "contact@niruthi.com",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "e2e9c5e3-9390-488b-8859-6b3d25702ff6",
+          "document_id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+          "document_name": "privacy.md",
+          "text": "# Privacy policy\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/privacy.html\n\nNiruthi's privacy policy displays a last-updated date of 1 March 2024. It identifies Niruthi Climate and Ecosystems Pvt. Ltd., Hyderabad, Telangana, India, and contact@niruthi.com.\n\nListed data categories include email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access and storage access. The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 11,
+      "question": "What categories of data does the Niruthi privacy policy describe collecting?",
+      "seconds": 2.563,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 0,
+      "answer": "According to its privacy policy, Niruthi describes collecting the following categories of data: email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access, and storage access.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "e2e9c5e3-9390-488b-8859-6b3d25702ff6",
+          "document_id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+          "document_name": "privacy.md",
+          "text": "# Privacy policy\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/privacy.html\n\nNiruthi's privacy policy displays a last-updated date of 1 March 2024. It identifies Niruthi Climate and Ecosystems Pvt. Ltd., Hyderabad, Telangana, India, and contact@niruthi.com.\n\nListed data categories include email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access and storage access. The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 12,
+      "question": "Which Indian ministry's press release confirms YES-TECH under PMFBY?",
+      "seconds": 3.14,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 2,
+      "answer": "The Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH under PMFBY from Kharif 2023.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "5f0a9588-d3ee-46e3-a142-150a37133768",
+          "document_id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+          "document_name": "public-programs.md",
+          "text": "Interviewees were Cristina Milesi, then described as Director, and Mallikarjun Kukunuri, then described as Chief Executive. GIIF reports a Gold Award in the Data & Analytics category at the 2019 Insuretech Innovation Challenge in Mumbai. It discusses smallholder farmers, financial institutions, insurers and government agencies.\n\nThe Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH, Yield Estimation System Based on Technology, under PMFBY from Kharif 2023. It refers readers to the YES-TECH manual for Technology Implementation Partners. This release does not name Niruthi. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "33e065818a493dc3497f9d37",
+        "a2bd9b4fd13a02cd9285bf6d"
+      ]
+    },
+    {
+      "id": 13,
+      "question": "How does Niruthi's public-facing brand name differ from its registered legal name?",
+      "seconds": 2.802,
+      "smoke_pass": false,
+      "keyword_coverage": 0.0,
+      "missing_keywords": [
+        "Niruthi Climate & Ecosystem Services",
+        "Niruthi Climate and Ecosystems Pvt. Ltd."
+      ],
+      "source_coverage": 0.0,
+      "missing_sources": [
+        "company-identity.md",
+        "privacy.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": true,
+      "highlighted_edges": 0,
+      "answer": "I could not find supporting evidence in the uploaded documents.",
+      "warnings": [
+        "Discarded unsupported relationship highlights"
+      ],
+      "citations": [],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 14,
+      "question": "Which Niruthi leaders were interviewed by GIIF and what roles does the homepage list for them?",
+      "seconds": 4.086,
+      "smoke_pass": false,
+      "keyword_coverage": 0.5,
+      "missing_keywords": [
+        "CSO",
+        "CEO"
+      ],
+      "source_coverage": 0.5,
+      "missing_sources": [
+        "leadership-and-products.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to the World Bank Group GIIF interview dated 31 August 2021, the leaders interviewed were Cristina Milesi (then described as Director) and Mallikarjun Kukunuri (then described as Chief Executive). The provided sources do not list roles for these individuals on Niruthi's homepage.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "a7ecc9ca-4f97-4204-bad9-1f7c68aa92fc",
+          "document_id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+          "document_name": "public-programs.md",
+          "text": "# Public programs and recognition\n\nSnapshot: 2026-10-05\nSource: https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers\nSource: https://pib.gov.in/PressReleasePage.aspx?PRID=2085179\n\nThe World Bank Group GIIF interview dated 31 August 2021 describes Niruthi as an agritech business supporting crop monitoring and yield forecasting. Interviewees were Cristina Milesi, then described as Director, and Mallikarjun Kukunuri, then described as Chief Executive. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        },
+        {
+          "chunk_id": "5f0a9588-d3ee-46e3-a142-150a37133768",
+          "document_id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+          "document_name": "public-programs.md",
+          "text": "Interviewees were Cristina Milesi, then described as Director, and Mallikarjun Kukunuri, then described as Chief Executive. GIIF reports a Gold Award in the Data & Analytics category at the 2019 Insuretech Innovation Challenge in Mumbai. It discusses smallholder farmers, financial institutions, insurers and government agencies.\n\nThe Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH, Yield Estimation System Based on Technology, under PMFBY from Kharif 2023. It refers readers to the YES-TECH manual for Technology Implementation Partners. This release does not name Niruthi. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "c0edbce7e49fcf108d4b98eb"
+      ]
+    },
+    {
+      "id": 15,
+      "question": "What is the relationship between NASA TOPS and the technology Niruthi describes on its homepage?",
+      "seconds": 3.605,
+      "smoke_pass": false,
+      "keyword_coverage": 0.0,
+      "missing_keywords": [
+        "TOPS",
+        "satellite",
+        "Nemani",
+        "derived"
+      ],
+      "source_coverage": 0.0,
+      "missing_sources": [
+        "leadership-and-products.md",
+        "technology.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": true,
+      "highlighted_edges": 0,
+      "answer": "I could not find supporting evidence in the uploaded documents.",
+      "warnings": [
+        "Discarded unsupported relationship highlights"
+      ],
+      "citations": [],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 16,
+      "question": "Which Niruthi products relate to the crop monitoring and yield forecasting described in the GIIF interview?",
+      "seconds": 2.544,
+      "smoke_pass": false,
+      "keyword_coverage": 0.75,
+      "missing_keywords": [
+        "WeatherSnap"
+      ],
+      "source_coverage": 0.5,
+      "missing_sources": [
+        "public-programs.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its homepage, Niruthi lists CropSnap as the product that addresses crop monitoring and yield forecasting.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "32ad0e79-55be-4503-836b-9c5cfec78641",
+          "document_id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+          "document_name": "leadership-and-products.md",
+          "text": "# Leadership and products\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\n\nNiruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.\n\nWeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "4c0f5cdcc116ec4d6a530488"
+      ]
+    },
+    {
+      "id": 17,
+      "question": "How does GIIF characterize Niruthi, and where does its privacy policy place the registered entity?",
+      "seconds": 4.925,
+      "smoke_pass": false,
+      "keyword_coverage": 0.6666666666666666,
+      "missing_keywords": [
+        "agritech"
+      ],
+      "source_coverage": 0.5,
+      "missing_sources": [
+        "public-programs.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 2,
+      "answer": "According to its homepage, Niruthi describes itself as a deep tech company addressing climate risk mitigation with the public brand 'Niruthi Climate & Ecosystem Services'. According to its privacy policy, the registered entity is identified as 'Niruthi Climate and Ecosystems Pvt. Ltd.' in Hyderabad, Telangana, India.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "ed9515a0-20e1-4310-81bf-f24b89f96260",
+          "document_id": "65f70b74-1db9-4096-bb12-874f1ea53236",
+          "document_name": "company-identity.md",
+          "text": "# Company identity\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://niruthi.com/privacy.html\n\nNiruthi describes itself as a deep tech company addressing climate risk mitigation. Its public brand is Niruthi Climate & Ecosystem Services.\n\nThe privacy policy identifies the registered entity as Niruthi Climate and Ecosystems Pvt. Ltd. in Hyderabad, Telangana, India. These are a brand and a registered legal name, respectively. The snapshot records public statements and does not establish the current legal registration independently.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html"
+          ]
+        },
+        {
+          "chunk_id": "e2e9c5e3-9390-488b-8859-6b3d25702ff6",
+          "document_id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+          "document_name": "privacy.md",
+          "text": "# Privacy policy\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/privacy.html\n\nNiruthi's privacy policy displays a last-updated date of 1 March 2024. It identifies Niruthi Climate and Ecosystems Pvt. Ltd., Hyderabad, Telangana, India, and contact@niruthi.com.\n\nListed data categories include email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access and storage access. The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "18595a090f9d5f79b0fa9f80",
+        "5f3e208f9c8c31106d386ee8"
+      ]
+    },
+    {
+      "id": 18,
+      "question": "What does the PIB press release say about YES-TECH, and how is Niruthi's role described relative to it in our sources?",
+      "seconds": 6.259,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 3,
+      "answer": "The Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH (Yield Estimation System Based on Technology) under PMFBY from Kharif 2023 and refers readers to the YES-TECH manual for Technology Implementation Partners. This release does not name Niruthi.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "5f0a9588-d3ee-46e3-a142-150a37133768",
+          "document_id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+          "document_name": "public-programs.md",
+          "text": "Interviewees were Cristina Milesi, then described as Director, and Mallikarjun Kukunuri, then described as Chief Executive. GIIF reports a Gold Award in the Data & Analytics category at the 2019 Insuretech Innovation Challenge in Mumbai. It discusses smallholder farmers, financial institutions, insurers and government agencies.\n\nThe Ministry of Agriculture & Farmers Welfare PIB release dated 17 December 2024 describes YES-TECH, Yield Estimation System Based on Technology, under PMFBY from Kharif 2023. It refers readers to the YES-TECH manual for Technology Implementation Partners. This release does not name Niruthi. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        },
+        {
+          "chunk_id": "6b6398e9-ae15-4872-a26c-622b3357a34f",
+          "document_id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+          "document_name": "public-source-boundaries.md",
+          "text": "Logos do not establish client contracts, and displayed certification badges do not establish certification validity. NASA's TOPS description is not a Niruthi endorsement; the reviewed PIB YES-TECH release does not name Niruthi.\n\nCurrent headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources. This is a limit of the collection, not a claim that the company lacks that information. Policy publication dates and source retrieval dates have different meanings.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html",
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        },
+        {
+          "chunk_id": "455190c3-c710-42ef-a161-0501fe36d299",
+          "document_id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+          "document_name": "public-programs.md",
+          "text": "This release does not name Niruthi. Program existence alone does not establish a Niruthi contract or empanelment.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "33e065818a493dc3497f9d37",
+        "b4547767a78a5763157ad50c",
+        "b95a756de6c1f456592708ea"
+      ]
+    },
+    {
+      "id": 19,
+      "question": "Which of the sources used in this collection are primary government or international-organization sources, and which are company-published?",
+      "seconds": 3.287,
+      "smoke_pass": false,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 0.3333333333333333,
+      "missing_sources": [
+        "public-programs.md",
+        "technology.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 0,
+      "answer": "The primary government or international-organization sources are NASA (via the Earthdata source), the World Bank GIIF, and the Ministry of Agriculture & Farmers Welfare (via PIB). The company-published sources are Niruthi's homepage and privacy policy.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "f89069da-d062-47de-a90d-2d94dc4f89f8",
+          "document_id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+          "document_name": "public-source-boundaries.md",
+          "text": "# Public source boundaries\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://niruthi.com/privacy.html\nSource: https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers\nSource: https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system\nSource: https://pib.gov.in/PressReleasePage.aspx?PRID=2085179\n\nThis collection distinguishes company-published homepage and privacy policy statements from NASA, World Bank GIIF and Ministry of Agriculture & Farmers Welfare publications.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html",
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        },
+        {
+          "chunk_id": "2c6604ff-a9da-49eb-82e5-96783f0b8ad9",
+          "document_id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+          "document_name": "public-source-boundaries.md",
+          "text": "This collection distinguishes company-published homepage and privacy policy statements from NASA, World Bank GIIF and Ministry of Agriculture & Farmers Welfare publications.\n\nNiruthi's homepage calls it a Caspian portfolio company. Independent Caspian confirmation was unavailable: the attempted portfolio fetch returned HTTP 403. No investment amount is established.\n\nCompany marketing claims are not independently verified by this collection. Logos do not establish client contracts, and displayed certification badges do not establish certification validity. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html",
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 20,
+      "question": "What is Niruthi's current headcount?",
+      "seconds": 1.894,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": true,
+      "highlighted_edges": 0,
+      "answer": "According to the reviewed public sources, Niruthi's current headcount is not established.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "6b6398e9-ae15-4872-a26c-622b3357a34f",
+          "document_id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+          "document_name": "public-source-boundaries.md",
+          "text": "Logos do not establish client contracts, and displayed certification badges do not establish certification validity. NASA's TOPS description is not a Niruthi endorsement; the reviewed PIB YES-TECH release does not name Niruthi.\n\nCurrent headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources. This is a limit of the collection, not a claim that the company lacks that information. Policy publication dates and source retrieval dates have different meanings.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html",
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 21,
+      "question": "What is Niruthi's annual revenue?",
+      "seconds": 1.643,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": true,
+      "highlighted_edges": 0,
+      "answer": "I could not find supporting evidence in the uploaded documents.",
+      "warnings": [],
+      "citations": [],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 22,
+      "question": "What is the average salary at Niruthi?",
+      "seconds": 1.071,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": true,
+      "highlighted_edges": 0,
+      "answer": "I could not find supporting evidence in the uploaded documents.",
+      "warnings": [],
+      "citations": [],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 23,
+      "question": "What is Niruthi's employee leave policy?",
+      "seconds": 2.437,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": true,
+      "highlighted_edges": 0,
+      "answer": "According to the reviewed public sources, Niruthi's employee leave policy is not established. The collection explicitly states that current headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "6b6398e9-ae15-4872-a26c-622b3357a34f",
+          "document_id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+          "document_name": "public-source-boundaries.md",
+          "text": "Logos do not establish client contracts, and displayed certification badges do not establish certification validity. NASA's TOPS description is not a Niruthi endorsement; the reviewed PIB YES-TECH release does not name Niruthi.\n\nCurrent headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources. This is a limit of the collection, not a claim that the company lacks that information. Policy publication dates and source retrieval dates have different meanings.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html",
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": []
+    },
+    {
+      "id": 24,
+      "question": "What is her role at Niruthi?",
+      "seconds": 2.333,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to Niruthi's homepage, Cristina Milesi is listed as Co-Founder & CSO, Scientific R&D.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "32ad0e79-55be-4503-836b-9c5cfec78641",
+          "document_id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+          "document_name": "leadership-and-products.md",
+          "text": "# Leadership and products\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\n\nNiruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.\n\nWeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "1e0c062c76871b114a14db82"
+      ]
+    },
+    {
+      "id": 25,
+      "question": "What company did he found?",
+      "seconds": 2.118,
+      "smoke_pass": false,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 0.5,
+      "missing_sources": [
+        "company-identity.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its homepage, Niruthi lists Founder Dr. Rama Nemani.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "32ad0e79-55be-4503-836b-9c5cfec78641",
+          "document_id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+          "document_name": "leadership-and-products.md",
+          "text": "# Leadership and products\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\n\nNiruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.\n\nWeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "1e0c062c76871b114a14db82"
+      ]
+    },
+    {
+      "id": 26,
+      "question": "Which research center is named alongside him in that program source?",
+      "seconds": 3.115,
+      "smoke_pass": false,
+      "keyword_coverage": 0.5,
+      "missing_keywords": [
+        "Ames Research Center"
+      ],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 2,
+      "answer": "NASA Earth Exchange",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "db83c2bc-1e95-431a-a6cc-93e022429a1c",
+          "document_id": "a0899254-a65f-4e5e-b566-0f9f2bf87327",
+          "document_name": "technology.md",
+          "text": "# Technology\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system\n\nNiruthi says its satellite and ground-data approach is derived from NASA TOPS, the Terrestrial Observation and Prediction System.\n\nNASA Earthdata describes TOPS as combining ecosystem simulations with satellite measurements and surface weather observations to generate ecosystem nowcasts and forecasts. Its program page lists Ramakrishna Nemani as Principal Investigator at NASA Ames Research Center and places deployment at NASA Earth Exchange. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system"
+          ]
+        },
+        {
+          "chunk_id": "d956dda7-00c7-4661-ae38-07f182f42b2c",
+          "document_id": "a0899254-a65f-4e5e-b566-0f9f2bf87327",
+          "document_name": "technology.md",
+          "text": "Its program page lists Ramakrishna Nemani as Principal Investigator at NASA Ames Research Center and places deployment at NASA Earth Exchange. Applications discussed include natural-resource management, public health and disaster management.\n\nThe NASA page does not reference Niruthi. It explains a research system, while Niruthi supplies the commercial-technology linkage. The source does not establish NASA endorsement of Niruthi, employment today or a license agreement.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "0de2e11e7c602a7eb467b134",
+        "6d44b5ec6e170fcc87f8b1dc"
+      ]
+    },
+    {
+      "id": 27,
+      "question": "At what spatial grid does it provide data?",
+      "seconds": 2.24,
+      "smoke_pass": true,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "According to its homepage, WeatherSnap provides data at a 2 km by 2 km grid.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "32ad0e79-55be-4503-836b-9c5cfec78641",
+          "document_id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+          "document_name": "leadership-and-products.md",
+          "text": "# Leadership and products\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\n\nNiruthi lists Founder Dr. Rama Nemani, a retired NASA scientist; Co-Founder & CEO Mallikarjun Kukunuri; Co-Founder & CSO Dr. Cristina Milesi, Scientific R&D; Deputy CEO Arun Balla, Operations; CTO Shiva Ram Krishna; CPO Dr. Makarand Kulkarni; CGO Raj Patnaik; and Commodities Desk Head Suresh Mudragiri.\n\nWeatherSnap supplies weather information at a 2 km by 2 km grid. CropSnap addresses crop monitoring and yield forecasting. InfestSnap addresses pests and diseases. CommSnap addresses commodities. FinSnap addresses farm credit scoring.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "92c944d643980b72292283c4"
+      ]
+    },
+    {
+      "id": 28,
+      "question": "Does Niruthi use one name for its public brand and a different name for its legal registration?",
+      "seconds": 3.043,
+      "smoke_pass": false,
+      "keyword_coverage": 0.25,
+      "missing_keywords": [
+        "Niruthi Climate & Ecosystem Services",
+        "Niruthi Climate and Ecosystems Pvt. Ltd.",
+        "registered"
+      ],
+      "source_coverage": 0.3333333333333333,
+      "missing_sources": [
+        "privacy.md",
+        "public-source-boundaries.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 2,
+      "answer": "Yes, Niruthi uses one name for its public brand and a different name for its legal registration.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "ed9515a0-20e1-4310-81bf-f24b89f96260",
+          "document_id": "65f70b74-1db9-4096-bb12-874f1ea53236",
+          "document_name": "company-identity.md",
+          "text": "# Company identity\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/\nSource: https://niruthi.com/privacy.html\n\nNiruthi describes itself as a deep tech company addressing climate risk mitigation. Its public brand is Niruthi Climate & Ecosystem Services.\n\nThe privacy policy identifies the registered entity as Niruthi Climate and Ecosystems Pvt. Ltd. in Hyderabad, Telangana, India. These are a brand and a registered legal name, respectively. The snapshot records public statements and does not establish the current legal registration independently.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "18595a090f9d5f79b0fa9f80",
+        "5f3e208f9c8c31106d386ee8"
+      ]
+    },
+    {
+      "id": 29,
+      "question": "Can the company marketing claims or displayed certification badges be treated as independently verified facts in this collection?",
+      "seconds": 3.805,
+      "smoke_pass": false,
+      "keyword_coverage": 0.3333333333333333,
+      "missing_keywords": [
+        "not independently verified",
+        "certification validity"
+      ],
+      "source_coverage": 1.0,
+      "missing_sources": [],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 2,
+      "answer": "No, company marketing claims and displayed certification badges cannot be treated as independently verified facts in this collection.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "2c6604ff-a9da-49eb-82e5-96783f0b8ad9",
+          "document_id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+          "document_name": "public-source-boundaries.md",
+          "text": "This collection distinguishes company-published homepage and privacy policy statements from NASA, World Bank GIIF and Ministry of Agriculture & Farmers Welfare publications.\n\nNiruthi's homepage calls it a Caspian portfolio company. Independent Caspian confirmation was unavailable: the attempted portfolio fetch returned HTTP 403. No investment amount is established.\n\nCompany marketing claims are not independently verified by this collection. Logos do not establish client contracts, and displayed certification badges do not establish certification validity. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html",
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        },
+        {
+          "chunk_id": "6b6398e9-ae15-4872-a26c-622b3357a34f",
+          "document_id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+          "document_name": "public-source-boundaries.md",
+          "text": "Logos do not establish client contracts, and displayed certification badges do not establish certification validity. NASA's TOPS description is not a Niruthi endorsement; the reviewed PIB YES-TECH release does not name Niruthi.\n\nCurrent headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources. This is a limit of the collection, not a claim that the company lacks that information. Policy publication dates and source retrieval dates have different meanings.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/",
+            "https://niruthi.com/privacy.html",
+            "https://www.globalinclusiveinsuranceforum.org/multimedia/niruthi-how-does-niruthi-uses-technology-improve-livelihoods-smallholder-farmers",
+            "https://www.earthdata.nasa.gov/about/competitive-programs/access/terrestrial-observation-prediction-system",
+            "https://pib.gov.in/PressReleasePage.aspx?PRID=2085179"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "0fc0394ff071fb4d20986844",
+        "9a992792413e645c2124aa23"
+      ]
+    },
+    {
+      "id": 30,
+      "question": "The privacy policy is dated 1 March 2024. Can we treat it as current as of today without further checking?",
+      "seconds": 3.847,
+      "smoke_pass": false,
+      "keyword_coverage": 1.0,
+      "missing_keywords": [],
+      "source_coverage": 0.5,
+      "missing_sources": [
+        "public-source-boundaries.md"
+      ],
+      "invalid_evidence": [],
+      "abstained": false,
+      "highlighted_edges": 1,
+      "answer": "No, we cannot treat the privacy policy dated 1 March 2024 as current without further checking. The source explicitly states that retrieval on 2026-10-05 does not prove that all current operations follow this notice.",
+      "warnings": [],
+      "citations": [
+        {
+          "chunk_id": "e2e9c5e3-9390-488b-8859-6b3d25702ff6",
+          "document_id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+          "document_name": "privacy.md",
+          "text": "# Privacy policy\n\nSnapshot: 2026-10-05\nSource: https://niruthi.com/privacy.html\n\nNiruthi's privacy policy displays a last-updated date of 1 March 2024. It identifies Niruthi Climate and Ecosystems Pvt. Ltd., Hyderabad, Telangana, India, and contact@niruthi.com.\n\nListed data categories include email, name, phone number, IP address, browser information, location, usage analytics, device sensor data, camera access and storage access. The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. ",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/privacy.html"
+          ]
+        },
+        {
+          "chunk_id": "15ed67e1-0ca0-420e-98fa-b5543ae0cf34",
+          "document_id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+          "document_name": "privacy.md",
+          "text": "The policy describes service delivery, account management, contract performance, user contact and improvements as processing purposes. It describes sharing with providers, affiliates, partners and transaction participants, while stating that personal data is not sold or shared for advertising or tracking.\n\nThe notice lists access, correction, deletion, withdrawal of consent and complaints, with account deletion within seven working days. Retrieval on 2026-10-05 does not prove that all current operations follow this notice.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": [
+            "https://niruthi.com/privacy.html"
+          ]
+        }
+      ],
+      "highlighted_edge_ids": [
+        "f8c2a3a535980f082db7269f"
+      ]
+    }
+  ]
+}

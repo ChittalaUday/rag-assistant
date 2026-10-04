@@ -1,0 +1,87 @@
+{
+  "documents": [
+    {
+      "id": "65f70b74-1db9-4096-bb12-874f1ea53236",
+      "name": "company-identity.md",
+      "content_hash": "3bef00b466798e2fb10e0d2c4ec071e417fa05d2a04bf3c4145297d973759bf4",
+      "status": "ready",
+      "chunk_count": 1,
+      "created_at": "2026-10-04T19:25:31.677794+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+      "name": "leadership-and-products.md",
+      "content_hash": "91d5a1cc95592f5063f6258f29572f342d45583f07aafac6889f194547e7706a",
+      "status": "ready",
+      "chunk_count": 2,
+      "created_at": "2026-10-04T19:25:31.682566+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+      "name": "privacy.md",
+      "content_hash": "20fa9f756d303d7bd1758dafd9cfefa3f9d47ab0e266fe03cef0e395f99c433e",
+      "status": "ready",
+      "chunk_count": 2,
+      "created_at": "2026-10-04T19:25:31.683213+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+      "name": "public-programs.md",
+      "content_hash": "82648f10953fc3f16e08f3196ea8e4e63b2949d5c7c0ef2f120e8937354df823",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-04T19:25:31.683632+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+      "name": "public-source-boundaries.md",
+      "content_hash": "43fc23013ae2eae54d84f9bee59df4fb64e00ecec9148f407175e5e179fd81fc",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-04T19:25:31.683912+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "a0899254-a65f-4e5e-b566-0f9f2bf87327",
+      "name": "technology.md",
+      "content_hash": "322cb3c74c1efab8bda8ff6d38cc2ee1f3988416203b00f1c03954e4794df55c",
+      "status": "ready",
+      "chunk_count": 2,
+      "created_at": "2026-10-04T19:25:31.684160+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    }
+  ],
+  "chunks": 13,
+  "nodes": 121,
+  "edges": 47,
+  "invalid_evidence": [],
+  "ingestion_monitor_seconds": 240.291
+}

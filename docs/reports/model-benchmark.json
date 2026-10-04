@@ -1,0 +1,527 @@
+{
+  "chat_model": "qwen3.5:9b",
+  "embedding_model": "all-minilm:l6-v2",
+  "lightrag_version": "1.5.7",
+  "calls": [
+    {
+      "kind": "embedding",
+      "seconds": 0.6644804590032436,
+      "count": 1,
+      "dimensions": 384,
+      "prompt_eval_count": 12
+    },
+    {
+      "kind": "chat",
+      "seconds": 6.903705750009976,
+      "prompt_eval_count": 44,
+      "eval_count": 48,
+      "output": "[{\"source\":\"Dev Shah\",\"target\":\"Beacon\",\"relation\":\"owns\",\"quote\":\"Dev Shah owns Beacon.\"},{\"source\":\"Mira Chen\",\"target\":\"Platform\",\"relation\":\"leads\",\"quote\":\"Mira Chen leads Platform.\"}]"
+    },
+    {
+      "kind": "chat",
+      "seconds": 7.296488000021782,
+      "prompt_eval_count": 1856,
+      "eval_count": 226,
+      "output": "entity<|#|>Northstar Signal<|#|>Organization<|#|>An organization that builds industrial telemetry.\nentity<|#|>Dev Shah<|#|>Person<|#|>A person who owns Beacon.\nentity<|#|>Beacon<|#|>Organization<|#|>An organization that monitors cold-chain sensor streams for customer Alder Foods.\nentity<|#|>Alder Foods<|#|>Organization<|#|>A customer for whom Beacon monitors cold-chain sensor streams.\nrelation<|#|>Dev Shah<|#|>Beacon<|#|>ownership, possession<|#|>Dev Shah owns Beacon.\nrelation<|#|>Beacon<|#|>Alder Foods<|#|>monitoring, service provision<|#|>Beacon monitors cold-chain sensor streams for Alder Foods.\nrelation<|#|>Northstar Signal<|#|>Beacon<|#|>industrial telemetry building, product development<|#|>Northstar Signal builds industrial telemetry which is utilized by Beacon.\n<|COMPLETE|>"
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.6330350830103271,
+      "count": 1,
+      "dimensions": 384,
+      "prompt_eval_count": 29
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.6440382500295527,
+      "count": 3,
+      "dimensions": 384,
+      "prompt_eval_count": 63
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.6521432080189697,
+      "count": 4,
+      "dimensions": 384,
+      "prompt_eval_count": 59
+    },
+    {
+      "kind": "chat",
+      "seconds": 9.240538333018776,
+      "prompt_eval_count": 1864,
+      "eval_count": 378,
+      "output": "entity<|#|>Alder Foods<|#|>Organization<|#|>A company that operates a depot in Pune and runs the Beacon pilot project.\nentity<|#|>Beacon<|#|>Event<|#|>A pilot project run by Alder Foods at its Pune depot.\nentity<|#|>Pune<|#|>Location<|#|>A city where Alder Foods operates a depot and runs the Beacon pilot.\nentity<|#|>HarborLink<|#|>Artifact<|#|>Gateways used in the Beacon pilot project.\nentity<|#|>Kestrel Systems<|#|>Organization<|#|>A vendor that supplies HarborLink gateways for the Beacon pilot.\nentity<|#|>Dev Shah<|#|>Person<|#|>An individual who approves releases for the Beacon pilot.\nrelation<|#|>Alder Foods<|#|>Beacon<|#|>runs, operates<|#|>Alder Foods runs the Beacon pilot at its Pune depot.\nrelation<|#|>Beacon<|#|>Pune<|#|>located at<|#|>The Beacon pilot is run at Alder Foods' Pune depot.\nrelation<|#|>Beacon<|#|>HarborLink<|#|>uses, utilizes<|#|>The Beacon pilot uses HarborLink gateways.\nrelation<|#|>HarborLink<|#|>Kestrel Systems<|#|>supplied by, provided by<|#|>HarborLink gateways are supplied by Kestrel Systems.\nrelation<|#|>Beacon<|#|>Dev Shah<|#|>approved by, overseen by<|#|>Dev Shah approves releases for the Beacon pilot.\n<|COMPLETE|>"
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.11065420799423009,
+      "count": 5,
+      "dimensions": 384,
+      "prompt_eval_count": 132
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.11318345798645169,
+      "count": 6,
+      "dimensions": 384,
+      "prompt_eval_count": 142
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.11548945802496746,
+      "count": 1,
+      "dimensions": 384,
+      "prompt_eval_count": 34
+    },
+    {
+      "kind": "chat",
+      "seconds": 1.7216697910334915,
+      "prompt_eval_count": 669,
+      "eval_count": 37,
+      "output": "{\n  \"high_level_keywords\": [\"ownership\", \"customer pilots\", \"vendor supply\"],\n  \"low_level_keywords\": [\"Beacon\", \"gateways\"]\n}"
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.03170187503565103,
+      "count": 3,
+      "dimensions": 384,
+      "prompt_eval_count": 34
+    },
+    {
+      "kind": "chat",
+      "seconds": 4.835010249982588,
+      "prompt_eval_count": 1309,
+      "eval_count": 156,
+      "output": "Based on the provided context, here are the details regarding the ownership, customers, and vendors associated with the Beacon project:\n\n*   **Owner:** The entity known as **Beacon** is owned by **Dev Shah**. Dev Shah also holds the responsibility of approving releases for the pilot project.\n*   **Customer:** The customer that pilots Beacon is **Alder Foods**. Specifically, Alder Foods runs the Beacon pilot at its depot located in Pune. Beacon monitors cold-chain sensor streams specifically for this customer.\n*   **Gateway Vendor:** The gateways used in the Beacon pilot are called **HarborLink**, and they are supplied by the vendor **Kestrel Systems**.\n\n### References\n\n- [1] company.md\n- [2] pilot.md"
+    },
+    {
+      "kind": "chat",
+      "seconds": 1.1816120409639552,
+      "prompt_eval_count": 660,
+      "eval_count": 29,
+      "output": "{\n  \"high_level_keywords\": [\"pilot\", \"customer location\"],\n  \"low_level_keywords\": [\"customer\"]\n}"
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.01328849996207282,
+      "count": 3,
+      "dimensions": 384,
+      "prompt_eval_count": 19
+    },
+    {
+      "kind": "chat",
+      "seconds": 2.37986774998717,
+      "prompt_eval_count": 1482,
+      "eval_count": 39,
+      "output": "The customer, **Alder Foods**, runs its Beacon pilot at its depot located in **Pune**.\n\n### References\n\n- [1] pilot.md\n- [2] company.md"
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.01446199999190867,
+      "count": 3,
+      "dimensions": 384,
+      "prompt_eval_count": 45
+    },
+    {
+      "kind": "embedding",
+      "seconds": 0.018336332985199988,
+      "count": 2,
+      "dimensions": 384,
+      "prompt_eval_count": 35
+    }
+  ],
+  "operations": {
+    "structured_extraction": "[{\"source\":\"Dev Shah\",\"target\":\"Beacon\",\"relation\":\"owns\",\"quote\":\"Dev Shah owns Beacon.\"},{\"source\":\"Mira Chen\",\"target\":\"Platform\",\"relation\":\"leads\",\"quote\":\"Mira Chen leads Platform.\"}]",
+    "insert_seconds": 17.4457497500116,
+    "graph": {
+      "nodes": [
+        {
+          "id": "Northstar Signal",
+          "labels": [
+            "Northstar Signal"
+          ],
+          "properties": {
+            "entity_id": "Northstar Signal",
+            "entity_type": "organization",
+            "description": "An organization that builds industrial telemetry.",
+            "source_id": "probe-company-chunk-000",
+            "file_path": "company.md",
+            "created_at": 1791140153,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Dev Shah",
+          "labels": [
+            "Dev Shah"
+          ],
+          "properties": {
+            "entity_id": "Dev Shah",
+            "entity_type": "person",
+            "description": "A person who owns Beacon.<SEP>An individual who approves releases for the Beacon pilot.",
+            "source_id": "probe-company-chunk-000<SEP>probe-pilot-chunk-000",
+            "file_path": "company.md<SEP>pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Beacon",
+          "labels": [
+            "Beacon"
+          ],
+          "properties": {
+            "entity_id": "Beacon",
+            "entity_type": "event",
+            "description": "An organization that monitors cold-chain sensor streams for customer Alder Foods.<SEP>A pilot project run by Alder Foods at its Pune depot.",
+            "source_id": "probe-company-chunk-000<SEP>probe-pilot-chunk-000",
+            "file_path": "company.md<SEP>pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Alder Foods",
+          "labels": [
+            "Alder Foods"
+          ],
+          "properties": {
+            "entity_id": "Alder Foods",
+            "entity_type": "organization",
+            "description": "A customer for whom Beacon monitors cold-chain sensor streams.<SEP>A company that operates a depot in Pune and runs the Beacon pilot project.",
+            "source_id": "probe-company-chunk-000<SEP>probe-pilot-chunk-000",
+            "file_path": "company.md<SEP>pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Pune",
+          "labels": [
+            "Pune"
+          ],
+          "properties": {
+            "entity_id": "Pune",
+            "entity_type": "location",
+            "description": "A city where Alder Foods operates a depot and runs the Beacon pilot.",
+            "source_id": "probe-pilot-chunk-000",
+            "file_path": "pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "HarborLink",
+          "labels": [
+            "HarborLink"
+          ],
+          "properties": {
+            "entity_id": "HarborLink",
+            "entity_type": "artifact",
+            "description": "Gateways used in the Beacon pilot project.",
+            "source_id": "probe-pilot-chunk-000",
+            "file_path": "pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Kestrel Systems",
+          "labels": [
+            "Kestrel Systems"
+          ],
+          "properties": {
+            "entity_id": "Kestrel Systems",
+            "entity_type": "organization",
+            "description": "A vendor that supplies HarborLink gateways for the Beacon pilot.",
+            "source_id": "probe-pilot-chunk-000",
+            "file_path": "pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "Beacon-Northstar Signal",
+          "type": "DIRECTED",
+          "source": "Beacon",
+          "target": "Northstar Signal",
+          "properties": {
+            "weight": 1.0,
+            "description": "Northstar Signal builds industrial telemetry which is utilized by Beacon.",
+            "keywords": "industrial telemetry building,product development",
+            "source_id": "probe-company-chunk-000",
+            "file_path": "company.md",
+            "created_at": 1791140153,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Beacon-Dev Shah",
+          "type": "DIRECTED",
+          "source": "Beacon",
+          "target": "Dev Shah",
+          "properties": {
+            "weight": 2.0,
+            "description": "Dev Shah owns Beacon.<SEP>Dev Shah approves releases for the Beacon pilot.",
+            "keywords": "approved by,overseen by,ownership,possession",
+            "source_id": "probe-company-chunk-000<SEP>probe-pilot-chunk-000",
+            "file_path": "company.md<SEP>pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Alder Foods-Beacon",
+          "type": "DIRECTED",
+          "source": "Alder Foods",
+          "target": "Beacon",
+          "properties": {
+            "weight": 2.0,
+            "description": "Beacon monitors cold-chain sensor streams for Alder Foods.<SEP>Alder Foods runs the Beacon pilot at its Pune depot.",
+            "keywords": "monitoring,operates,runs,service provision",
+            "source_id": "probe-company-chunk-000<SEP>probe-pilot-chunk-000",
+            "file_path": "company.md<SEP>pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Beacon-Pune",
+          "type": "DIRECTED",
+          "source": "Beacon",
+          "target": "Pune",
+          "properties": {
+            "weight": 1.0,
+            "description": "The Beacon pilot is run at Alder Foods' Pune depot.",
+            "keywords": "located at",
+            "source_id": "probe-pilot-chunk-000",
+            "file_path": "pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "Beacon-HarborLink",
+          "type": "DIRECTED",
+          "source": "Beacon",
+          "target": "HarborLink",
+          "properties": {
+            "weight": 1.0,
+            "description": "The Beacon pilot uses HarborLink gateways.",
+            "keywords": "uses,utilizes",
+            "source_id": "probe-pilot-chunk-000",
+            "file_path": "pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        },
+        {
+          "id": "HarborLink-Kestrel Systems",
+          "type": "DIRECTED",
+          "source": "HarborLink",
+          "target": "Kestrel Systems",
+          "properties": {
+            "weight": 1.0,
+            "description": "HarborLink gateways are supplied by Kestrel Systems.",
+            "keywords": "provided by,supplied by",
+            "source_id": "probe-pilot-chunk-000",
+            "file_path": "pilot.md",
+            "created_at": 1791140162,
+            "truncate": ""
+          }
+        }
+      ],
+      "is_truncated": false
+    },
+    "query": {
+      "seconds": 6.608598541002721,
+      "question": "Who owns Beacon, which customer pilots it, and which vendor supplies its gateways?",
+      "answer": "Based on the provided context, here are the details regarding the ownership, customers, and vendors associated with the Beacon project:\n\n*   **Owner:** The entity known as **Beacon** is owned by **Dev Shah**. Dev Shah also holds the responsibility of approving releases for the pilot project.\n*   **Customer:** The customer that pilots Beacon is **Alder Foods**. Specifically, Alder Foods runs the Beacon pilot at its depot located in Pune. Beacon monitors cold-chain sensor streams specifically for this customer.\n*   **Gateway Vendor:** The gateways used in the Beacon pilot are called **HarborLink**, and they are supplied by the vendor **Kestrel Systems**.\n\n### References\n\n- [1] company.md\n- [2] pilot.md"
+    },
+    "followup": {
+      "seconds": 3.5907105000223964,
+      "answer": "The customer, **Alder Foods**, runs its Beacon pilot at its depot located in **Pune**.\n\n### References\n\n- [1] pilot.md\n- [2] company.md"
+    },
+    "delete": {
+      "seconds": 0.04506600002059713,
+      "result": "DeletionResult(status='success', doc_id='probe-pilot', message='Document probe-pilot successfully deleted', status_code=200, file_path='pilot.md')",
+      "graph_after": {
+        "nodes": [
+          {
+            "id": "Northstar Signal",
+            "labels": [
+              "Northstar Signal"
+            ],
+            "properties": {
+              "entity_id": "Northstar Signal",
+              "entity_type": "organization",
+              "description": "An organization that builds industrial telemetry.",
+              "source_id": "probe-company-chunk-000",
+              "file_path": "company.md",
+              "created_at": 1791140153,
+              "truncate": ""
+            }
+          },
+          {
+            "id": "Dev Shah",
+            "labels": [
+              "Dev Shah"
+            ],
+            "properties": {
+              "entity_id": "Dev Shah",
+              "entity_type": "person",
+              "description": "A person who owns Beacon.",
+              "source_id": "probe-company-chunk-000",
+              "file_path": "company.md",
+              "created_at": 1791140173,
+              "truncate": ""
+            }
+          },
+          {
+            "id": "Beacon",
+            "labels": [
+              "Beacon"
+            ],
+            "properties": {
+              "entity_id": "Beacon",
+              "entity_type": "organization",
+              "description": "An organization that monitors cold-chain sensor streams for customer Alder Foods.",
+              "source_id": "probe-company-chunk-000",
+              "file_path": "company.md",
+              "created_at": 1791140173,
+              "truncate": ""
+            }
+          },
+          {
+            "id": "Alder Foods",
+            "labels": [
+              "Alder Foods"
+            ],
+            "properties": {
+              "entity_id": "Alder Foods",
+              "entity_type": "organization",
+              "description": "A customer for whom Beacon monitors cold-chain sensor streams.",
+              "source_id": "probe-company-chunk-000",
+              "file_path": "company.md",
+              "created_at": 1791140173,
+              "truncate": ""
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "Beacon-Northstar Signal",
+            "type": "DIRECTED",
+            "source": "Beacon",
+            "target": "Northstar Signal",
+            "properties": {
+              "weight": 1.0,
+              "description": "Northstar Signal builds industrial telemetry which is utilized by Beacon.",
+              "keywords": "industrial telemetry building,product development",
+              "source_id": "probe-company-chunk-000",
+              "file_path": "company.md",
+              "created_at": 1791140153,
+              "truncate": ""
+            }
+          },
+          {
+            "id": "Beacon-Dev Shah",
+            "type": "DIRECTED",
+            "source": "Beacon",
+            "target": "Dev Shah",
+            "properties": {
+              "weight": 1.0,
+              "description": "Dev Shah owns Beacon.",
+              "keywords": "ownership, possession",
+              "source_id": "probe-company-chunk-000",
+              "file_path": "company.md",
+              "created_at": 1791140162,
+              "truncate": ""
+            }
+          },
+          {
+            "id": "Alder Foods-Beacon",
+            "type": "DIRECTED",
+            "source": "Alder Foods",
+            "target": "Beacon",
+            "properties": {
+              "weight": 1.0,
+              "description": "Beacon monitors cold-chain sensor streams for Alder Foods.",
+              "keywords": "monitoring, service provision",
+              "source_id": "probe-company-chunk-000",
+              "file_path": "company.md",
+              "created_at": 1791140162,
+              "truncate": ""
+            }
+          }
+        ],
+        "is_truncated": false
+      }
+    }
+  },
+  "claude_fixture_generation": {
+    "cli_version": "2.1.146",
+    "model": "claude-opus-4-7[1m]",
+    "session_id": "e22ad84d-dd08-4c67-851f-a09b31c32815",
+    "is_error": false,
+    "permission_denials": [],
+    "duration_ms": 271021,
+    "duration_api_ms": 270711,
+    "num_turns": 10,
+    "total_cost_usd": 1.1889082500000003,
+    "input_tokens": 15,
+    "cache_creation_input_tokens": 66775,
+    "cache_read_input_tokens": 493079,
+    "output_tokens": 20998,
+    "documents": 6,
+    "questions": 30,
+    "counts": {
+      "single": 10,
+      "crossdoc": 8,
+      "conflict": 3,
+      "unknown": 4,
+      "followup": 5
+    },
+    "codex_review": "Checked schema/source files/followup IDs; revised five followup question phrasings to require referent resolution."
+  },
+  "claude_public_corpus_generation": {
+    "cli_version": "2.1.146",
+    "session_id": "9234d589-5858-4395-95bc-1d5f8444efdc",
+    "is_error": false,
+    "permission_denials": [],
+    "duration_ms": 358309,
+    "duration_api_ms": 388057,
+    "num_turns": 34,
+    "total_cost_usd": 1.9059499999999998,
+    "usage": {
+      "input_tokens": 23,
+      "cache_creation_input_tokens": 94018,
+      "cache_read_input_tokens": 736177,
+      "output_tokens": 28450
+    },
+    "model_usage": {
+      "claude-opus-4-7[1m]": {
+        "cost_usd": 1.6670659999999997,
+        "output_tokens": 28450
+      },
+      "claude-haiku-4-5-20251001": {
+        "cost_usd": 0.23888399999999999,
+        "input_tokens": 158169,
+        "output_tokens": 4143,
+        "web_search_requests": 6
+      }
+    },
+    "documents": 6,
+    "questions": 30,
+    "counts": {
+      "single": 12,
+      "crossdoc": 7,
+      "unknown": 4,
+      "followup": 4,
+      "conflict": 3
+    },
+    "codex_review": "Compressed notes to source paraphrase budgets; removed long quotes; added literal Source headers/Snapshot date; aligned all expected keywords and changed unsupported current-employment implication; fictional corpus archived."
+  }
+}

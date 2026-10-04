@@ -1,0 +1,60 @@
+{
+  "nonce": "60d809479b59",
+  "steps": [
+    {
+      "name": "1 upload",
+      "ok": true,
+      "note": "status=202 id=0c2b7731 hash_ok=True"
+    },
+    {
+      "name": "2 wait-ready",
+      "ok": true,
+      "note": "status=ready chunks=1"
+    },
+    {
+      "name": "3 dedup",
+      "ok": true,
+      "note": "status=202 same_id=True"
+    },
+    {
+      "name": "4 single-row",
+      "ok": true,
+      "note": "unique id after dup upload"
+    },
+    {
+      "name": "5 chunk-source",
+      "ok": true,
+      "note": "chunk=75c612d5 source_urls=[]"
+    },
+    {
+      "name": "6 SSE stream",
+      "ok": true,
+      "note": "kinds=['status', 'token', 'result']... cited={'disposable-60d809479b59.md'}"
+    },
+    {
+      "name": "7 conversation",
+      "ok": true,
+      "note": "messages=2"
+    },
+    {
+      "name": "8 replacement",
+      "ok": true,
+      "note": "new_hash_ok=True new_name=updated-60d809479b59.md"
+    },
+    {
+      "name": "9 delete",
+      "ok": true,
+      "note": "status=200"
+    },
+    {
+      "name": "10 purge",
+      "ok": true,
+      "note": "no edges or docs after delete"
+    },
+    {
+      "name": "11 niruthi-intact",
+      "ok": true,
+      "note": "6/6 ready, chunks=[1, 2, 2, 3, 3, 2]"
+    }
+  ]
+}

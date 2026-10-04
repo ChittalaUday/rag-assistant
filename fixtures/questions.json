@@ -1,0 +1,506 @@
+[
+  {
+    "id": 1,
+    "question": "How does Niruthi describe itself on its homepage?",
+    "expected_keywords": [
+      "deep tech",
+      "climate risk mitigation"
+    ],
+    "source_documents": [
+      "company-identity.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S1",
+      "S2"
+    ]
+  },
+  {
+    "id": 2,
+    "question": "Who is listed as the Founder of Niruthi?",
+    "expected_keywords": [
+      "Rama Nemani",
+      "Founder",
+      "retired NASA scientist"
+    ],
+    "source_documents": [
+      "leadership-and-products.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S1"
+    ]
+  },
+  {
+    "id": 3,
+    "question": "Who is listed as CEO of Niruthi on the homepage?",
+    "expected_keywords": [
+      "Mallikarjun Kukunuri",
+      "CEO",
+      "Co-Founder"
+    ],
+    "source_documents": [
+      "leadership-and-products.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S1"
+    ]
+  },
+  {
+    "id": 4,
+    "question": "What is WeatherSnap and at what spatial resolution does the homepage describe it?",
+    "expected_keywords": [
+      "WeatherSnap",
+      "weather",
+      "2 km by 2 km"
+    ],
+    "source_documents": [
+      "leadership-and-products.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S1"
+    ]
+  },
+  {
+    "id": 5,
+    "question": "Which NASA system does Niruthi's homepage say its approach is derived from?",
+    "expected_keywords": [
+      "Terrestrial Observation and Prediction System",
+      "TOPS",
+      "NASA"
+    ],
+    "source_documents": [
+      "technology.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S1",
+      "S4"
+    ]
+  },
+  {
+    "id": 6,
+    "question": "Who is listed as the Principal Investigator of NASA TOPS?",
+    "expected_keywords": [
+      "Ramakrishna Nemani",
+      "Ames Research Center",
+      "Principal Investigator"
+    ],
+    "source_documents": [
+      "technology.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S1",
+      "S4"
+    ]
+  },
+  {
+    "id": 7,
+    "question": "What recognition from GIIF does the public interview describe Niruthi receiving?",
+    "expected_keywords": [
+      "Gold Award",
+      "Data & Analytics",
+      "2019",
+      "Mumbai"
+    ],
+    "source_documents": [
+      "public-programs.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S3",
+      "S5"
+    ]
+  },
+  {
+    "id": 8,
+    "question": "What is Niruthi's registered legal entity name?",
+    "expected_keywords": [
+      "Niruthi Climate and Ecosystems Pvt. Ltd."
+    ],
+    "source_documents": [
+      "company-identity.md",
+      "privacy.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S1",
+      "S2"
+    ]
+  },
+  {
+    "id": 9,
+    "question": "When was the Niruthi privacy policy last updated?",
+    "expected_keywords": [
+      "1 March 2024"
+    ],
+    "source_documents": [
+      "privacy.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S2"
+    ]
+  },
+  {
+    "id": 10,
+    "question": "What email contact is published on the Niruthi privacy policy?",
+    "expected_keywords": [
+      "contact@niruthi.com"
+    ],
+    "source_documents": [
+      "privacy.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S2"
+    ]
+  },
+  {
+    "id": 11,
+    "question": "What categories of data does the Niruthi privacy policy describe collecting?",
+    "expected_keywords": [
+      "email",
+      "IP address",
+      "location",
+      "device sensor",
+      "camera"
+    ],
+    "source_documents": [
+      "privacy.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S2"
+    ]
+  },
+  {
+    "id": 12,
+    "question": "Which Indian ministry's press release confirms YES-TECH under PMFBY?",
+    "expected_keywords": [
+      "Ministry of Agriculture",
+      "Farmers Welfare",
+      "YES-TECH",
+      "PMFBY"
+    ],
+    "source_documents": [
+      "public-programs.md"
+    ],
+    "type": "single",
+    "source_ids": [
+      "S3",
+      "S5"
+    ]
+  },
+  {
+    "id": 13,
+    "question": "How does Niruthi's public-facing brand name differ from its registered legal name?",
+    "expected_keywords": [
+      "Niruthi Climate & Ecosystem Services",
+      "Niruthi Climate and Ecosystems Pvt. Ltd."
+    ],
+    "source_documents": [
+      "company-identity.md",
+      "privacy.md"
+    ],
+    "type": "crossdoc",
+    "source_ids": [
+      "S1",
+      "S2"
+    ]
+  },
+  {
+    "id": 14,
+    "question": "Which Niruthi leaders were interviewed by GIIF and what roles does the homepage list for them?",
+    "expected_keywords": [
+      "Cristina Milesi",
+      "Mallikarjun Kukunuri",
+      "CSO",
+      "CEO"
+    ],
+    "source_documents": [
+      "leadership-and-products.md",
+      "public-programs.md"
+    ],
+    "type": "crossdoc",
+    "source_ids": [
+      "S1",
+      "S3",
+      "S5"
+    ]
+  },
+  {
+    "id": 15,
+    "question": "What is the relationship between NASA TOPS and the technology Niruthi describes on its homepage?",
+    "expected_keywords": [
+      "TOPS",
+      "satellite",
+      "Nemani",
+      "derived"
+    ],
+    "source_documents": [
+      "technology.md",
+      "leadership-and-products.md"
+    ],
+    "type": "crossdoc",
+    "source_ids": [
+      "S1",
+      "S4"
+    ]
+  },
+  {
+    "id": 16,
+    "question": "Which Niruthi products relate to the crop monitoring and yield forecasting described in the GIIF interview?",
+    "expected_keywords": [
+      "CropSnap",
+      "WeatherSnap",
+      "crop",
+      "yield forecasting"
+    ],
+    "source_documents": [
+      "leadership-and-products.md",
+      "public-programs.md"
+    ],
+    "type": "crossdoc",
+    "source_ids": [
+      "S1",
+      "S3",
+      "S5"
+    ]
+  },
+  {
+    "id": 17,
+    "question": "How does GIIF characterize Niruthi, and where does its privacy policy place the registered entity?",
+    "expected_keywords": [
+      "Hyderabad",
+      "Telangana",
+      "agritech"
+    ],
+    "source_documents": [
+      "privacy.md",
+      "public-programs.md"
+    ],
+    "type": "crossdoc",
+    "source_ids": [
+      "S2",
+      "S3",
+      "S5"
+    ]
+  },
+  {
+    "id": 18,
+    "question": "What does the PIB press release say about YES-TECH, and how is Niruthi's role described relative to it in our sources?",
+    "expected_keywords": [
+      "YES-TECH",
+      "Kharif 2023",
+      "Technology Implementation Partners",
+      "does not name Niruthi"
+    ],
+    "source_documents": [
+      "public-programs.md",
+      "public-source-boundaries.md"
+    ],
+    "type": "crossdoc",
+    "source_ids": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5"
+    ]
+  },
+  {
+    "id": 19,
+    "question": "Which of the sources used in this collection are primary government or international-organization sources, and which are company-published?",
+    "expected_keywords": [
+      "NASA",
+      "World Bank",
+      "Ministry of Agriculture",
+      "GIIF",
+      "homepage",
+      "privacy policy"
+    ],
+    "source_documents": [
+      "public-programs.md",
+      "public-source-boundaries.md",
+      "technology.md"
+    ],
+    "type": "crossdoc",
+    "source_ids": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5"
+    ]
+  },
+  {
+    "id": 20,
+    "question": "What is Niruthi's current headcount?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown",
+    "source_ids": []
+  },
+  {
+    "id": 21,
+    "question": "What is Niruthi's annual revenue?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown",
+    "source_ids": []
+  },
+  {
+    "id": 22,
+    "question": "What is the average salary at Niruthi?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown",
+    "source_ids": []
+  },
+  {
+    "id": 23,
+    "question": "What is Niruthi's employee leave policy?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown",
+    "source_ids": []
+  },
+  {
+    "id": 24,
+    "question": "What is her role at Niruthi?",
+    "expected_keywords": [
+      "Cristina Milesi",
+      "CSO",
+      "Co-Founder",
+      "Scientific R&D"
+    ],
+    "source_documents": [
+      "leadership-and-products.md"
+    ],
+    "type": "followup",
+    "followup_of": 14,
+    "source_ids": [
+      "S1"
+    ]
+  },
+  {
+    "id": 25,
+    "question": "What company did he found?",
+    "expected_keywords": [
+      "Niruthi",
+      "Founder",
+      "Rama Nemani"
+    ],
+    "source_documents": [
+      "leadership-and-products.md",
+      "company-identity.md"
+    ],
+    "type": "followup",
+    "followup_of": 2,
+    "source_ids": [
+      "S1",
+      "S2"
+    ]
+  },
+  {
+    "id": 26,
+    "question": "Which research center is named alongside him in that program source?",
+    "expected_keywords": [
+      "NASA",
+      "Ames Research Center"
+    ],
+    "source_documents": [
+      "technology.md"
+    ],
+    "type": "followup",
+    "followup_of": 6,
+    "source_ids": [
+      "S1",
+      "S4"
+    ]
+  },
+  {
+    "id": 27,
+    "question": "At what spatial grid does it provide data?",
+    "expected_keywords": [
+      "2 km by 2 km",
+      "WeatherSnap"
+    ],
+    "source_documents": [
+      "leadership-and-products.md"
+    ],
+    "type": "followup",
+    "followup_of": 4,
+    "source_ids": [
+      "S1"
+    ]
+  },
+  {
+    "id": 28,
+    "question": "Does Niruthi use one name for its public brand and a different name for its legal registration?",
+    "expected_keywords": [
+      "Niruthi Climate & Ecosystem Services",
+      "Niruthi Climate and Ecosystems Pvt. Ltd.",
+      "brand",
+      "registered"
+    ],
+    "source_documents": [
+      "company-identity.md",
+      "privacy.md",
+      "public-source-boundaries.md"
+    ],
+    "type": "conflict",
+    "source_ids": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5"
+    ]
+  },
+  {
+    "id": 29,
+    "question": "Can the company marketing claims or displayed certification badges be treated as independently verified facts in this collection?",
+    "expected_keywords": [
+      "marketing",
+      "not independently verified",
+      "certification validity"
+    ],
+    "source_documents": [
+      "public-source-boundaries.md"
+    ],
+    "type": "conflict",
+    "source_ids": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5"
+    ]
+  },
+  {
+    "id": 30,
+    "question": "The privacy policy is dated 1 March 2024. Can we treat it as current as of today without further checking?",
+    "expected_keywords": [
+      "1 March 2024",
+      "2026-10-05",
+      "does not prove"
+    ],
+    "source_documents": [
+      "privacy.md",
+      "public-source-boundaries.md"
+    ],
+    "type": "conflict",
+    "source_ids": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5"
+    ]
+  }
+]

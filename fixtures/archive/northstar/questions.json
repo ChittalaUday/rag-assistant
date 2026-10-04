@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1,
+    "question": "Who is the CEO of Northstar Signal?",
+    "expected_keywords": [
+      "Priya Venkatesan",
+      "CEO"
+    ],
+    "source_documents": [
+      "company-overview.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 2,
+    "question": "When did Northstar Signal close its Series B, and who led it?",
+    "expected_keywords": [
+      "2024-03-10",
+      "$42M",
+      "Northfield Capital"
+    ],
+    "source_documents": [
+      "company-overview.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 3,
+    "question": "Who leads the Firmware team?",
+    "expected_keywords": [
+      "Rafael Costa",
+      "Firmware"
+    ],
+    "source_documents": [
+      "teams-and-ownership.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 4,
+    "question": "When did Beacon v3 ship?",
+    "expected_keywords": [
+      "2025-11-04",
+      "Beacon v3"
+    ],
+    "source_documents": [
+      "projects-and-products.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 5,
+    "question": "Who is the product manager for Pulse?",
+    "expected_keywords": [
+      "Yuki Tanaka",
+      "Pulse"
+    ],
+    "source_documents": [
+      "teams-and-ownership.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 6,
+    "question": "Which vendor does Northstar use for compliance automation?",
+    "expected_keywords": [
+      "Vanta"
+    ],
+    "source_documents": [
+      "policies-and-controls.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 7,
+    "question": "Who leads the SRE team?",
+    "expected_keywords": [
+      "Tomás Herrera",
+      "SRE"
+    ],
+    "source_documents": [
+      "teams-and-ownership.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 8,
+    "question": "What is the data retention policy for raw telemetry?",
+    "expected_keywords": [
+      "90 days",
+      "Snowflake",
+      "7 years",
+      "S3 Glacier"
+    ],
+    "source_documents": [
+      "policies-and-controls.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 9,
+    "question": "Which partner co-develops the Beacon hardware?",
+    "expected_keywords": [
+      "SensorWare GmbH",
+      "Munich"
+    ],
+    "source_documents": [
+      "customers-and-partners.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 10,
+    "question": "What is the current status of the Compass internal tool?",
+    "expected_keywords": [
+      "Compass",
+      "retirement",
+      "COMP-414"
+    ],
+    "source_documents": [
+      "decision-log.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": 11,
+    "question": "Who must approve changes to the firmware signing chain, and which partner co-designed it?",
+    "expected_keywords": [
+      "Jonas Keller",
+      "SensorWare GmbH",
+      "signing chain"
+    ],
+    "source_documents": [
+      "policies-and-controls.md",
+      "customers-and-partners.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 12,
+    "question": "Which customers were onboarded through the Delta-V Integrators partnership?",
+    "expected_keywords": [
+      "Ironhide Mining",
+      "Parallax Grid",
+      "Delta-V Integrators"
+    ],
+    "source_documents": [
+      "company-overview.md",
+      "customers-and-partners.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 13,
+    "question": "Who owns Lantern engineering, and when did they take ownership?",
+    "expected_keywords": [
+      "Dev Shah",
+      "Lantern",
+      "2026-04-11"
+    ],
+    "source_documents": [
+      "teams-and-ownership.md",
+      "decision-log.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 14,
+    "question": "How does the on-call rotation handle Beacon device-side incidents?",
+    "expected_keywords": [
+      "SRE primary",
+      "Platform secondary",
+      "Firmware",
+      "Beacon device-side"
+    ],
+    "source_documents": [
+      "teams-and-ownership.md",
+      "policies-and-controls.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 15,
+    "question": "Which customer's requirement drives the Pulse multi-region project, and who owns it?",
+    "expected_keywords": [
+      "Parallax Grid",
+      "RPO",
+      "Elena Rossi",
+      "multi-region"
+    ],
+    "source_documents": [
+      "customers-and-partners.md",
+      "projects-and-products.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 16,
+    "question": "Who leads the Harbor cost reduction effort, and what is the target?",
+    "expected_keywords": [
+      "Noor Al-Fahim",
+      "30%",
+      "Snowflake",
+      "Harbor"
+    ],
+    "source_documents": [
+      "projects-and-products.md",
+      "decision-log.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 17,
+    "question": "Which vendors handle customer-facing alerts, and through which Northstar system?",
+    "expected_keywords": [
+      "Twilio",
+      "SendGrid",
+      "Lantern"
+    ],
+    "source_documents": [
+      "projects-and-products.md",
+      "customers-and-partners.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 18,
+    "question": "Who holds the board seat from the Series B lead investor?",
+    "expected_keywords": [
+      "Henrik Amundsen",
+      "Northfield Capital",
+      "board seat"
+    ],
+    "source_documents": [
+      "company-overview.md",
+      "customers-and-partners.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": 19,
+    "question": "Who currently owns Beacon engineering?",
+    "expected_keywords": [
+      "Dev Shah",
+      "Mira Chen",
+      "2026-09-18",
+      "supersedes"
+    ],
+    "source_documents": [
+      "company-overview.md",
+      "teams-and-ownership.md",
+      "decision-log.md"
+    ],
+    "type": "conflict"
+  },
+  {
+    "id": 20,
+    "question": "Does the teams-and-ownership document reflect the current Beacon owner?",
+    "expected_keywords": [
+      "Mira Chen",
+      "Dev Shah",
+      "2026-09-18",
+      "not updated"
+    ],
+    "source_documents": [
+      "teams-and-ownership.md",
+      "decision-log.md"
+    ],
+    "type": "conflict"
+  },
+  {
+    "id": 21,
+    "question": "What is the authoritative source for current Beacon ownership?",
+    "expected_keywords": [
+      "decision log",
+      "2026-09-18",
+      "Dev Shah",
+      "canonical"
+    ],
+    "source_documents": [
+      "company-overview.md",
+      "decision-log.md"
+    ],
+    "type": "conflict"
+  },
+  {
+    "id": 22,
+    "question": "What was Northstar Signal's annual revenue in 2026?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown"
+  },
+  {
+    "id": 23,
+    "question": "Who is the Chief Financial Officer of Northstar Signal?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown"
+  },
+  {
+    "id": 24,
+    "question": "What is the per-unit cost of goods sold for the Beacon v3 gateway?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown"
+  },
+  {
+    "id": 25,
+    "question": "How many new customers has Volans Logistics referred to Northstar Signal?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown"
+  },
+  {
+    "id": 26,
+    "question": "What is the former owner working on now?",
+    "expected_keywords": [
+      "confidential R&D",
+      "Marcus Wu",
+      "Mira Chen"
+    ],
+    "source_documents": [
+      "decision-log.md"
+    ],
+    "type": "followup",
+    "followup_of": 19
+  },
+  {
+    "id": 27,
+    "question": "What change did he ship before taking ownership?",
+    "expected_keywords": [
+      "deduplication",
+      "dedupe rework",
+      "2026-04-11"
+    ],
+    "source_documents": [
+      "decision-log.md",
+      "projects-and-products.md"
+    ],
+    "type": "followup",
+    "followup_of": 13
+  },
+  {
+    "id": 28,
+    "question": "Who does that approver report to?",
+    "expected_keywords": [
+      "Jonas Keller",
+      "Marcus Wu",
+      "CTO"
+    ],
+    "source_documents": [
+      "teams-and-ownership.md"
+    ],
+    "type": "followup",
+    "followup_of": 11
+  },
+  {
+    "id": 29,
+    "question": "What is the interim financial plan while that tiering work lands?",
+    "expected_keywords": [
+      "2-month overrun",
+      "Snowflake commit",
+      "Hana Park"
+    ],
+    "source_documents": [
+      "decision-log.md"
+    ],
+    "type": "followup",
+    "followup_of": 16
+  },
+  {
+    "id": 30,
+    "question": "Where are those compacted archives stored for the long term?",
+    "expected_keywords": [
+      "S3 Glacier Deep Archive",
+      "7 years",
+      "Parquet"
+    ],
+    "source_documents": [
+      "policies-and-controls.md",
+      "projects-and-products.md"
+    ],
+    "type": "followup",
+    "followup_of": 8
+  }
+]

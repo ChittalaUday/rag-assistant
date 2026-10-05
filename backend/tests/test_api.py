@@ -29,8 +29,8 @@ class FakeModel:
             }
         import re
 
-        ids = re.findall(r"CHUNK ([0-9a-f-]{36})", prompt)
-        return {"answer": "Mira leads Acme.", "citation_ids": ids[:1]}
+        ids = re.findall(r"CHUNK (S\d+|[0-9a-f-]{36})", prompt)
+        return {"answer": "Mira leads Acme.", "citation_ids": ids[:1], "relation_ids": []}
 
 
 def ready(client, id):
@@ -459,8 +459,8 @@ class RankingProbeModel(FakeModel):
         self.last_prompt = prompt
         import re as _re
 
-        ids = _re.findall(r"CHUNK ([0-9a-f-]{36})", prompt)
-        return {"answer": "ok", "citation_ids": ids[:1]}
+        ids = _re.findall(r"CHUNK (S\d+|[0-9a-f-]{36})", prompt)
+        return {"answer": "ok", "citation_ids": ids[:1], "relation_ids": []}
 
 
 def test_retrieval_prefers_content_overlap_over_stopwords(tmp_path):
@@ -501,3 +501,255 @@ def test_citation_public_urls_come_from_document_headers(tmp_path):
             c.get("/api/sources/" + citation["chunk_id"]).json()["source_urls"]
             == citation["source_urls"]
         )
+
+
+class MissingCitationModel(FakeModel):
+    async def generate(self, prompt, schema):
+        if "relations" in schema.get("properties", {}):
+            return await super().generate(prompt, schema)
+        return {"answer": "Mira leads Acme.", "citation_ids": [], "relation_ids": []}
+
+
+def test_retrieved_evidence_without_model_citations_is_visible(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path), MissingCitationModel())) as c:
+        d = c.post("/api/documents", files={"file": ("a.txt", b"Mira leads Acme.")}).json()
+        ready(c, d["id"])
+        reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert reply["citations"] == []
+        assert reply["answer"] != "Mira leads Acme."
+        assert any("omitted citation IDs" in warning for warning in reply["warnings"])
+
+
+class AliasCitationModel(FakeModel):
+    async def generate(self, prompt, schema):
+        if "relations" in schema.get("properties", {}):
+            return await super().generate(prompt, schema)
+        assert "CHUNK S1" in prompt
+        assert schema["properties"]["citation_ids"]["items"]["enum"][0] == "S1"
+        assert {"answer", "citation_ids", "relation_ids"} <= set(schema["required"])
+        return {"answer": "Mira leads Acme.", "citation_ids": ["S1"], "relation_ids": []}
+
+
+def test_short_source_alias_maps_to_real_source(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path), AliasCitationModel())) as c:
+        d = c.post("/api/documents", files={"file": ("a.txt", b"Mira leads Acme.")}).json()
+        ready(c, d["id"])
+        reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert reply["answer"] == "Mira leads Acme."
+        citation = reply["citations"][0]
+        assert citation["chunk_id"] != "S1"
+        assert c.get("/api/sources/" + citation["chunk_id"]).json()["text"] == "Mira leads Acme."
+
+
+class OmittedCitationKeyModel(FakeModel):
+    async def generate(self, prompt, schema):
+        if "relations" in schema.get("properties", {}):
+            return await super().generate(prompt, schema)
+        return {"answer": "Mira leads Acme.", "relation_ids": []}
+
+
+def test_omitted_citation_field_is_explicit_model_error(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path), OmittedCitationKeyModel())) as c:
+        d = c.post("/api/documents", files={"file": ("a.txt", b"Mira leads Acme.")}).json()
+        ready(c, d["id"])
+        response = c.post("/api/chat", json={"question": "Who leads Acme?"})
+        assert response.status_code == 503
+        assert "omitted required citation_ids" in response.json()["detail"]
+
+
+def test_demo_loads_public_and_fictional_testing_docs(tmp_path, monkeypatch):
+    import company_assistant.main as module
+
+    repo = tmp_path / "repo"
+    for folder, prefix, count in [("documents", "public", 6), ("testing", "fictional", 5)]:
+        path = repo / "fixtures" / folder
+        path.mkdir(parents=True)
+        for i in range(count):
+            (path / f"{prefix}-{i}.md").write_text(f"Mira leads Acme. {prefix} test {i}.")
+    monkeypatch.setattr(module, "__file__", str(repo / "backend" / "company_assistant" / "main.py"))
+    with TestClient(create_app(Settings(data_dir=tmp_path / "data"), FakeModel())) as c:
+        response = c.post("/api/demo")
+        assert response.status_code == 202
+        assert len(response.json()["documents"]) == 11
+        assert len(c.post("/api/demo").json()["documents"]) == 11
+
+
+def test_published_fictional_answer_has_deterministic_provenance_notice(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path), FakeModel())) as c:
+        d = c.post(
+            "/api/documents",
+            files={"file": ("scenario.txt", b"FICTIONAL TEST SCENARIO\nMira leads Acme.")},
+        ).json()
+        ready(c, d["id"])
+        reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert reply["answer"].startswith(
+            "Fictional test scenario — not actual Niruthi policy/facts."
+        )
+        assert "Mira leads Acme." in reply["answer"]
+        assert reply["citations"]
+
+
+def test_public_answer_has_no_fictional_notice(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path), FakeModel())) as c:
+        d = c.post(
+            "/api/documents",
+            files={"file": ("public.txt", b"Source: https://niruthi.com/\nMira leads Acme.")},
+        ).json()
+        ready(c, d["id"])
+        reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert reply["answer"] == "Mira leads Acme."
+
+
+def test_full_document_reader_preserves_text_and_failed_replacement(tmp_path):
+    text = "FICTIONAL TEST SCENARIO\n" + "".join(
+        f"Mira leads Acme. Unique paragraph {i}.\n" for i in range(30)
+    )
+    with TestClient(create_app(Settings(data_dir=tmp_path), FakeModel())) as c:
+        d = c.post("/api/documents", files={"file": ("original.md", text.encode())}).json()
+        ready(c, d["id"])
+        content = c.get("/api/documents/" + d["id"] + "/content").json()
+        assert content["text"] == text
+        assert content["text_kind"] == "extracted"
+        assert len(content["chunks"]) > 1
+        assert not content["showing_last_published_version"]
+        c.put("/api/documents/" + d["id"], files={"file": ("failed.md", b"\xff")})
+        ready(c, d["id"])
+        content = c.get("/api/documents/" + d["id"] + "/content").json()
+        assert content["text"] == text
+        assert content["document"]["name"] == "original.md"
+        assert content["showing_last_published_version"]
+        assert "last successfully published" in content["provenance_note"]
+        c.delete("/api/documents/" + d["id"])
+        assert c.get("/api/documents/" + d["id"] + "/content").status_code == 404
+
+
+def test_real_company_question_excludes_fictional_policy(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path), FakeModel())) as c:
+        d = c.post(
+            "/api/documents",
+            files={
+                "file": (
+                    "fiction.md",
+                    b"FICTIONAL TEST SCENARIO\nMira leads Acme. Niruthi leave policy is fictional.",
+                )
+            },
+        ).json()
+        ready(c, d["id"])
+        reply = c.post(
+            "/api/chat", json={"question": "What is the REAL Niruthi leave policy?"}
+        ).json()
+        assert reply["citations"] == []
+        assert "Mira leads Acme." not in reply["answer"]
+        assert reply["graph"]["highlighted_edge_ids"] == []
+
+
+def test_document_progress_and_chat_real_status_stages(tmp_path):
+    with TestClient(create_app(Settings(data_dir=tmp_path), FakeModel())) as c:
+        d = c.post("/api/documents", files={"file": ("a.txt", b"Mira leads Acme.")}).json()
+        assert d["processing_stage"] == "queued"
+        completed = ready(c, d["id"])
+        assert completed["processing_stage"] == "ready"
+        assert (
+            completed["processed_chunks"] == completed["total_chunks"] == completed["chunk_count"]
+        )
+        stream = c.post("/api/chat/stream", json={"question": "Who leads Acme?"}).text
+        for stage in ["retrieving", "embedding_query", "generating", "validating", "streaming"]:
+            assert '"stage": "' + stage + '"' in stream
+        assert stream.index('"stage": "validating"') < stream.index("event: token")
+
+
+def test_real_scope_survives_negated_fiction_and_followup(tmp_path):
+    model = RecordingModel()
+    with TestClient(create_app(Settings(data_dir=tmp_path), model)) as c:
+        d = c.post(
+            "/api/documents",
+            files={
+                "file": (
+                    "fiction.md",
+                    b"FICTIONAL TEST SCENARIO\nMira leads Acme. Niruthi leave policy is invented.",
+                )
+            },
+        ).json()
+        ready(c, d["id"])
+        reply = c.post(
+            "/api/chat",
+            json={"question": "What is actual Niruthi leave policy, not the fictional scenario?"},
+        ).json()
+        assert reply["citations"] == []
+        calls = model.calls
+        followup = c.post(
+            "/api/chat",
+            json={"question": "And who approves it?", "conversation_id": reply["conversation_id"]},
+        ).json()
+        assert followup["citations"] == []
+        assert model.calls == calls
+        for _ in range(4):
+            extra = c.post(
+                "/api/chat",
+                json={
+                    "question": "And what about that?",
+                    "conversation_id": reply["conversation_id"],
+                },
+            ).json()
+            assert extra["citations"] == []
+        assert model.calls == calls
+        fictional = c.post(
+            "/api/chat",
+            json={
+                "question": "In the fictional scenario, who leads Acme?",
+                "conversation_id": reply["conversation_id"],
+            },
+        ).json()
+        assert fictional["citations"]
+
+
+def test_sse_disconnect_cancels_generation(tmp_path):
+    import asyncio
+
+    import httpx
+    from company_assistant.main import Question
+
+    async def scenario():
+        class CancelModel(FakeModel):
+            def __init__(self):
+                self.started = asyncio.Event()
+                self.cancelled = asyncio.Event()
+
+            async def generate(self, prompt, schema):
+                if "relations" in schema.get("properties", {}):
+                    return await super().generate(prompt, schema)
+                self.started.set()
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError:
+                    self.cancelled.set()
+                    raise
+
+        model = CancelModel()
+        app = create_app(Settings(data_dir=tmp_path), model)
+        async with (
+            app.router.lifespan_context(app),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as client,
+        ):
+            d = (
+                await client.post("/api/documents", files={"file": ("a.txt", b"Mira leads Acme.")})
+            ).json()
+            for _ in range(100):
+                docs = (await client.get("/api/documents")).json()["documents"]
+                if next(x for x in docs if x["id"] == d["id"])["status"] == "ready":
+                    break
+                await asyncio.sleep(0.01)
+            endpoint = next(
+                r.endpoint for r in app.routes if getattr(r, "path", "") == "/api/chat/stream"
+            )
+            response = await endpoint(Question(question="Who leads Acme?"))
+            iterator = response.body_iterator
+            await anext(iterator)
+            await asyncio.wait_for(model.started.wait(), 1)
+            await iterator.aclose()
+            assert model.cancelled.is_set()
+            assert (await client.get("/api/conversations")).json()["conversations"] == []
+
+    asyncio.run(scenario())

@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { api } from "./api";
+import { api, streamChat } from "./api";
 import App from "./App";
 vi.mock("./GraphMap", () => ({
   GraphMap: ({
@@ -39,6 +39,7 @@ vi.mock("./api", () => ({
   api: {
     health: vi.fn(),
     documents: vi.fn(),
+    documentContent: vi.fn(),
     graph: vi.fn(),
     conversations: vi.fn(),
     source: vi.fn(),
@@ -86,11 +87,14 @@ it("renders Niruthi branding and public-documents affordances", async () => {
   ).toBeInTheDocument();
   expect(screen.getByText(/Niruthi Climate & Ecosystems/i)).toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: /Load Niruthi public documents/i }),
+    screen.getByRole("button", {
+      name: /Load Niruthi & fictional test documents/i,
+    }),
   ).toBeInTheDocument();
   expect(
-    screen.getAllByText(/Public-source snapshot, not internal policies/i)
-      .length,
+    screen.getAllByText(
+      /Public Niruthi notes are a dated snapshot, not internal policies/i,
+    ).length,
   ).toBeGreaterThan(0);
   expect(
     screen.getByText(/Documents stay on this computer/i),
@@ -273,7 +277,9 @@ it("keeps the latest source and does not reopen its closed drawer", async () => 
       page: null,
     }),
   );
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
 });
 it("does not replace the newer source when an older source finishes last", async () => {
   const a = deferred<import("./types").Citation>();
@@ -327,7 +333,9 @@ it("invalidates pending source inspection when starting a new conversation", asy
       page: null,
     }),
   );
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
 });
 it("shows each safe source_urls entry once and ignores unsafe entries", async () => {
   await openSourceWith({
@@ -348,4 +356,125 @@ it("shows each safe source_urls entry once and ignores unsafe entries", async ()
   expect(links).toHaveLength(2);
   expect(links[0]).toHaveAttribute("href", "https://niruthi.com/");
   expect(links[1]).toHaveAttribute("href", "https://example.org/report");
+});
+it("distinguishes public notes from fictional internal test documents", async () => {
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  expect(
+    screen.getByRole("button", {
+      name: "Load Niruthi & fictional test documents",
+    }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      /Fictional internal test documents do not describe Niruthi/,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/Fictional policies and roles are not Niruthi facts/),
+  ).toBeInTheDocument();
+});
+it("sends distinct questions and displays authoritative answers and model warnings", async () => {
+  const graph = {
+    nodes: [],
+    edges: [],
+    highlighted_node_ids: [],
+    highlighted_edge_ids: [],
+  };
+  vi.mocked(streamChat)
+    .mockResolvedValueOnce({
+      conversation_id: "chat",
+      answer: "First supported answer",
+      citations: [],
+      graph,
+      warnings: [],
+      model: "local",
+    })
+    .mockResolvedValueOnce({
+      conversation_id: "chat",
+      answer: "No supporting evidence",
+      citations: [],
+      graph,
+      warnings: ["Model supplied no valid citations"],
+      model: "local",
+    });
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  const input = screen.getByLabelText("Ask a question");
+  await userEvent.type(input, "What does the public website describe?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await screen.findByText("First supported answer");
+  await userEvent.type(input, "What is the internal leave policy?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await screen.findByText("No supporting evidence");
+  expect(vi.mocked(streamChat).mock.calls[0][0]).toBe(
+    "What does the public website describe?",
+  );
+  expect(vi.mocked(streamChat).mock.calls[1].slice(0, 2)).toEqual([
+    "What is the internal leave policy?",
+    "chat",
+  ]);
+  expect(
+    screen.getByText("Model supplied no valid citations"),
+  ).toBeInTheDocument();
+});
+it("shows backend conversation stages before displaying validated answer segments", async () => {
+  const pending = deferred<import("./types").ChatResponse>();
+  let emitStatus!: (message: string) => void;
+  let emitToken!: (text: string) => void;
+  vi.mocked(streamChat).mockImplementation((_q, _id, onToken, onStatus) => {
+    emitStatus = onStatus;
+    emitToken = onToken;
+    return pending.promise;
+  });
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  await userEvent.type(
+    screen.getByLabelText("Ask a question"),
+    "What changed?",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  act(() => emitStatus("Generating an answer with the local model."));
+  expect(
+    screen.getByRole("status", { name: "Conversation progress" }),
+  ).toHaveTextContent("Generating an answer with the local model.");
+  expect(
+    screen.getByText(
+      "Answer text is displayed after local generation and validation.",
+    ),
+  ).toBeInTheDocument();
+  act(() => emitToken("Validated segment"));
+  expect(
+    screen.getByRole("status", { name: "Conversation progress" }),
+  ).toHaveTextContent("Displaying validated answer segments");
+  await act(async () =>
+    pending.resolve({
+      conversation_id: "c",
+      answer: "Final answer",
+      citations: [],
+      graph: {
+        nodes: [],
+        edges: [],
+        highlighted_node_ids: [],
+        highlighted_edge_ids: [],
+      },
+      warnings: [],
+      model: "local",
+    }),
+  );
+  expect(
+    screen.queryByRole("status", { name: "Conversation progress" }),
+  ).not.toBeInTheDocument();
+});
+
+it("suggested prompts populate the composer without fabricating an answer", async () => {
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  await userEvent.click(
+    screen.getByRole("button", { name: /Explore public information/i }),
+  );
+  expect(screen.getByLabelText("Ask a question")).toHaveValue(
+    "What services does Niruthi describe in the public notes?",
+  );
+  expect(streamChat).not.toHaveBeenCalled();
 });

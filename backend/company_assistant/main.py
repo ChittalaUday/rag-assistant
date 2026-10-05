@@ -7,7 +7,7 @@ import math
 import re
 import sqlite3
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -127,8 +127,18 @@ class Extraction(BaseModel):
 
 class Answer(BaseModel):
     answer: str = Field(max_length=12000)
-    citation_ids: list[str] = Field(default_factory=list, max_length=20)
-    relation_ids: list[str] = Field(default_factory=list, max_length=30)
+    citation_ids: list[str] = Field(
+        max_length=20,
+        description=(
+            "Required source aliases S1, S2 etc. supporting the answer; empty only for abstention"
+        ),
+    )
+    relation_ids: list[str] = Field(
+        max_length=30,
+        description=(
+            "Required relationship IDs only from CANDIDATE RELATIONSHIPS; never source aliases"
+        ),
+    )
 
 
 class Question(BaseModel):
@@ -185,6 +195,8 @@ class Store:
           status TEXT, chunk_count INTEGER, created_at TEXT, error TEXT, warnings TEXT, path TEXT);
         CREATE TABLE IF NOT EXISTS pending_documents(id TEXT PRIMARY KEY, name TEXT,
           content_hash TEXT, path TEXT);
+        CREATE TABLE IF NOT EXISTS document_text(id TEXT PRIMARY KEY, text TEXT);
+        CREATE TABLE IF NOT EXISTS document_progress(id TEXT PRIMARY KEY, payload TEXT);
         CREATE TABLE IF NOT EXISTS chunks(id TEXT PRIMARY KEY, document_id TEXT, text TEXT,
           embedding TEXT, page INTEGER);
         CREATE TABLE IF NOT EXISTS nodes(id TEXT, label TEXT, type TEXT, document_id TEXT,
@@ -193,6 +205,7 @@ class Store:
           chunk_id TEXT, quote TEXT);
         CREATE TABLE IF NOT EXISTS conversations(id TEXT PRIMARY KEY,title TEXT,created_at TEXT);
         CREATE TABLE IF NOT EXISTS messages(conversation_id TEXT, payload TEXT);
+        CREATE TABLE IF NOT EXISTS conversation_scope(id TEXT PRIMARY KEY, scope TEXT);
         """)
         self.db.commit()
 
@@ -206,7 +219,37 @@ class Store:
         d = rows[0]
         d.pop("path")
         d["warnings"] = json.loads(d["warnings"])
+        progress = self.rows("SELECT payload FROM document_progress WHERE id=?", (id,))
+        d.update(
+            json.loads(progress[0]["payload"])
+            if progress
+            else {
+                "processing_stage": d["status"],
+                "processing_message": d["status"].capitalize(),
+                "processed_chunks": d["chunk_count"] if d["status"] == "ready" else 0,
+                "total_chunks": d["chunk_count"],
+            }
+        )
         return d
+
+    def progress(
+        self, id: str, stage: str, message: str, completed: int = 0, total: int = 0
+    ) -> None:
+        self.db.execute(
+            "INSERT OR REPLACE INTO document_progress VALUES(?,?)",
+            (
+                id,
+                json.dumps(
+                    {
+                        "processing_stage": stage,
+                        "processing_message": message,
+                        "processed_chunks": completed,
+                        "total_chunks": total,
+                    }
+                ),
+            ),
+        )
+        self.db.commit()
 
     def clear(self, id: str) -> None:
         self.db.execute(
@@ -281,12 +324,20 @@ def create_app(
     model = model_client or Ollama(s)
     model_lock = asyncio.Lock()
 
-    async def embed(texts: list[str]) -> list[list[float]]:
+    async def embed(
+        texts: list[str], on_start: Callable[[], Awaitable[None]] | None = None
+    ) -> list[list[float]]:
         async with model_lock:
+            if on_start:
+                await on_start()
             return await asyncio.wait_for(model.embed(texts), timeout=s.model_timeout)
 
-    async def generate(prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+    async def generate(
+        prompt: str, schema: dict[str, Any], on_start: Callable[[], Awaitable[None]] | None = None
+    ) -> dict[str, Any]:
         async with model_lock:
+            if on_start:
+                await on_start()
             return await asyncio.wait_for(model.generate(prompt, schema), timeout=s.model_timeout)
 
     queue: asyncio.Queue[str] = asyncio.Queue(maxsize=s.max_jobs)
@@ -316,7 +367,9 @@ def create_app(
         store.db.execute("UPDATE documents SET status='processing' WHERE id=?", (id,))
         store.db.commit()
         try:
-            texts = chunks(await parse(Path(processing_path)))
+            store.progress(id, "parsing", "Reading and parsing the document")
+            full_text = await parse(Path(processing_path))
+            texts = chunks(full_text)
             if not texts:
                 raise ValueError("Document contains no readable text")
             if len(texts) > s.max_chunks:
@@ -324,8 +377,12 @@ def create_app(
                     f"Document exceeds {s.max_chunks} chunks; split it into smaller files"
                 )
             embeddings = []
+            store.progress(id, "embedding", "Embedding source chunks", 0, len(texts))
             for i in range(0, len(texts), 16):
                 embeddings.extend(await embed(texts[i : i + 16]))
+                store.progress(
+                    id, "embedding", "Embedding source chunks", len(embeddings), len(texts)
+                )
             if (
                 len(embeddings) != len(texts)
                 or any(not v for v in embeddings)
@@ -335,6 +392,13 @@ def create_app(
                 raise ValueError("Embedding model returned invalid vectors")
             pending: list[tuple[str, str, list[float], Extraction]] = []
             warnings = []
+            store.progress(
+                id,
+                "extracting",
+                "Extracting source-backed entities and relationships",
+                0,
+                len(texts),
+            )
             for text, vector in zip(texts, embeddings, strict=True):
                 result = Extraction.model_validate(
                     await generate(
@@ -360,9 +424,20 @@ def create_app(
                     )
                 )
                 pending.append((str(uuid.uuid4()), text, vector, result))
+                store.progress(
+                    id,
+                    "extracting",
+                    "Extracting source-backed entities and relationships",
+                    len(pending),
+                    len(texts),
+                )
             # Atomic publication means replacement failures retain old evidence.
+            store.progress(
+                id, "publishing", "Publishing validated source evidence", len(texts), len(texts)
+            )
             store.db.execute("BEGIN")
             store.clear(id)
+            store.db.execute("INSERT OR REPLACE INTO document_text VALUES(?,?)", (id, full_text))
             for cid, text, vector, extraction in pending:
                 store.db.execute(
                     "INSERT INTO chunks VALUES(?,?,?,?,?)",
@@ -420,6 +495,7 @@ def create_app(
                 (len(texts), json.dumps(sorted(set(warnings))), id),
             )
             store.db.commit()
+            store.progress(id, "ready", "Ready to answer questions", len(texts), len(texts))
             clean_uploads()
         except Exception as exc:
             store.db.rollback()
@@ -428,6 +504,7 @@ def create_app(
                 (str(exc) or type(exc).__name__, id),
             )
             store.db.commit()
+            store.progress(id, "failed", "Document processing failed; see the error")
 
     async def worker() -> None:
         while True:
@@ -445,6 +522,7 @@ def create_app(
                     "UPDATE documents SET status='failed',error=? WHERE id=?", (error, id)
                 )
                 store.db.commit()
+                store.progress(id, "failed", error)
             finally:
                 queue.task_done()
 
@@ -457,6 +535,7 @@ def create_app(
         store.db.commit()
         task = asyncio.create_task(worker())
         for d in store.rows("SELECT id FROM documents WHERE status='queued'"):
+            store.progress(d["id"], "queued", "Queued after restart")
             await queue.put(d["id"])
         yield
         task.cancel()
@@ -537,12 +616,20 @@ def create_app(
                         "UPDATE documents SET status='ready',error=NULL WHERE id=?", (existing_id,)
                     )
                     store.db.commit()
+                    store.progress(
+                        existing_id,
+                        "ready",
+                        "Ready to answer questions",
+                        existing_doc["chunk_count"],
+                        existing_doc["chunk_count"],
+                    )
                     clean_uploads()
                     return store.document(existing_id)
                 store.db.execute(
                     "UPDATE documents SET status='queued',error=NULL WHERE id=?", (existing_id,)
                 )
                 store.db.commit()
+                store.progress(existing_id, "queued", "Queued for retry")
                 queue.put_nowait(existing_id)
             return store.document(existing_id)
         id = replacement or str(uuid.uuid4())
@@ -560,6 +647,7 @@ def create_app(
                 (id, name, digest, "queued", 0, now(), None, "[]", str(path)),
             )
         store.db.commit()
+        store.progress(id, "queued", "Queued for document processing")
         queue.put_nowait(id)
         return store.document(id)
 
@@ -578,6 +666,8 @@ def create_app(
             raise HTTPException(409, "Wait for processing to finish before deleting")
         store.clear(id)
         store.db.execute("DELETE FROM pending_documents WHERE id=?", (id,))
+        store.db.execute("DELETE FROM document_text WHERE id=?", (id,))
+        store.db.execute("DELETE FROM document_progress WHERE id=?", (id,))
         store.db.execute("DELETE FROM documents WHERE id=?", (id,))
         store.db.commit()
         clean_uploads()
@@ -592,11 +682,62 @@ def create_app(
             paths = sorted((Path(__file__).resolve().parents[2] / "fixtures").glob("*.md"))
         if not paths:
             raise HTTPException(404, "Demo fixtures are not installed")
+        paths += sorted((Path(__file__).resolve().parents[2] / "fixtures" / "testing").glob("*.md"))
         result = []
         for path in paths:
             with path.open("rb") as f:
                 result.append(await upload(UploadFile(filename=path.name, file=f)))
         return {"documents": result}
+
+    @app.get("/api/documents/{id}/content")
+    async def document_content(id: str) -> dict[str, Any]:
+        document = store.document(id)
+        citations = [
+            store.citation(c["id"])
+            for c in store.rows("SELECT id FROM chunks WHERE document_id=? ORDER BY rowid", (id,))
+        ]
+        saved = store.rows("SELECT text FROM document_text WHERE id=?", (id,))
+        if saved:
+            text, kind = saved[0]["text"], "extracted"
+        else:
+            record = store.rows("SELECT path FROM documents WHERE id=?", (id,))[0]
+            original = Path(record["path"])
+            try:
+                if original.suffix.lower() not in {".txt", ".md", ".csv"}:
+                    raise ValueError("Legacy binary document has no stored full parsed text")
+                text, kind = original.read_text(encoding="utf-8-sig"), "original"
+            except (OSError, ValueError):
+                text, kind = "", "reconstructed"
+                for citation in citations:
+                    passage = citation["text"]
+                    overlap = next(
+                        (
+                            n
+                            for n in range(min(len(text), len(passage)), 0, -1)
+                            if text.endswith(passage[:n])
+                        ),
+                        0,
+                    )
+                    text += passage[overlap:]
+        staged = bool(store.rows("SELECT id FROM pending_documents WHERE id=?", (id,)))
+        showing_previous = staged and bool(citations)
+        note = (
+            "Showing the last successfully published version; the replacement is "
+            "still processing or failed."
+            if showing_previous
+            else None
+        )
+        if not text:
+            note = "Full parsed text is not yet available; wait for document processing."
+        return {
+            "document": document,
+            "text": text,
+            "text_kind": kind,
+            "showing_last_published_version": showing_previous,
+            "provenance_note": note,
+            "chunks": citations,
+            "source_urls": source_urls([text]),
+        }
 
     @app.get("/api/graph")
     async def graph() -> dict[str, Any]:
@@ -626,12 +767,21 @@ def create_app(
     async def delete_conversation(id: str) -> dict[str, bool]:
         store.db.execute("DELETE FROM messages WHERE conversation_id=?", (id,))
         store.db.execute("DELETE FROM conversations WHERE id=?", (id,))
+        store.db.execute("DELETE FROM conversation_scope WHERE id=?", (id,))
         store.db.commit()
         return {"ok": True}
 
-    async def chat(q: Question) -> dict[str, Any]:
+    async def chat(
+        q: Question, progress: Callable[[str, str], Awaitable[None]] | None = None
+    ) -> dict[str, Any]:
+        async def notify(stage: str, message: str) -> None:
+            if progress:
+                await progress(stage, message)
+
+        await notify("retrieving", "Finding source documents for your question")
         cid = q.conversation_id or str(uuid.uuid4())
-        history = (await conversation(cid))["messages"][-6:] if q.conversation_id else []
+        full_history = (await conversation(cid))["messages"] if q.conversation_id else []
+        history = full_history[-6:]
         history = [
             {
                 "role": m["role"],
@@ -641,13 +791,46 @@ def create_app(
         ]
         query = "\n".join(m["content"] for m in history[-4:])[-3000:] + "\n" + q.question
         candidates = store.rows("SELECT * FROM chunks")
+        saved_scope = store.rows("SELECT scope FROM conversation_scope WHERE id=?", (cid,))
+        scope = saved_scope[0]["scope"] if saved_scope else "all"
+        scope_messages = (
+            [q.question]
+            if saved_scope
+            else [m["content"] for m in full_history if m["role"] == "user"] + [q.question]
+        )
+        for message in scope_messages:
+            lowered = message.casefold()
+            if re.search(r"\b(real|actual|official)\b", lowered) and "niruthi" in lowered:
+                scope = "real"
+            elif "fictional" in lowered and not re.search(
+                r"\b(not|exclude|excluding|without|than)\s+(?:the\s+)?fictional\b", lowered
+            ):
+                scope = "fictional"
+        real_scope = scope == "real"
+        if real_scope:
+            fictional_ids = {
+                r["document_id"]
+                for r in candidates
+                if "fictional test scenario" in r["text"].casefold()
+            }
+            candidates = [r for r in candidates if r["document_id"] not in fictional_ids]
         citations: list[dict[str, Any]] = []
         warnings: list[str] = []
         chosen_relations: set[str] = set()
         answer = "I could not find supporting evidence in the uploaded documents."
         if candidates:
             try:
-                vector = (await embed([query[-650:]]))[0]
+                if model_lock.locked():
+                    await notify(
+                        "waiting_for_model",
+                        "Waiting for the local model to finish its current task",
+                    )
+
+                async def embedding_started() -> None:
+                    await notify("embedding_query", "Embedding your question for source retrieval")
+
+                vector = (await embed([query[-650:]], embedding_started))[0]
+                await notify("retrieving", "Ranking source passages and supported relationships")
                 if not vector or any(not math.isfinite(x) for x in vector):
                     raise ValueError("Query embedding returned invalid vector")
                 terms = content_terms(query)
@@ -683,6 +866,7 @@ def create_app(
                         context += passage
                         bounded_selected.append(row)
                 selected = bounded_selected
+                source_aliases = {r["id"]: f"S{i + 1}" for i, r in enumerate(selected)}
                 candidate_graph = store.graph()
                 labels = {n["id"]: n["label"] for n in candidate_graph["nodes"]}
                 selected_chunk_ids = {r["id"] for r in selected}
@@ -698,7 +882,9 @@ def create_app(
                         "target_label": labels[edge["target"]],
                         "label": edge["label"],
                         "quote": evidence[0]["quote"],
-                        "chunk_ids": list(dict.fromkeys(c["chunk_id"] for c in evidence)),
+                        "chunk_ids": list(
+                            dict.fromkeys(source_aliases[c["chunk_id"]] for c in evidence)
+                        ),
                     }
                     eligible.append((edge, compact))
 
@@ -714,7 +900,11 @@ def create_app(
                     label_terms = content_terms(label_text)
                     current_overlap = len(question_terms & label_terms)
                     overlap = len(terms & label_terms)
-                    best_rank = min(chunk_rank[c] for c in compact["chunk_ids"])
+                    best_rank = min(
+                        chunk_rank[c["chunk_id"]]
+                        for c in item[0]["evidence"]
+                        if c["chunk_id"] in selected_chunk_ids
+                    )
                     return (-current_overlap, -overlap, best_rank)
 
                 eligible.sort(key=edge_priority)
@@ -736,11 +926,29 @@ def create_app(
                     "verified, you must still answer by ATTRIBUTING the statement to that source "
                     '(e.g., "According to its homepage, Niruthi describes itself as ...") '
                     "rather than refusing to answer. Only abstain when no chunk contains the "
-                    "requested fact. Surface conflicting sources explicitly. Return citation_ids "
-                    "naming supporting CHUNK IDs and relation_ids of only relationships directly "
+                    "requested fact. Each source has its own scope: public-source limitations "
+                    "do not override explicit statements in separately uploaded fictional test "
+                    "documents. Attribute fictional facts to their document. "
+                    "For questions about REAL/ACTUAL/OFFICIAL Niruthi, never use fictional "
+                    "test scenarios as factual policy evidence. Surface conflicting sources "
+                    "explicitly. Return citation_ids "
+                    "containing the SHORT source aliases (S1, S2, ...) of supporting CHUNKs. "
+                    "Every factual answer MUST include at least one citation alias. "
+                    'For example return {"answer":"According to the source, Mira leads Atlas.", '
+                    '"citation_ids":["S1"],"relation_ids":[]}. Return relation_ids only for '
+                    "relationships directly "
                     "used to answer. If evidence is missing, say so with no citation IDs."
                 )
                 schema = Answer.model_json_schema()
+                schema["properties"]["citation_ids"]["items"]["enum"] = list(
+                    source_aliases.values()
+                )
+
+                relation_schema = schema["properties"]["relation_ids"]
+                if candidate_edges:
+                    relation_schema["items"]["enum"] = [e["id"] for e in candidate_edges]
+                else:
+                    relation_schema["maxItems"] = 0
 
                 def build_prompt() -> str:
                     return (
@@ -750,7 +958,9 @@ def create_app(
                         + "\nQUESTION:\n"
                         + q.question
                         + "\nSOURCE:\n"
-                        + "\n\n".join("CHUNK " + r["id"] + "\n" + r["text"] for r in selected)
+                        + "\n\n".join(
+                            "CHUNK " + source_aliases[r["id"]] + "\n" + r["text"] for r in selected
+                        )
                         + "\nCANDIDATE RELATIONSHIPS:\n"
                         + json.dumps(compact_edges, ensure_ascii=False)
                     )
@@ -770,14 +980,39 @@ def create_app(
                         raise HTTPException(
                             413, "Question exceeds the model context budget with source evidence"
                         )
+                    schema["properties"]["citation_ids"]["items"]["enum"] = [
+                        source_aliases[r["id"]] for r in selected
+                    ]
+                    if candidate_edges:
+                        relation_schema["items"]["enum"] = [e["id"] for e in candidate_edges]
+                    else:
+                        relation_schema["items"].pop("enum", None)
+                        relation_schema["maxItems"] = 0
                     prompt = build_prompt()
-                result = Answer.model_validate(await generate(prompt, schema))
+                if model_lock.locked():
+                    await notify("waiting_for_model", "Waiting for the local answer model")
+
+                async def generation_started() -> None:
+                    await notify(
+                        "generating", "Generating an answer from the selected source passages"
+                    )
+
+                raw_answer = await generate(prompt, schema, generation_started)
+                await notify("validating", "Checking citations and relationship evidence")
+                if "citation_ids" not in raw_answer or "relation_ids" not in raw_answer:
+                    raise ValueError(
+                        "Model omitted required citation_ids or relation_ids; "
+                        "answer was not published"
+                    )
+                result = Answer.model_validate(raw_answer)
                 valid = {r["id"] for r in selected}
-                invalid = set(result.citation_ids) - valid
+                alias_to_chunk = {source_aliases[r["id"]]: r["id"] for r in selected}
+                resolved_ids = [alias_to_chunk.get(id, id) for id in result.citation_ids]
+                invalid = set(resolved_ids) - valid
                 if invalid:
                     warnings.append("Model returned unknown citation IDs; these were discarded")
                 citations = [
-                    store.citation(id) for id in dict.fromkeys(result.citation_ids) if id in valid
+                    store.citation(id) for id in dict.fromkeys(resolved_ids) if id in valid
                 ]
                 cited_ids = {c["chunk_id"] for c in citations}
                 allowed_edges = {
@@ -790,6 +1025,28 @@ def create_app(
                     warnings.append("Discarded unsupported relationship highlights")
                 if citations:
                     answer = result.answer
+                    cited_document_ids = {c["document_id"] for c in citations}
+                    fictional = any(
+                        "fictional test scenario" in row["text"].casefold()
+                        for document_id in cited_document_ids
+                        for row in store.rows(
+                            "SELECT text FROM chunks WHERE document_id=?", (document_id,)
+                        )
+                    )
+                    if fictional:
+                        answer = (
+                            "Fictional test scenario — not actual Niruthi policy/facts.\n\n"
+                            + answer
+                        )
+                elif not result.citation_ids:
+                    answer = (
+                        "The local model did not provide verifiable citations for this question."
+                    )
+                    warnings.append(
+                        "Retrieved source evidence, but the model omitted citation IDs; "
+                        "its answer was not published. This does not establish that the documents "
+                        "lack the requested fact. Try rephrasing the question."
+                    )
                 elif result.citation_ids:
                     warnings.append(
                         "Answer suppressed because no valid supporting citations were returned"
@@ -810,6 +1067,7 @@ def create_app(
             store.db.execute(
                 "INSERT INTO conversations VALUES(?,?,?)", (cid, q.question[:80], now())
             )
+        store.db.execute("INSERT OR REPLACE INTO conversation_scope VALUES(?,?)", (cid, scope))
         for message in [
             {"role": "user", "content": q.question},
             {
@@ -831,22 +1089,49 @@ def create_app(
     @app.post("/api/chat/stream")
     async def chat_stream(q: Question) -> StreamingResponse:
         async def events() -> AsyncIterator[str]:
+            updates: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
+
+            async def progress(stage: str, message: str) -> None:
+                await updates.put(("status", {"stage": stage, "message": message}))
+
+            async def run() -> None:
+                try:
+                    result = await chat(q, progress)
+                    await progress("streaming", "Displaying the validated answer")
+                    await updates.put(("result", result))
+                except Exception as exc:
+                    await updates.put(
+                        (
+                            "error",
+                            {
+                                "message": str(exc.detail)
+                                if isinstance(exc, HTTPException)
+                                else str(exc)
+                            },
+                        )
+                    )
+
+            task = asyncio.create_task(run())
+
             def event(kind: str, data: dict[str, Any]) -> str:
                 return f"event: {kind}\ndata: {json.dumps(data)}\n\n"
 
-            yield event(
-                "status", {"message": "Retrieving source evidence and generating an answer"}
-            )
             try:
-                result = await chat(q)
-                for start in range(0, len(result["answer"]), 80):
-                    yield event("token", {"text": result["answer"][start : start + 80]})
-                yield event("result", result)
-            except Exception as exc:
-                yield event(
-                    "error",
-                    {"message": str(exc.detail) if isinstance(exc, HTTPException) else str(exc)},
-                )
+                while True:
+                    kind, data = await updates.get()
+                    if kind == "result":
+                        for start in range(0, len(data["answer"]), 80):
+                            yield event("token", {"text": data["answer"][start : start + 80]})
+                        yield event(kind, data)
+                        break
+                    yield event(kind, data)
+                    if kind == "error":
+                        break
+            finally:
+                if not task.done():
+                    task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
         return StreamingResponse(
             events(),

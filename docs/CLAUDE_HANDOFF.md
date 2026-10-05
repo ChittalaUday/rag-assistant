@@ -60,6 +60,8 @@ DetachedClaudecompletion supervisorPID82249 ownsremainingwork; actualClaudePID a
 
 ## Completion snapshot (2026-10-05, Claude continuation)
 
+Latest Codex iteration supersedes the original feature snapshot: common fictional test policies coexist with the six public notes; strict source aliases fix missing-citation fallback; actual Niruthi scope persists through follow-ups; full reader, accurate stage SSE and Animate UI redesign are implemented. Final local gates: 37 Python / 32 frontend tests, 84% Python coverage, lint/typecheck/build pass. See PROGRESS.md and docs/reports/repeated-response-fix.md. No worker owns active edits now. Preserve all private runtime uploads. User authorized browser verification but the tool still blocks the saved site preference; do not circumvent it. Remaining delivery steps are commit/push and CI confirmation, recorded by root; do not start duplicate implementation jobs.
+
 Acceptance work above is checked off. Session detail, final numbers, and model
 risks are in `docs/reports/final-verification.md`; subagent audits in
 `docs/reports/claude-provenance.md` and `docs/reports/claude-lifecycle-review.md`;

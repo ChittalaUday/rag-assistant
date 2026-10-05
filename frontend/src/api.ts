@@ -3,6 +3,7 @@ import type {
   Citation,
   Conversation,
   Document,
+  DocumentContent,
   Health,
   KnowledgeGraph,
   Message,
@@ -29,6 +30,8 @@ function upload(file: File) {
 export const api = {
   health: () => request<Health>("/health"),
   documents: () => request<{ documents: Document[] }>("/documents"),
+  documentContent: (id: string) =>
+    request<DocumentContent>(`/documents/${encodeURIComponent(id)}/content`),
   graph: () => request<KnowledgeGraph>("/graph"),
   source: (id: string) =>
     request<Citation>(`/sources/${encodeURIComponent(id)}`),

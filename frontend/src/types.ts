@@ -7,6 +7,10 @@ export interface Document {
   created_at: string;
   error: string | null;
   warnings: string[];
+  processing_stage?: string | null;
+  processing_message?: string | null;
+  processed_chunks?: number;
+  total_chunks?: number;
 }
 export interface Citation {
   chunk_id: string;
@@ -71,3 +75,13 @@ export const emptyGraph: KnowledgeGraph = {
   highlighted_node_ids: [],
   highlighted_edge_ids: [],
 };
+
+export interface DocumentContent {
+  document: Document;
+  text: string;
+  chunks: Citation[];
+  text_kind: "extracted" | "original" | "reconstructed";
+  showing_last_published_version?: boolean;
+  provenance_note?: string | null;
+  source_urls?: string[];
+}

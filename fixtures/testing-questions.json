@@ -1,0 +1,167 @@
+[
+  {
+    "id": "TEST01",
+    "question": "In the fictional testing scenario, who leads the Monsoon Lens project?",
+    "expected_keywords": [
+      "Asha Rao",
+      "Monsoon Lens",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-projects.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": "TEST02",
+    "question": "In the fictional testing scenario, how many annual leave days do employees get in this scenario?",
+    "expected_keywords": [
+      "18",
+      "annual",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-leave-policy.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": "TEST03",
+    "question": "In the fictional testing scenario, who approves a three-day leave request from someone on the FieldBridge team?",
+    "expected_keywords": [
+      "Vikram Sen",
+      "approval",
+      "two or more consecutive",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-leave-policy.md",
+      "fictional-teams.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": "TEST04",
+    "question": "In the fictional testing scenario, if Asha Rao takes a week off, who covers her open Monsoon Lens work?",
+    "expected_keywords": [
+      "Leela Das",
+      "handoff",
+      "Monsoon Lens",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-leave-policy.md",
+      "fictional-projects.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": "TEST05",
+    "question": "In the fictional testing scenario, what does her team work on?",
+    "expected_keywords": [
+      "Monsoon Lens",
+      "imaging",
+      "satellite",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-projects.md"
+    ],
+    "type": "followup",
+    "followup_of": "TEST01"
+  },
+  {
+    "id": "TEST06",
+    "question": "In the fictional testing scenario, what is his role on the team?",
+    "expected_keywords": [
+      "Vikram Sen",
+      "engineering manager",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-teams.md"
+    ],
+    "type": "followup",
+    "followup_of": "TEST03"
+  },
+  {
+    "id": "TEST07",
+    "question": "In the fictional testing scenario, what is Asha Rao's salary?",
+    "expected_keywords": [],
+    "source_documents": [],
+    "type": "unknown"
+  },
+  {
+    "id": "TEST08",
+    "question": "In the fictional testing scenario, who leads the FieldBridge project?",
+    "expected_keywords": [
+      "Vikram Sen",
+      "FieldBridge",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-projects.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": "TEST09",
+    "question": "In the fictional testing scenario, what are the standard working days and hours?",
+    "expected_keywords": [
+      "Monday through Friday",
+      "9:00 AM to 6:00 PM",
+      "one hour",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-working-days.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": "TEST10",
+    "question": "In the fictional testing scenario, are weekends working days and how are additional holidays established?",
+    "expected_keywords": [
+      "Saturday and Sunday",
+      "nonworking days",
+      "holiday calendar",
+      "Vikram Sen",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-working-days.md"
+    ],
+    "type": "single"
+  },
+  {
+    "id": "TEST11",
+    "question": "In the fictional testing scenario, who receives absence notices and what written approval is needed for planned three-day leave?",
+    "expected_keywords": [
+      "Vikram Sen",
+      "before their scheduled start",
+      "written approval",
+      "two or more consecutive",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-employee-rules.md",
+      "fictional-leave-policy.md"
+    ],
+    "type": "crossdoc"
+  },
+  {
+    "id": "TEST12",
+    "question": "In the fictional testing scenario, what security practices apply to work devices and whom should employees notify about a lost device?",
+    "expected_keywords": [
+      "device locks",
+      "multifactor authentication",
+      "never share passwords",
+      "Vikram Sen",
+      "FICTIONAL TEST SCENARIO"
+    ],
+    "source_documents": [
+      "fictional-employee-rules.md"
+    ],
+    "type": "single"
+  }
+]

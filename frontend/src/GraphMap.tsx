@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
 import Graph from "graphology";
 import type Sigma from "sigma";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import { Maximize, Minus, Plus, Search, Network } from "lucide-react";
 import type { Citation, KnowledgeGraph } from "./types";
+import { Button } from "./components/animate-ui/components/buttons/button";
 export function Relationships({
   graph,
   onEvidence,
@@ -28,7 +30,8 @@ export function Relationships({
           )
           .map((edge) => (
             <div key={edge.id}>
-              <button
+              <Button
+                variant="ghost"
                 className={`relationship ${graph.highlighted_edge_ids.includes(edge.id) ? "focused" : ""}`}
                 onClick={() => {
                   if (edge.evidence[0]) onEvidence(edge.evidence[0]);
@@ -42,16 +45,18 @@ export function Relationships({
                   {edge.evidence.length} supporting passage
                   {edge.evidence.length !== 1 ? "s" : ""}
                 </small>
-              </button>
+              </Button>
               {edge.evidence.length > 1 && (
                 <div className="more-evidence">
                   {edge.evidence.slice(1).map((citation, index) => (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       key={`${citation.chunk_id}-${index}`}
                       onClick={() => onEvidence(citation)}
                     >
                       Passage {index + 2} · {citation.document_name}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -68,6 +73,7 @@ export function GraphMap({
   graph: KnowledgeGraph;
   onEvidence: (citation: Citation) => void;
 }) {
+  const reduceMotion = useReducedMotion();
   const container = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
   const [search, setSearch] = useState("");
@@ -202,11 +208,11 @@ export function GraphMap({
           .getCamera()
           .animate(
             { x: position.x, y: position.y, ratio: 0.5 },
-            { duration: 250 },
+            { duration: reduceMotion ? 0 : 250 },
           );
     }
     renderer.refresh();
-  }, [search, selected, graph, SigmaConstructor]);
+  }, [search, selected, graph, SigmaConstructor, reduceMotion]);
   const selectedNode = graph.nodes.find((n) => n.id === selected);
   return (
     <section className="map-panel" aria-label="Knowledge map">
@@ -230,32 +236,44 @@ export function GraphMap({
           />
         </label>
         <div className="zoom">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label="Zoom in"
             onClick={() =>
-              void sigma.current?.getCamera().animatedZoom({ duration: 200 })
+              void sigma.current
+                ?.getCamera()
+                .animatedZoom({ duration: reduceMotion ? 0 : 200 })
             }
           >
             <Plus size={16} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label="Zoom out"
             onClick={() =>
-              void sigma.current?.getCamera().animatedUnzoom({ duration: 200 })
+              void sigma.current
+                ?.getCamera()
+                .animatedUnzoom({ duration: reduceMotion ? 0 : 200 })
             }
           >
             <Minus size={16} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label="Fit graph"
             onClick={() => {
               setSearch("");
               setSelected(null);
-              void sigma.current?.getCamera().animatedReset({ duration: 250 });
+              void sigma.current
+                ?.getCamera()
+                .animatedReset({ duration: reduceMotion ? 0 : 250 });
             }}
           >
             <Maximize size={16} />
-          </button>
+          </Button>
         </div>
       </div>
       <div className="map-area">
@@ -287,7 +305,9 @@ export function GraphMap({
             <span>
               {selectedNode.type} · {selectedNode.document_ids.length} documents
             </span>
-            <button onClick={() => setSelected(null)}>Clear focus</button>
+            <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+              Clear focus
+            </Button>
           </div>
         )}
       </div>

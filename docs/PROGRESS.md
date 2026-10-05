@@ -1,6 +1,14 @@
 # Execution record
 Plan: docs/superpowers/plans/2026-10-05-company-assistant.md
 
+## Latest iteration — 2026-10-05
+
+Implemented the user's mixed public/fictional corpus, repeated-response diagnosis and citation schema fix, persistent public-only follow-up scope, real processing/conversation stages, full-document reader and complete Animate UI redesign. Codex and authenticated Claude CLI shared fixture/review work; disjoint Codex agents handled backend, UI, component vendoring and review. Runtime uploads were preserved and excluded from Git and reports.
+
+Final make check and make test pass: 37 Python tests, 32 frontend tests, 84% Python coverage, Ruff/format/mypy, ESLint/TypeScript and production build. Real Ollama checks verified distinct cited answers, fictional labels, actual-policy abstention/follow-up scope, eleven exact fixture reader texts, disposable upload/delete and zero invalid graph evidence. See docs/reports/repeated-response-fix.md and iteration-live-checks.json. Review fixes cover modal stacking and reduced-motion scrolling. Build has a nonfatal bundle-size advisory; upstream TestClient emits a deprecation warning.
+
+User granted local browser verification. Browser tool still rejected the saved site preference; no workaround attempted. Visual acceptance remains outstanding. Historical reports below describe earlier snapshots, not current results.
+
 - Verified empty supplied folder, M5 Pro / 24 GB, installed Ollama models, authenticated Claude and gh CLI.
 - Reused existing Linear project P-UDA-2 and issues UDA-45 through UDA-49.
 - Defined API/design/plan; committed initial documentation. Created private ChittalaUday/company-assistant via gh.

@@ -1,0 +1,552 @@
+{
+  "provider": "real local Ollama",
+  "models": [
+    "qwen3.5:9b",
+    "all-minilm:l6-v2"
+  ],
+  "documents": [
+    {
+      "id": "65f70b74-1db9-4096-bb12-874f1ea53236",
+      "name": "company-identity.md",
+      "content_hash": "3bef00b466798e2fb10e0d2c4ec071e417fa05d2a04bf3c4145297d973759bf4",
+      "status": "ready",
+      "chunk_count": 1,
+      "created_at": "2026-10-04T19:25:31.677794+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "209a5ecc-0dbf-4bab-8454-3bd29796fbff",
+      "name": "leadership-and-products.md",
+      "content_hash": "91d5a1cc95592f5063f6258f29572f342d45583f07aafac6889f194547e7706a",
+      "status": "ready",
+      "chunk_count": 2,
+      "created_at": "2026-10-04T19:25:31.682566+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "fa98e5b3-b2ee-48f2-b301-64b71bf1c488",
+      "name": "privacy.md",
+      "content_hash": "20fa9f756d303d7bd1758dafd9cfefa3f9d47ab0e266fe03cef0e395f99c433e",
+      "status": "ready",
+      "chunk_count": 2,
+      "created_at": "2026-10-04T19:25:31.683213+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "2c882428-003b-462e-9dad-0bbcb511eaea",
+      "name": "public-programs.md",
+      "content_hash": "82648f10953fc3f16e08f3196ea8e4e63b2949d5c7c0ef2f120e8937354df823",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-04T19:25:31.683632+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "1cd7cc01-e60e-46fe-8905-5f00f446149f",
+      "name": "public-source-boundaries.md",
+      "content_hash": "43fc23013ae2eae54d84f9bee59df4fb64e00ecec9148f407175e5e179fd81fc",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-04T19:25:31.683912+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "a0899254-a65f-4e5e-b566-0f9f2bf87327",
+      "name": "technology.md",
+      "content_hash": "322cb3c74c1efab8bda8ff6d38cc2ee1f3988416203b00f1c03954e4794df55c",
+      "status": "ready",
+      "chunk_count": 2,
+      "created_at": "2026-10-04T19:25:31.684160+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "3b26763a-a4a8-4c06-bf35-86982fd34fe7",
+      "name": "fictional-employee-rules.md",
+      "content_hash": "b222baca888c91521678d6c4e5b68ddff9b3601c17ff4eba8f7a7a43c0c5716c",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-05T00:11:22.890158+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "baeeccde-d684-4ff1-807a-a7244a2f5fc6",
+      "name": "fictional-leave-policy.md",
+      "content_hash": "2e24b3a596e91a293f5de7f2110d72095ccfc79013d5e1c6e5c61b99266df504",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-05T00:11:22.894141+00:00",
+      "error": null,
+      "warnings": [
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "a26bea24-e06d-4ebd-b2dd-c4b0ae642f5b",
+      "name": "fictional-projects.md",
+      "content_hash": "e4afd2ae455c60d708a96cc2a34c03ea4482603d15544b97d70def028a97f03d",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-05T00:11:22.894554+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "f95f4ee7-e130-4609-86f6-a394571f193f",
+      "name": "fictional-teams.md",
+      "content_hash": "ac97beb8742b39ccd2d015ff049644fe9f080b9d292bacef2e370f4dcf3900bf",
+      "status": "ready",
+      "chunk_count": 3,
+      "created_at": "2026-10-05T00:11:22.894915+00:00",
+      "error": null,
+      "warnings": [
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    },
+    {
+      "id": "3cfffaf5-5db1-4341-84d9-eade9732f639",
+      "name": "fictional-working-days.md",
+      "content_hash": "fd506ce1f4ff2d78517228142d3cc8009cb6eea82280ec991de82d5c2ad76356",
+      "status": "ready",
+      "chunk_count": 2,
+      "created_at": "2026-10-05T00:11:22.895248+00:00",
+      "error": null,
+      "warnings": [
+        "Recovered source-backed relation endpoint omitted by extraction model",
+        "Rejected entities whose names are absent from source text",
+        "Rejected relationship with invalid endpoints or non-verbatim evidence"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "id": "TEST01",
+      "question": "In the fictional testing scenario, who leads the Monsoon Lens project?",
+      "seconds": 4.18,
+      "status": 200,
+      "answer": "According to the fictional test scenario, Asha Rao leads the Monsoon Lens project.",
+      "citations": [
+        {
+          "chunk_id": "af7f27f5-30ae-4322-8f48-057629c774c7",
+          "document_id": "a26bea24-e06d-4ebd-b2dd-c4b0ae642f5b",
+          "document_name": "fictional-projects.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Project Roster\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. These are authored synthetic fixtures.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. The projects below are synthetic test data for the Niruthi assistant and do not describe real Niruthi work, customers, or roadmaps.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Monsoon Lens is an imaging pipeline led by Asha Rao. It processes rain-season satellite captures and ships quarterly model updates. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "8b4749cc-feee-4b6b-93d1-6cc993efdb8c",
+          "document_id": "f95f4ee7-e130-4609-86f6-a394571f193f",
+          "document_name": "fictional-teams.md",
+          "text": "Vikram Sen is the engineering manager for the group and the sole approver for any leave request of two or more consecutive working days across both teams. Asha Rao and Leela Das both report directly to Vikram Sen.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Asha Rao leads the Monsoon Lens team. Asha collaborates with Leela Das, who also contributes to FieldBridge on a shared-infrastructure basis one or two days per week.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": [
+        "a3d6912caf0d5a14ea0d5354",
+        "f7a6bb525da24ef950bf3d62"
+      ]
+    },
+    {
+      "id": "TEST02",
+      "question": "In the fictional testing scenario, how many annual leave days do employees get in this scenario?",
+      "seconds": 5.17,
+      "status": 200,
+      "answer": "In this fictional testing scenario, every employee receives 18 annual leave days per calendar year, prorated for anyone joining after January.",
+      "citations": [
+        {
+          "chunk_id": "8a21fe75-fb5a-4226-9404-340ad6bd73a6",
+          "document_id": "baeeccde-d684-4ff1-807a-a7244a2f5fc6",
+          "document_name": "fictional-leave-policy.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Leave Policy\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. These are authored synthetic fixtures.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. This document is synthetic test data for the Niruthi assistant and does not describe actual Niruthi practice. Under this invented scenario, every employee receives 18 annual leave days per calendar year, prorated for anyone joining after January.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": [
+        "4dc72c6c045899e5e88e915a",
+        "a0e72dc105d90c256328d926"
+      ]
+    },
+    {
+      "id": "TEST03",
+      "question": "In the fictional testing scenario, who approves a three-day leave request from someone on the FieldBridge team?",
+      "seconds": 4.58,
+      "status": 200,
+      "answer": "According to the fictional test scenario, Vikram Sen approves a three-day leave request from someone on the FieldBridge team.",
+      "citations": [
+        {
+          "chunk_id": "8b4749cc-feee-4b6b-93d1-6cc993efdb8c",
+          "document_id": "f95f4ee7-e130-4609-86f6-a394571f193f",
+          "document_name": "fictional-teams.md",
+          "text": "Vikram Sen is the engineering manager for the group and the sole approver for any leave request of two or more consecutive working days across both teams. Asha Rao and Leela Das both report directly to Vikram Sen.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Asha Rao leads the Monsoon Lens team. Asha collaborates with Leela Das, who also contributes to FieldBridge on a shared-infrastructure basis one or two days per week.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "c02bdc34-3cf7-4dd9-a3e7-9b2647df27c4",
+          "document_id": "baeeccde-d684-4ff1-807a-a7244a2f5fc6",
+          "document_name": "fictional-leave-policy.md",
+          "text": "FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. A leave request covering two or more consecutive working days requires written approval from Vikram Sen before the first day off. Single-day requests may be filed without pre-approval but must still be logged in the shared leave tracker on the same day.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. During any approved absence longer than one day, the employee must complete a written handoff to Leela Das that covers open tickets, on-call duties, and client-facing commitments. Leela confirms receipt in the shared handoff log before the leave begins.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": [
+        "21bafb14ecdf29df2f0047fa"
+      ]
+    },
+    {
+      "id": "TEST04",
+      "question": "In the fictional testing scenario, if Asha Rao takes a week off, who covers her open Monsoon Lens work?",
+      "seconds": 7.48,
+      "status": 200,
+      "answer": "According to the fictional test scenario, Leela Das covers Asha Rao's open Monsoon Lens work. Specifically, Leela Das acts as the backup lead whenever Asha is unavailable or on approved leave, and Asha Rao coordinates coverage with Leela Das for multi-day handoffs.",
+      "citations": [
+        {
+          "chunk_id": "3d13f3ea-d785-425f-9c04-3ad0a79c48ee",
+          "document_id": "3b26763a-a4a8-4c06-bf35-86982fd34fe7",
+          "document_name": "fictional-employee-rules.md",
+          "text": "Employees use assigned work devices for Monsoon Lens and FieldBridge work. They enable device locks and multifactor authentication, install approved security updates and never share passwords. A lost device or suspected security incident must be reported promptly to Vikram Sen.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Employees notify Vikram Sen of an unexpected absence before their scheduled start whenever possible. Planned leave follows the separate fictional leave policy. Asha Rao coordinates Monsoon Lens project coverage with Leela Das; required multi-day handoffs are written. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "2e927b0b-ad73-411e-b785-2f9b2fa41089",
+          "document_id": "f95f4ee7-e130-4609-86f6-a394571f193f",
+          "document_name": "fictional-teams.md",
+          "text": "FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Leela Das is the designated handoff owner for the whole group \u2014 whenever anyone on Monsoon Lens or FieldBridge files multi-day leave, their open work is reassigned to Leela until the requester returns.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Salary bands and individual compensation for any named employee are intentionally omitted from this roster.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "b980be92-5591-4d96-a7ab-efab41ba4cba",
+          "document_id": "a26bea24-e06d-4ebd-b2dd-c4b0ae642f5b",
+          "document_name": "fictional-projects.md",
+          "text": "It processes rain-season satellite captures and ships quarterly model updates. Leela Das is the senior engineer on Monsoon Lens and acts as the backup lead whenever Asha is unavailable or on approved leave.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. FieldBridge is a logistics coordination service led by Vikram Sen. It connects regional field crews to the central dispatch desk and ships on a weekly release cadence. Leela Das contributes shared infrastructure to FieldBridge from the Monsoon Lens stack.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [
+        "Discarded unsupported relationship highlights"
+      ],
+      "detail": null,
+      "graph_highlights": [
+        "4637f3da9e917134cb0de355",
+        "630d533e8b57ac15712bfae0"
+      ]
+    },
+    {
+      "id": "TEST05",
+      "question": "In the fictional testing scenario, what does her team work on?",
+      "seconds": 3.88,
+      "status": 200,
+      "answer": "Her team works on the Monsoon Lens project, which processes rain-season satellite captures and ships quarterly model updates.",
+      "citations": [
+        {
+          "chunk_id": "af7f27f5-30ae-4322-8f48-057629c774c7",
+          "document_id": "a26bea24-e06d-4ebd-b2dd-c4b0ae642f5b",
+          "document_name": "fictional-projects.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Project Roster\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. These are authored synthetic fixtures.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. The projects below are synthetic test data for the Niruthi assistant and do not describe real Niruthi work, customers, or roadmaps.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Monsoon Lens is an imaging pipeline led by Asha Rao. It processes rain-season satellite captures and ships quarterly model updates. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "b980be92-5591-4d96-a7ab-efab41ba4cba",
+          "document_id": "a26bea24-e06d-4ebd-b2dd-c4b0ae642f5b",
+          "document_name": "fictional-projects.md",
+          "text": "It processes rain-season satellite captures and ships quarterly model updates. Leela Das is the senior engineer on Monsoon Lens and acts as the backup lead whenever Asha is unavailable or on approved leave.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. FieldBridge is a logistics coordination service led by Vikram Sen. It connects regional field crews to the central dispatch desk and ships on a weekly release cadence. Leela Das contributes shared infrastructure to FieldBridge from the Monsoon Lens stack.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": []
+    },
+    {
+      "id": "TEST06",
+      "question": "In the fictional testing scenario, what is his role on the team?",
+      "seconds": 5.93,
+      "status": 200,
+      "answer": "According to the source, Vikram Sen is the engineering manager for the group.",
+      "citations": [
+        {
+          "chunk_id": "8b4749cc-feee-4b6b-93d1-6cc993efdb8c",
+          "document_id": "f95f4ee7-e130-4609-86f6-a394571f193f",
+          "document_name": "fictional-teams.md",
+          "text": "Vikram Sen is the engineering manager for the group and the sole approver for any leave request of two or more consecutive working days across both teams. Asha Rao and Leela Das both report directly to Vikram Sen.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Asha Rao leads the Monsoon Lens team. Asha collaborates with Leela Das, who also contributes to FieldBridge on a shared-infrastructure basis one or two days per week.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": []
+    },
+    {
+      "id": "TEST07",
+      "question": "In the fictional testing scenario, what is Asha Rao's salary?",
+      "seconds": 3.89,
+      "status": 200,
+      "answer": "According to the source, Asha Rao's salary is intentionally omitted from the roster.",
+      "citations": [
+        {
+          "chunk_id": "2e927b0b-ad73-411e-b785-2f9b2fa41089",
+          "document_id": "f95f4ee7-e130-4609-86f6-a394571f193f",
+          "document_name": "fictional-teams.md",
+          "text": "FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Leela Das is the designated handoff owner for the whole group \u2014 whenever anyone on Monsoon Lens or FieldBridge files multi-day leave, their open work is reassigned to Leela until the requester returns.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Salary bands and individual compensation for any named employee are intentionally omitted from this roster.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": []
+    },
+    {
+      "id": "TEST08",
+      "question": "In the fictional testing scenario, who leads the FieldBridge project?",
+      "seconds": 2.83,
+      "status": 200,
+      "answer": "According to the source, FieldBridge is led by Vikram Sen.",
+      "citations": [
+        {
+          "chunk_id": "b980be92-5591-4d96-a7ab-efab41ba4cba",
+          "document_id": "a26bea24-e06d-4ebd-b2dd-c4b0ae642f5b",
+          "document_name": "fictional-projects.md",
+          "text": "It processes rain-season satellite captures and ships quarterly model updates. Leela Das is the senior engineer on Monsoon Lens and acts as the backup lead whenever Asha is unavailable or on approved leave.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. FieldBridge is a logistics coordination service led by Vikram Sen. It connects regional field crews to the central dispatch desk and ships on a weekly release cadence. Leela Das contributes shared infrastructure to FieldBridge from the Monsoon Lens stack.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": [
+        "f3fb80481835b5f02f529f8e"
+      ]
+    },
+    {
+      "id": "TEST09",
+      "question": "In the fictional testing scenario, what are the standard working days and hours?",
+      "seconds": 3.21,
+      "status": 200,
+      "answer": "In the fictional testing scenario, the standard working days are Monday through Friday, with hours from 9:00 AM to 6:00 PM, including one hour for lunch. Saturday and Sunday are nonworking days.",
+      "citations": [
+        {
+          "chunk_id": "2ddb1d98-59cc-4581-9d84-d6796c5a016a",
+          "document_id": "3cfffaf5-5db1-4341-84d9-eade9732f639",
+          "document_name": "fictional-working-days.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Working days\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. Authored synthetic fixture.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. The invented standard schedule is Monday through Friday, 9:00 AM to 6:00 PM, with one hour for lunch. Saturday and Sunday are nonworking days. This scenario uses India Standard Time for scheduling.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Employees record attendance in the shared tracker on each working day. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": []
+    },
+    {
+      "id": "TEST10",
+      "question": "In the fictional testing scenario, are weekends working days and how are additional holidays established?",
+      "seconds": 3.23,
+      "status": 200,
+      "answer": "In the fictional testing scenario, weekends (Saturday and Sunday) are nonworking days. Additional holidays are established only by being explicitly listed in Vikram Sen's published holiday calendar; this fixture does not establish any particular holiday date.",
+      "citations": [
+        {
+          "chunk_id": "2ddb1d98-59cc-4581-9d84-d6796c5a016a",
+          "document_id": "3cfffaf5-5db1-4341-84d9-eade9732f639",
+          "document_name": "fictional-working-days.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Working days\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. Authored synthetic fixture.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. The invented standard schedule is Monday through Friday, 9:00 AM to 6:00 PM, with one hour for lunch. Saturday and Sunday are nonworking days. This scenario uses India Standard Time for scheduling.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Employees record attendance in the shared tracker on each working day. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "b60b7c9b-815e-418b-b2f7-cfc4a7577259",
+          "document_id": "3cfffaf5-5db1-4341-84d9-eade9732f639",
+          "document_name": "fictional-working-days.md",
+          "text": "Employees record attendance in the shared tracker on each working day. Vikram Sen maintains a published holiday calendar; only holidays explicitly listed there are additional nonworking days. This fixture does not establish any particular holiday date.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. For an absence, employees notify Vikram Sen before their scheduled start whenever possible. Planned leave follows the separate fictional leave policy: 18 annual leave days; two or more consecutive working days need written approval. Leela Das receives the required multi-day work handoff.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": []
+    },
+    {
+      "id": "TEST11",
+      "question": "In the fictional testing scenario, who receives absence notices and what written approval is needed for planned three-day leave?",
+      "seconds": 3.95,
+      "status": 200,
+      "answer": "In this fictional scenario, Leela Das receives the required multi-day work handoff (absence notices/handoffs), and written approval from Vikram Sen is needed for planned leave covering two or more consecutive working days.",
+      "citations": [
+        {
+          "chunk_id": "b60b7c9b-815e-418b-b2f7-cfc4a7577259",
+          "document_id": "3cfffaf5-5db1-4341-84d9-eade9732f639",
+          "document_name": "fictional-working-days.md",
+          "text": "Employees record attendance in the shared tracker on each working day. Vikram Sen maintains a published holiday calendar; only holidays explicitly listed there are additional nonworking days. This fixture does not establish any particular holiday date.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. For an absence, employees notify Vikram Sen before their scheduled start whenever possible. Planned leave follows the separate fictional leave policy: 18 annual leave days; two or more consecutive working days need written approval. Leela Das receives the required multi-day work handoff.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "c02bdc34-3cf7-4dd9-a3e7-9b2647df27c4",
+          "document_id": "baeeccde-d684-4ff1-807a-a7244a2f5fc6",
+          "document_name": "fictional-leave-policy.md",
+          "text": "FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. A leave request covering two or more consecutive working days requires written approval from Vikram Sen before the first day off. Single-day requests may be filed without pre-approval but must still be logged in the shared leave tracker on the same day.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. During any approved absence longer than one day, the employee must complete a written handoff to Leela Das that covers open tickets, on-call duties, and client-facing commitments. Leela confirms receipt in the shared handoff log before the leave begins.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": [
+        "b66280c67413cdadf5f877e0",
+        "f357cfd55f05e1ed86add389"
+      ]
+    },
+    {
+      "id": "TEST12",
+      "question": "In the fictional testing scenario, what security practices apply to work devices and whom should employees notify about a lost device?",
+      "seconds": 3.24,
+      "status": 200,
+      "answer": "According to the fictional test scenario, employees use assigned work devices for Monsoon Lens and FieldBridge work. They enable device locks, multifactor authentication, install approved security updates, and never share passwords. A lost device or suspected security incident must be reported promptly to Vikram Sen.",
+      "citations": [
+        {
+          "chunk_id": "3d13f3ea-d785-425f-9c04-3ad0a79c48ee",
+          "document_id": "3b26763a-a4a8-4c06-bf35-86982fd34fe7",
+          "document_name": "fictional-employee-rules.md",
+          "text": "Employees use assigned work devices for Monsoon Lens and FieldBridge work. They enable device locks and multifactor authentication, install approved security updates and never share passwords. A lost device or suspected security incident must be reported promptly to Vikram Sen.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Employees notify Vikram Sen of an unexpected absence before their scheduled start whenever possible. Planned leave follows the separate fictional leave policy. Asha Rao coordinates Monsoon Lens project coverage with Leela Das; required multi-day handoffs are written. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": [],
+      "detail": null,
+      "graph_highlights": []
+    },
+    {
+      "question": "What are the working days?",
+      "answer": "According to its synthetic fixture, the standard schedule is Monday through Friday, with Saturday and Sunday being nonworking days.",
+      "citations": [
+        {
+          "chunk_id": "2ddb1d98-59cc-4581-9d84-d6796c5a016a",
+          "document_id": "3cfffaf5-5db1-4341-84d9-eade9732f639",
+          "document_name": "fictional-working-days.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Working days\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. Authored synthetic fixture.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. The invented standard schedule is Monday through Friday, 9:00 AM to 6:00 PM, with one hour for lunch. Saturday and Sunday are nonworking days. This scenario uses India Standard Time for scheduling.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Employees record attendance in the shared tracker on each working day. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "question": "How many leave days do employees have?",
+      "answer": "According to the fictional test scenario documents, every employee receives 18 annual leave days per calendar year, prorated for anyone joining after January.",
+      "citations": [
+        {
+          "chunk_id": "8a21fe75-fb5a-4226-9404-340ad6bd73a6",
+          "document_id": "baeeccde-d684-4ff1-807a-a7244a2f5fc6",
+          "document_name": "fictional-leave-policy.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Leave Policy\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. These are authored synthetic fixtures.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. This document is synthetic test data for the Niruthi assistant and does not describe actual Niruthi practice. Under this invented scenario, every employee receives 18 annual leave days per calendar year, prorated for anyone joining after January.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "question": "What is the real Niruthi employee leave policy?",
+      "answer": "According to the fictional test scenario documents, every employee receives 18 annual leave days per calendar year (prorated for those joining after January). Leave requests covering two or more consecutive working days require written approval from Vikram Sen before the first day off. Single-day requests may be filed without pre-approval but must be logged in the shared leave tracker on the same day. During any approved absence longer than one day, the employee must complete a written handoff to Leela Das covering open tickets, on-call duties, and client-facing commitments.",
+      "citations": [
+        {
+          "chunk_id": "8a21fe75-fb5a-4226-9404-340ad6bd73a6",
+          "document_id": "baeeccde-d684-4ff1-807a-a7244a2f5fc6",
+          "document_name": "fictional-leave-policy.md",
+          "text": "# FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts \u2014 Leave Policy\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. Snapshot: 2026-10-05. These are authored synthetic fixtures.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. This document is synthetic test data for the Niruthi assistant and does not describe actual Niruthi practice. Under this invented scenario, every employee receives 18 annual leave days per calendar year, prorated for anyone joining after January.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. ",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "c02bdc34-3cf7-4dd9-a3e7-9b2647df27c4",
+          "document_id": "baeeccde-d684-4ff1-807a-a7244a2f5fc6",
+          "document_name": "fictional-leave-policy.md",
+          "text": "FICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. A leave request covering two or more consecutive working days requires written approval from Vikram Sen before the first day off. Single-day requests may be filed without pre-approval but must still be logged in the shared leave tracker on the same day.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. During any approved absence longer than one day, the employee must complete a written handoff to Leela Das that covers open tickets, on-call duties, and client-facing commitments. Leela confirms receipt in the shared handoff log before the leave begins.\n\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        },
+        {
+          "chunk_id": "b60b7c9b-815e-418b-b2f7-cfc4a7577259",
+          "document_id": "3cfffaf5-5db1-4341-84d9-eade9732f639",
+          "document_name": "fictional-working-days.md",
+          "text": "Employees record attendance in the shared tracker on each working day. Vikram Sen maintains a published holiday calendar; only holidays explicitly listed there are additional nonworking days. This fixture does not establish any particular holiday date.\n\nFICTIONAL TEST SCENARIO \u2014 not actual Niruthi policy/facts. For an absence, employees notify Vikram Sen before their scheduled start whenever possible. Planned leave follows the separate fictional leave policy: 18 annual leave days; two or more consecutive working days need written approval. Leela Das receives the required multi-day work handoff.\n",
+          "page": null,
+          "quote": null,
+          "source_urls": []
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

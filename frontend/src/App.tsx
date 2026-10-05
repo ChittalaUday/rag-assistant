@@ -1,9 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
-import * as Tabs from "@radix-ui/react-tabs";
+import { useReducedMotion } from "motion/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogClose,
+  DialogTitle,
+  DialogDescription,
+} from "./components/animate-ui/components/radix/dialog";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "./components/animate-ui/components/radix/tabs";
+import { Button } from "./components/animate-ui/components/buttons/button";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "./components/animate-ui/components/radix/tooltip";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "./components/animate-ui/components/radix/accordion";
 import {
   ArrowUp,
-  BookOpen,
   FileText,
   MessageSquare,
   Plus,
@@ -13,8 +36,14 @@ import {
   X,
   PanelLeft,
   LoaderCircle,
+  Leaf,
+  ShieldCheck,
+  ArrowUpRight,
+  Network,
 } from "lucide-react";
 import { api, streamChat } from "./api";
+import { Activity, DocumentProgress } from "./Progress";
+import { DocumentReader } from "./DocumentReader";
 import { GraphMap } from "./GraphMap";
 import { emptyGraph } from "./types";
 import type {
@@ -55,6 +84,7 @@ function sourceWebsites(citation: Citation | null): string[] {
   ];
 }
 export default function App() {
+  const reducedMotion = useReducedMotion();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [graph, setGraph] = useState<KnowledgeGraph>(emptyGraph);
   const [health, setHealth] = useState<Health | null>(null);
@@ -69,6 +99,9 @@ export default function App() {
   const [evidence, setEvidence] = useState<Citation | null>(null);
   const [mobileTab, setMobileTab] = useState("chat");
   const [sidebar, setSidebar] = useState(false);
+  const [reader, setReader] = useState<{ id: string; name: string } | null>(
+    null,
+  );
   const uploadInput = useRef<HTMLInputElement>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
   const replacing = useRef<string | null>(null);
@@ -116,8 +149,8 @@ export default function App() {
     };
   }, [refresh]);
   useEffect(() => {
-    end.current?.scrollIntoView?.({ behavior: "smooth" });
-  }, [messages, status]);
+    end.current?.scrollIntoView?.({ behavior: reducedMotion ? "auto" : "smooth" });
+  }, [messages, status, reducedMotion]);
   const selectEvidence = useCallback((citation: Citation) => {
     const requestId = ++sourceRequest.current;
     setError("");
@@ -158,7 +191,7 @@ export default function App() {
     setQuestion("");
     setError("");
     setBusy(true);
-    setStatus("Finding supporting passages…");
+    setStatus("Sending your question to the local API…");
     const original = messagesRef.current;
     setMessages([
       ...original,
@@ -170,14 +203,16 @@ export default function App() {
       const result = await streamChat(
         text,
         conversationId,
-        (token) =>
+        (token) => {
+          setStatus("Displaying validated answer segments…");
           setMessages((current) =>
             current.map((m, i) =>
               i === current.length - 1
                 ? { ...m, content: m.content + token }
                 : m,
             ),
-          ),
+          );
+        },
         setStatus,
         abort.current.signal,
       );
@@ -250,19 +285,43 @@ export default function App() {
     setSidebar(false);
   }
   const ready = documents.filter((d) => d.status === "ready").length;
+  const readerDocument = documents.find(
+    (document) => document.id === reader?.id,
+  );
+  const readerRevision = readerDocument
+    ? JSON.stringify([
+        readerDocument.content_hash,
+        readerDocument.status,
+        readerDocument.processing_stage,
+        readerDocument.processing_message,
+        readerDocument.processed_chunks,
+        readerDocument.total_chunks,
+        readerDocument.chunk_count,
+        readerDocument.error,
+      ])
+    : "";
   const pending = documents.filter(
     (d) => d.status === "queued" || d.status === "processing",
   ).length;
   return (
     <div className="workspace">
       <aside className={`sidebar ${sidebar ? "open" : ""}`}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="sidebar-close"
+          aria-label="Close navigation"
+          onClick={() => setSidebar(false)}
+        >
+          <X size={17} />
+        </Button>
         <a
           className="brand"
           href="/"
           aria-label="Niruthi Company Assistant home"
         >
           <div className="brand-mark">
-            <BookOpen size={20} />
+            <Leaf size={22} />
           </div>
           <span>
             Niruthi
@@ -270,12 +329,20 @@ export default function App() {
             <strong>Company Assistant</strong>
           </span>
         </a>
-        <div className="workspace-label">LOCAL WORKSPACE</div>
-        <button className="new-chat" onClick={newChat} disabled={busy}>
+        <div className="workspace-label">
+          <span>KNOWLEDGE WORKSPACE</span>
+          <span className="workspace-tag">LOCAL</span>
+        </div>
+        <Button
+          variant="default"
+          className="new-chat"
+          onClick={newChat}
+          disabled={busy}
+        >
           <Plus size={16} /> New conversation
-        </button>
+        </Button>
         <div className="nav-label">
-          Conversations <MessageSquare size={13} />
+          Recent conversations <MessageSquare size={13} />
         </div>
         <nav className="history" aria-label="Conversation history">
           {conversations.length ? (
@@ -284,13 +351,15 @@ export default function App() {
                 className={`history-item ${conversationId === c.id ? "active" : ""}`}
                 key={c.id}
               >
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => void openConversation(c.id)}
                   disabled={busy}
                 >
                   {c.title}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   aria-label={`Delete conversation ${c.title}`}
                   disabled={busy}
                   onClick={() =>
@@ -301,15 +370,18 @@ export default function App() {
                   }
                 >
                   <Trash2 size={12} />
-                </button>
+                </Button>
               </div>
             ))
           ) : (
-            <p className="muted small">Your conversations will appear here.</p>
+            <p className="history-empty">
+              Start a conversation to build your history.
+            </p>
           )}
         </nav>
-        <div className="nav-label">
-          Documents <span>{documents.length}</span>
+        <div className="nav-label document-heading">
+          <span>Document library</span>
+          <span className="library-count">{documents.length}</span>
         </div>
         <div className="document-list">
           {documents.map((d) => (
@@ -324,6 +396,7 @@ export default function App() {
                   {d.status}{" "}
                   {d.status === "ready" ? `· ${d.chunk_count} chunks` : ""}
                 </span>
+                <DocumentProgress document={d} />
                 {d.error && <p className="doc-error">{d.error}</p>}
                 {d.warnings.map((w, i) => (
                   <p key={i} className="doc-warning">
@@ -331,7 +404,15 @@ export default function App() {
                   </p>
                 ))}
                 <div className="doc-actions">
-                  <button
+                  <Button
+                    variant="ghost"
+                    aria-label={`Open document ${d.name}`}
+                    onClick={() => setReader({ id: d.id, name: d.name })}
+                  >
+                    Open document
+                  </Button>
+                  <Button
+                    variant="ghost"
                     aria-label={`${d.status === "failed" ? "Retry" : "Replace"} ${d.name}`}
                     onClick={() => {
                       replacing.current = d.id;
@@ -341,14 +422,15 @@ export default function App() {
                   >
                     <RefreshCw size={12} />
                     {d.status === "failed" ? "Retry" : "Replace"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     aria-label={`Delete document ${d.name}`}
                     onClick={() => void action(() => api.deleteDocument(d.id))}
                     disabled={uploading}
                   >
                     <Trash2 size={12} />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -377,24 +459,40 @@ export default function App() {
             e.target.value = "";
           }}
         />
-        <button
+        <Button
+          variant="ghost"
           className="upload"
           onClick={() => uploadInput.current?.click()}
           disabled={uploading}
         >
           <Upload size={15} />
           {uploading ? "Updating documents…" : "Upload document"}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           className="demo"
           onClick={() => void action(() => api.demo())}
           disabled={uploading}
         >
-          Load Niruthi public documents
-        </button>
-        <p className="file-note">
-          Public-source snapshot, not internal policies.
-        </p>
+          Load Niruthi & fictional test documents
+        </Button>
+        <Accordion
+          type="single"
+          collapsible
+          defaultValue="provenance"
+          className="corpus-disclosure"
+        >
+          <AccordionItem value="provenance">
+            <AccordionTrigger>About the starter documents</AccordionTrigger>
+            <AccordionContent>
+              <p className="file-note">
+                Public Niruthi notes are a dated snapshot, not internal
+                policies. Fictional internal test documents do not describe
+                Niruthi.
+              </p>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
         <p className="file-note">TXT, Markdown, PDF, DOCX · up to 20 MB</p>
         <div className="local-status">
           <i className={health?.ollama_available ? "online" : ""} />
@@ -402,49 +500,57 @@ export default function App() {
             {health?.ollama_available
               ? "Local models connected"
               : "Local models offline"}
-            <small>Documents stay on this computer</small>
+            <small>
+              <ShieldCheck size={11} /> Documents stay on this computer
+            </small>
           </span>
         </div>
       </aside>
       <main>
         <header className="topbar">
           <div className="topbar-title">
-            <button
+            <Button
+              variant="ghost"
               className="sidebar-toggle"
               aria-label="Toggle navigation"
               onClick={() => setSidebar(!sidebar)}
             >
               <PanelLeft size={19} />
-            </button>
-            <span>Niruthi Climate &amp; Ecosystems</span>
-            <span className="topbar-slash">/</span>
-            <strong>
-              {conversationId ? "Conversation" : "New conversation"}
-            </strong>
+            </Button>
+            <div className="workspace-title">
+              <span>Niruthi Climate &amp; Ecosystems</span>
+              <small>Company knowledge, connected.</small>
+            </div>
           </div>
           <span className="topbar-state">
+            <span className="status-dot" />
             {pending ? `${pending} processing` : `${ready} documents ready`}
           </span>
         </header>
         {error && (
           <div role="alert" className="error-banner">
             <span>{error}</span>
-            <button aria-label="Dismiss error" onClick={() => setError("")}>
+            <Button
+              variant="ghost"
+              aria-label="Dismiss error"
+              onClick={() => setError("")}
+            >
               <X size={16} />
-            </button>
+            </Button>
           </div>
         )}
         {health && !health.ollama_available && (
           <div className="offline-banner">
             Ollama is unavailable. Start Ollama and install the configured
             models to process documents and ask questions.
-            <button
+            <Button
+              variant="ghost"
               onClick={() =>
                 void refresh().catch((e) => setError(errorText(e)))
               }
             >
               Check connection
-            </button>
+            </Button>
           </div>
         )}
         {health?.warnings.map((warning, index) => (
@@ -452,28 +558,26 @@ export default function App() {
             {warning}
           </div>
         ))}
-        <Tabs.Root
-          className="panels"
-          value={mobileTab}
-          onValueChange={setMobileTab}
-        >
-          <Tabs.List className="mobile-tabs" aria-label="Workspace panels">
-            <Tabs.Trigger value="chat">Conversation</Tabs.Trigger>
-            <Tabs.Trigger value="map">Knowledge map</Tabs.Trigger>
-          </Tabs.List>
-          <Tabs.Content value="chat" forceMount className="chat-panel">
+        <Tabs className="panels" value={mobileTab} onValueChange={setMobileTab}>
+          <TabsList className="mobile-tabs" aria-label="Workspace panels">
+            <TabsTrigger value="chat">Conversation</TabsTrigger>
+            <TabsTrigger value="map">Knowledge map</TabsTrigger>
+          </TabsList>
+          <TabsContent value="chat" forceMount className="chat-panel">
             <header className="panel-header">
               <div>
                 <div className="eyebrow">ASK YOUR DOCUMENTS</div>
                 <h1>Answers with evidence.</h1>
               </div>
-              <span className="small muted">Local inference</span>
+              <span className="inference-badge">
+                <ShieldCheck size={12} /> Local inference
+              </span>
             </header>
             <div className="messages" aria-live="polite">
               {!messages.length && (
                 <div className="chat-empty">
                   <div className="empty-icon">
-                    <MessageSquare size={22} />
+                    <Leaf size={28} />
                   </div>
                   <h2>
                     What would you like
@@ -485,12 +589,48 @@ export default function App() {
                     decisions. Each answer connects back to the documents behind
                     it.
                   </p>
+                  <div
+                    className="prompt-cards"
+                    aria-label="Suggested questions"
+                  >
+                    {[
+                      {
+                        icon: Leaf,
+                        title: "Explore public information",
+                        question:
+                          "What services does Niruthi describe in the public notes?",
+                      },
+                      {
+                        icon: Network,
+                        title: "Connect people and projects",
+                        question:
+                          "Which people and projects are connected in the uploaded documents?",
+                      },
+                      {
+                        icon: FileText,
+                        title: "Understand a policy",
+                        question:
+                          "What policies are described in the documents, and which are fictional test policies?",
+                      },
+                    ].map((prompt) => (
+                      <Button
+                        variant="outline"
+                        className="prompt-card"
+                        key={prompt.title}
+                        onClick={() => setQuestion(prompt.question)}
+                      >
+                        <prompt.icon size={17} />
+                        <span>{prompt.title}</span>
+                        <ArrowUpRight size={14} />
+                      </Button>
+                    ))}
+                  </div>
                   <div className="empty-note">
                     <FileText size={16} />
                     <span>
                       {documents.length
                         ? "Your documents are listed in the sidebar. Processing must finish before their passages can be used."
-                        : "Start by uploading company documents or loading Niruthi public documents — a public-source snapshot, not internal policies."}
+                        : "Upload your own documents or load public Niruthi notes alongside clearly labeled fictional internal testing documents. Fictional policies and roles are not Niruthi facts."}
                     </span>
                   </div>
                 </div>
@@ -511,7 +651,8 @@ export default function App() {
                     <div className="citations">
                       <div className="eyebrow">SOURCES</div>
                       {message.citations?.map((citation, i) => (
-                        <button
+                        <Button
+                          variant="ghost"
                           key={`${citation.chunk_id}-${i}`}
                           onClick={() => selectEvidence(citation)}
                         >
@@ -519,7 +660,7 @@ export default function App() {
                           <FileText size={13} />
                           {citation.document_name}
                           {citation.page ? ` · p. ${citation.page}` : ""}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   )}
@@ -530,6 +671,18 @@ export default function App() {
                   ))}
                 </article>
               ))}
+              {busy && (
+                <div className="chat-activity">
+                  <Activity
+                    message={status || "Waiting for the local API…"}
+                    label="Conversation progress"
+                  />
+                  <small>
+                    Answer text is displayed after local generation and
+                    validation.
+                  </small>
+                </div>
+              )}
               <div ref={end} />
             </div>
             <form
@@ -560,30 +713,36 @@ export default function App() {
                 <span>
                   {busy ? status : "Grounded in your documents · Enter to send"}
                 </span>
-                <button
-                  type="submit"
-                  aria-label="Send question"
-                  disabled={busy || !question.trim()}
-                >
-                  {busy ? (
-                    <LoaderCircle className="spin" size={18} />
-                  ) : (
-                    <ArrowUp size={18} />
-                  )}
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="default"
+                      type="submit"
+                      aria-label="Send question"
+                      disabled={busy || !question.trim()}
+                    >
+                      {busy ? (
+                        <LoaderCircle className="spin" size={18} />
+                      ) : (
+                        <ArrowUp size={18} />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Send question · Enter</TooltipContent>
+                </Tooltip>
               </div>
             </form>
             <p className="composer-note">
               Inspect sources to verify an answer. Unsupported questions may
               receive no answer.
             </p>
-          </Tabs.Content>
-          <Tabs.Content value="map" forceMount className="map-tab">
+          </TabsContent>
+          <TabsContent value="map" forceMount className="map-tab">
             <GraphMap graph={graph} onEvidence={selectEvidence} />
-          </Tabs.Content>
-        </Tabs.Root>
+          </TabsContent>
+        </Tabs>
       </main>
-      <Dialog.Root
+      <Dialog
         open={Boolean(evidence)}
         onOpenChange={(open) => {
           if (!open) {
@@ -592,47 +751,68 @@ export default function App() {
           }
         }}
       >
-        <Dialog.Portal>
-          <Dialog.Overlay className="drawer-overlay" />
-          <Dialog.Content className="source-drawer">
-            <div className="drawer-header">
-              <div className="eyebrow">SOURCE EVIDENCE</div>
-              <Dialog.Close aria-label="Close source">
+        <DialogContent className="source-drawer" showCloseButton={false}>
+          <div className="drawer-header">
+            <div className="eyebrow">SOURCE EVIDENCE</div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" aria-label="Close source">
                 <X size={20} />
-              </Dialog.Close>
-            </div>
-            <Dialog.Title>{evidence?.document_name}</Dialog.Title>
-            <Dialog.Description className="muted">
-              {evidence?.page ? `Page ${evidence.page} · ` : ""}Source chunk{" "}
-              {evidence?.chunk_id}
-            </Dialog.Description>
-            <div className="source-websites">
-              {sourceWebsites(evidence).map((url, index, urls) => (
-                <a
-                  key={url}
-                  className="source-link"
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  Source website
-                  {urls.length > 1
-                    ? ` ${index + 1} · ${new URL(url).hostname}`
-                    : ""}
-                </a>
-              ))}
-            </div>
-            {evidence?.quote && (
-              <>
-                <h3>Exact supporting passage</h3>
-                <blockquote>{evidence.quote}</blockquote>
-              </>
-            )}
-            <h3>Source context</h3>
-            <pre>{evidence?.text}</pre>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+              </Button>
+            </DialogClose>
+          </div>
+          <DialogTitle>{evidence?.document_name}</DialogTitle>
+          <DialogDescription className="muted">
+            {evidence?.page ? `Page ${evidence.page} · ` : ""}Source chunk{" "}
+            {evidence?.chunk_id}
+          </DialogDescription>
+          <div className="source-websites">
+            {sourceWebsites(evidence).map((url, index, urls) => (
+              <a
+                key={url}
+                className="source-link"
+                href={url}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Source website
+                {urls.length > 1
+                  ? ` ${index + 1} · ${new URL(url).hostname}`
+                  : ""}
+              </a>
+            ))}
+          </div>
+          {evidence?.quote && (
+            <>
+              <h3>Exact supporting passage</h3>
+              <blockquote>{evidence.quote}</blockquote>
+            </>
+          )}
+          {evidence && (
+            <Button
+              variant="ghost"
+              className="read-full"
+              onClick={() => {
+                sourceRequest.current += 1;
+                setReader({
+                  id: evidence.document_id,
+                  name: evidence.document_name,
+                });
+                setEvidence(null);
+              }}
+            >
+              Read full document
+            </Button>
+          )}
+          <h3>Source context</h3>
+          <pre>{evidence?.text}</pre>
+        </DialogContent>
+      </Dialog>
+      <DocumentReader
+        id={reader?.id ?? null}
+        name={reader?.name ?? "Document"}
+        revision={readerRevision}
+        onClose={() => setReader(null)}
+      />
     </div>
   );
 }

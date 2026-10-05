@@ -1,0 +1,223 @@
+{
+  "provider": "real local Ollama",
+  "reader_checks": [
+    {
+      "name": "company-identity.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 1
+    },
+    {
+      "name": "leadership-and-products.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 2
+    },
+    {
+      "name": "privacy.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 2
+    },
+    {
+      "name": "public-programs.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 3
+    },
+    {
+      "name": "public-source-boundaries.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 3
+    },
+    {
+      "name": "technology.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 2
+    },
+    {
+      "name": "fictional-employee-rules.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 3
+    },
+    {
+      "name": "fictional-leave-policy.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 3
+    },
+    {
+      "name": "fictional-projects.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 3
+    },
+    {
+      "name": "fictional-teams.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 3
+    },
+    {
+      "name": "fictional-working-days.md",
+      "text_kind": "original",
+      "exact_full_text": true,
+      "chunks": 2
+    }
+  ],
+  "questions": [
+    {
+      "question": "What is the actual Niruthi employee leave policy, not the fictional scenario?",
+      "answer": "The actual employee leave policy is not established by the reviewed public sources; current headcount, annual revenue, employee salaries and leave policy are not established by reviewed public sources.",
+      "citations": [
+        "public-source-boundaries.md"
+      ],
+      "warnings": []
+    },
+    {
+      "question": "Who approves it?",
+      "answer": "The actual employee leave policy is not established by the reviewed public sources; therefore, who approves it cannot be determined from the available information.",
+      "citations": [
+        "public-source-boundaries.md"
+      ],
+      "warnings": []
+    },
+    {
+      "question": "Now use the fictional test scenario: who approves a three-day leave?",
+      "answer": "Fictional test scenario \u2014 not actual Niruthi policy/facts.\n\nIn the fictional test scenario, a three-day leave (which covers two or more consecutive working days) requires written approval from Vikram Sen before the first day off.",
+      "citations": [
+        "fictional-leave-policy.md",
+        "fictional-teams.md"
+      ],
+      "warnings": []
+    },
+    {
+      "question": "How many annual leave days are allowed?",
+      "answer": "Fictional test scenario \u2014 not actual Niruthi policy/facts.\n\nIn the fictional test scenario, every employee receives 18 annual leave days per calendar year, prorated for anyone joining after January.",
+      "citations": [
+        "fictional-leave-policy.md"
+      ],
+      "warnings": []
+    },
+    {
+      "question": "What are the working days?",
+      "answer": "Fictional test scenario \u2014 not actual Niruthi policy/facts.\n\nIn the fictional test scenario, the standard schedule is Monday through Friday, with Saturday and Sunday as nonworking days.",
+      "citations": [
+        "fictional-working-days.md"
+      ],
+      "warnings": []
+    },
+    {
+      "question": "How does the brand name differ from the legal name?",
+      "answer": "According to its homepage, Niruthi describes itself as a deep tech company with the public brand 'Niruthi Climate & Ecosystem Services', while its privacy policy identifies the registered legal entity as 'Niruthi Climate and Ecosystems Pvt. Ltd.'",
+      "citations": [
+        "company-identity.md"
+      ],
+      "warnings": []
+    }
+  ],
+  "sse_events": [
+    {
+      "event": "status",
+      "seconds": 0.006,
+      "stage": "retrieving",
+      "message": "Finding source documents for your question"
+    },
+    {
+      "event": "status",
+      "seconds": 0.006,
+      "stage": "waiting_for_model",
+      "message": "Waiting for the local model to finish its current task"
+    },
+    {
+      "event": "status",
+      "seconds": 1.558,
+      "stage": "embedding_query",
+      "message": "Embedding your question for source retrieval"
+    },
+    {
+      "event": "status",
+      "seconds": 1.597,
+      "stage": "retrieving",
+      "message": "Ranking source passages and supported relationships"
+    },
+    {
+      "event": "status",
+      "seconds": 1.598,
+      "stage": "generating",
+      "message": "Generating an answer from the selected source passages"
+    },
+    {
+      "event": "status",
+      "seconds": 5.604,
+      "stage": "validating",
+      "message": "Checking citations and relationship evidence"
+    },
+    {
+      "event": "status",
+      "seconds": 5.604,
+      "stage": "streaming",
+      "message": "Displaying the validated answer"
+    },
+    {
+      "event": "token",
+      "seconds": 5.605
+    },
+    {
+      "event": "token",
+      "seconds": 5.605
+    },
+    {
+      "event": "token",
+      "seconds": 5.605
+    },
+    {
+      "event": "token",
+      "seconds": 5.605
+    },
+    {
+      "event": "token",
+      "seconds": 5.605
+    },
+    {
+      "event": "result",
+      "seconds": 5.607,
+      "answer": "Fictional test scenario \u2014 not actual Niruthi policy/facts.\n\nIn the fictional test scenario, device security rules include enabling device locks and multifactor authentication, installing approved security updates, never sharing passwords, and reporting lost devices or suspected security incidents promptly to Vikram Sen.",
+      "sources": [
+        "fictional-employee-rules.md"
+      ]
+    }
+  ],
+  "processing_observations": [
+    {
+      "status": "processing",
+      "processing_stage": "embedding",
+      "processing_message": "Embedding source chunks",
+      "processed_chunks": 0,
+      "total_chunks": 1
+    },
+    {
+      "status": "processing",
+      "processing_stage": "extracting",
+      "processing_message": "Extracting source-backed entities and relationships",
+      "processed_chunks": 0,
+      "total_chunks": 1
+    },
+    {
+      "status": "processing",
+      "processing_stage": "extracting",
+      "processing_message": "Extracting source-backed entities and relationships",
+      "processed_chunks": 0,
+      "total_chunks": 1
+    }
+  ],
+  "graph": {
+    "nodes": 337,
+    "edges": 102,
+    "invalid_evidence": 0
+  },
+  "new_document_exact_text": true
+}

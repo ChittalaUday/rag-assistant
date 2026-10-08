@@ -1,9 +1,18 @@
 [project]
-name = "company-assistant"
+name = "knowledge-engine"
 version = "0.1.0"
-description = "Local company knowledge assistant with an evidence-backed relationship graph"
+description = "Local knowledge engine: documents to entities, relations and grounded answers"
 requires-python = ">=3.12,<3.14"
-dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1", "httpx>=0.28,<1", "pydantic-settings>=2.7,<3", "python-multipart>=0.0.20,<1", "numpy>=2.2,<3"]
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.34,<1",
+    "httpx>=0.28,<1",
+    "pydantic-settings>=2.7,<3",
+    "python-multipart>=0.0.20,<1",
+    "numpy>=2.2,<3",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.14,<2",
+]
 [project.optional-dependencies]
 documents = ["docling>=2.50,<3"]
 evaluation = ["lightrag-hku>=1.4,<2"]
@@ -18,9 +27,15 @@ line-length = 100
 target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Prompt templates and test fixtures read better unwrapped.
+"backend/knowledge_engine/generation/prompt.py" = ["E501"]
+"backend/knowledge_engine/extraction/extractor.py" = ["E501"]
+"backend/tests/*" = ["E501"]
 [tool.mypy]
 python_version = "3.12"
-files = ["backend/company_assistant"]
+files = ["backend/knowledge_engine"]
 strict = true
 [[tool.mypy.overrides]]
 module = ["docling.*", "lightrag.*"]

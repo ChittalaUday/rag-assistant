@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import {
   Dialog,
@@ -19,12 +19,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "./components/animate-ui/components/radix/tooltip";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "./components/animate-ui/components/radix/accordion";
+
 import {
   ArrowUp,
   FileText,
@@ -41,21 +36,38 @@ import {
   ArrowUpRight,
   Network,
 } from "lucide-react";
-import { api, streamChat } from "./api";
-import { Activity, DocumentProgress } from "./Progress";
-import { DocumentReader } from "./DocumentReader";
-import { GraphMap } from "./GraphMap";
-import { emptyGraph } from "./types";
+import { api, streamChat } from "@/api/client";
+import { DocumentProgress } from "@/features/documents/Progress";
+import { DocumentReader } from "@/features/documents/DocumentReader";
+import { GraphMap } from "@/features/graph/GraphMap";
+import { emptyGraph } from "@/api/types";
 import type {
   Citation,
   Conversation,
   Document,
+  EdgeEvidence,
   Health,
   KnowledgeGraph,
   Message,
-} from "./types";
+  Preview,
+} from "@/api/types";
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : "An unexpected error occurred";
+// An answer carries only the relations it rests on: keep the whole graph on screen and
+// highlight those (adding any the polled graph has not caught up with yet).
+function withAnswer(
+  graph: KnowledgeGraph,
+  answer: KnowledgeGraph,
+): KnowledgeGraph {
+  const nodes = new Set(graph.nodes.map((n) => n.id));
+  const edges = new Set(graph.edges.map((e) => e.id));
+  return {
+    nodes: [...graph.nodes, ...answer.nodes.filter((n) => !nodes.has(n.id))],
+    edges: [...graph.edges, ...answer.edges.filter((e) => !edges.has(e.id))],
+    highlighted_node_ids: answer.highlighted_node_ids,
+    highlighted_edge_ids: answer.highlighted_edge_ids,
+  };
+}
 function safeHttpUrl(input: string | null | undefined): string | null {
   if (!input) return null;
   try {
@@ -92,12 +104,15 @@ export default function App() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [evidence, setEvidence] = useState<Citation | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<"chat" | "documents">("chat");
   const [mobileTab, setMobileTab] = useState("chat");
+  const [includeSynthetic, setIncludeSynthetic] = useState(true);
   const [sidebar, setSidebar] = useState(false);
   const [reader, setReader] = useState<{ id: string; name: string } | null>(
     null,
@@ -149,9 +164,42 @@ export default function App() {
     };
   }, [refresh]);
   useEffect(() => {
-    end.current?.scrollIntoView?.({ behavior: reducedMotion ? "auto" : "smooth" });
+    end.current?.scrollIntoView?.({
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
   }, [messages, status, reducedMotion]);
-  const selectEvidence = useCallback((citation: Citation) => {
+  // While a question is typed, infer the entities and relations it mentions (no model call).
+  useEffect(() => {
+    const text = question.trim();
+    if (text.length < 3) {
+      setPreview(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      api
+        .preview(text, controller.signal)
+        .then(setPreview)
+        .catch(() => undefined);
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [question]);
+  const mentions = preview?.entities.length ? preview : null;
+  const shownGraph = useMemo(
+    () =>
+      mentions
+        ? {
+            ...graph,
+            highlighted_node_ids: mentions.highlighted_node_ids,
+            highlighted_edge_ids: mentions.highlighted_edge_ids,
+          }
+        : graph,
+    [graph, mentions],
+  );
+  const selectEvidence = useCallback((citation: EdgeEvidence) => {
     const requestId = ++sourceRequest.current;
     setError("");
     void api
@@ -215,6 +263,7 @@ export default function App() {
         },
         setStatus,
         abort.current.signal,
+        includeSynthetic ? [] : ["synthetic"],
       );
       setConversationId(result.conversation_id);
       setMessages([
@@ -226,9 +275,10 @@ export default function App() {
           citations: result.citations,
           graph: result.graph,
           warnings: result.warnings,
+          status: result.status,
         },
       ]);
-      setGraph(result.graph);
+      setGraph((current) => withAnswer(current, result.graph));
       setConversations((await api.conversations()).conversations);
     } catch (e) {
       setMessages([...original, { role: "user", content: text }]);
@@ -264,6 +314,7 @@ export default function App() {
           (id) => live.edges.some((e) => e.id === id),
         ),
       });
+      setSidebarTab("chat");
       setSidebar(false);
     } catch (e) {
       if (requestId === historyRequest.current) setError(errorText(e));
@@ -282,9 +333,9 @@ export default function App() {
       highlighted_node_ids: [],
       highlighted_edge_ids: [],
     }));
+    setSidebarTab("chat");
     setSidebar(false);
   }
-  const ready = documents.filter((d) => d.status === "ready").length;
   const readerDocument = documents.find(
     (document) => document.id === reader?.id,
   );
@@ -329,113 +380,177 @@ export default function App() {
             <strong>Company Assistant</strong>
           </span>
         </a>
-        <div className="workspace-label">
-          <span>KNOWLEDGE WORKSPACE</span>
-          <span className="workspace-tag">LOCAL</span>
-        </div>
-        <Button
-          variant="default"
-          className="new-chat"
-          onClick={newChat}
-          disabled={busy}
+        <div
+          className="sidebar-tab-switcher"
+          role="tablist"
+          aria-label="Sidebar sections"
         >
-          <Plus size={16} /> New conversation
-        </Button>
-        <div className="nav-label">
-          Recent conversations <MessageSquare size={13} />
+          <button
+            type="button"
+            role="tab"
+            aria-selected={sidebarTab === "chat"}
+            className={`sidebar-tab-btn ${sidebarTab === "chat" ? "active" : ""}`}
+            onClick={() => setSidebarTab("chat")}
+          >
+            <MessageSquare size={13} />
+            <span>Chat</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={sidebarTab === "documents"}
+            className={`sidebar-tab-btn ${sidebarTab === "documents" ? "active" : ""}`}
+            onClick={() => setSidebarTab("documents")}
+          >
+            <FileText size={13} />
+            <span>Documents</span>
+            <span className="sidebar-tab-count">{documents.length}</span>
+          </button>
         </div>
-        <nav className="history" aria-label="Conversation history">
-          {conversations.length ? (
-            conversations.map((c) => (
-              <div
-                className={`history-item ${conversationId === c.id ? "active" : ""}`}
-                key={c.id}
-              >
-                <Button
-                  variant="ghost"
-                  onClick={() => void openConversation(c.id)}
-                  disabled={busy}
+
+        <div
+          className={`sidebar-section ${sidebarTab === "chat" ? "active" : "hidden"}`}
+        >
+          <Button
+            variant="default"
+            className="new-chat"
+            onClick={newChat}
+            disabled={busy}
+          >
+            <Plus size={16} /> New conversation
+          </Button>
+          <div className="nav-label">
+            Recent conversations <MessageSquare size={13} />
+          </div>
+          <nav className="history" aria-label="Conversation history">
+            {conversations.length ? (
+              conversations.map((c) => (
+                <div
+                  className={`history-item ${conversationId === c.id ? "active" : ""}`}
+                  key={c.id}
                 >
-                  {c.title}
-                </Button>
-                <Button
-                  variant="ghost"
-                  aria-label={`Delete conversation ${c.title}`}
-                  disabled={busy}
-                  onClick={() =>
-                    void action(async () => {
-                      await api.deleteConversation(c.id);
-                      if (conversationId === c.id) newChat();
-                    })
-                  }
-                >
-                  <Trash2 size={12} />
-                </Button>
-              </div>
-            ))
-          ) : (
-            <p className="history-empty">
-              Start a conversation to build your history.
-            </p>
-          )}
-        </nav>
-        <div className="nav-label document-heading">
-          <span>Document library</span>
-          <span className="library-count">{documents.length}</span>
-        </div>
-        <div className="document-list">
-          {documents.map((d) => (
-            <div className="document" key={d.id}>
-              <FileText size={15} />
-              <div className="document-body">
-                <strong title={d.name}>{d.name}</strong>
-                <span className={`doc-status ${d.status}`}>
-                  {d.status === "processing" ? (
-                    <LoaderCircle size={11} className="spin" />
-                  ) : null}
-                  {d.status}{" "}
-                  {d.status === "ready" ? `· ${d.chunk_count} chunks` : ""}
-                </span>
-                <DocumentProgress document={d} />
-                {d.error && <p className="doc-error">{d.error}</p>}
-                {d.warnings.map((w, i) => (
-                  <p key={i} className="doc-warning">
-                    {w}
-                  </p>
-                ))}
-                <div className="doc-actions">
                   <Button
                     variant="ghost"
-                    aria-label={`Open document ${d.name}`}
-                    onClick={() => setReader({ id: d.id, name: d.name })}
+                    onClick={() => void openConversation(c.id)}
+                    disabled={busy}
                   >
-                    Open document
+                    {c.title}
                   </Button>
                   <Button
                     variant="ghost"
-                    aria-label={`${d.status === "failed" ? "Retry" : "Replace"} ${d.name}`}
-                    onClick={() => {
-                      replacing.current = d.id;
-                      replaceInput.current?.click();
-                    }}
-                    disabled={uploading}
-                  >
-                    <RefreshCw size={12} />
-                    {d.status === "failed" ? "Retry" : "Replace"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    aria-label={`Delete document ${d.name}`}
-                    onClick={() => void action(() => api.deleteDocument(d.id))}
-                    disabled={uploading}
+                    aria-label={`Delete conversation ${c.title}`}
+                    disabled={busy}
+                    onClick={() =>
+                      void action(async () => {
+                        await api.deleteConversation(c.id);
+                        if (conversationId === c.id) newChat();
+                      })
+                    }
                   >
                     <Trash2 size={12} />
                   </Button>
                 </div>
-              </div>
-            </div>
-          ))}
+              ))
+            ) : (
+              <p className="history-empty">
+                Start a conversation to build your history.
+              </p>
+            )}
+          </nav>
         </div>
+
+        <div
+          className={`sidebar-section ${sidebarTab === "documents" ? "active" : "hidden"}`}
+        >
+          <div className="nav-label document-heading">
+            <span>Document library</span>
+            <span className="library-count">{documents.length}</span>
+          </div>
+          <div className="document-list">
+            {documents.map((d) => (
+              <div className="document" key={d.id}>
+                <FileText size={15} />
+                <div className="document-body">
+                  <strong title={d.name}>{d.name}</strong>
+                  <span className={`doc-status ${d.status}`}>
+                    {d.status === "processing" ? (
+                      <LoaderCircle size={11} className="spin" />
+                    ) : null}
+                    {d.status}{" "}
+                    {d.status === "ready" ? `· ${d.chunk_count} chunks` : ""}
+                  </span>
+                  <DocumentProgress document={d} />
+                  {d.error && <p className="doc-error">{d.error}</p>}
+                  {d.warnings.map((w, i) => (
+                    <p key={i} className="doc-warning">
+                      {w}
+                    </p>
+                  ))}
+                  <div className="doc-actions">
+                    <Button
+                      variant="ghost"
+                      aria-label={`Open document ${d.name}`}
+                      onClick={() => setReader({ id: d.id, name: d.name })}
+                    >
+                      Open document
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      aria-label={`${d.status === "failed" ? "Retry" : "Replace"} ${d.name}`}
+                      onClick={() => {
+                        replacing.current = d.id;
+                        replaceInput.current?.click();
+                      }}
+                      disabled={uploading}
+                    >
+                      <RefreshCw size={12} />
+                      {d.status === "failed" ? "Retry" : "Replace"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      aria-label={`Delete document ${d.name}`}
+                      onClick={() =>
+                        void action(() => api.deleteDocument(d.id))
+                      }
+                      disabled={uploading}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            className="upload"
+            onClick={() => uploadInput.current?.click()}
+            disabled={uploading}
+          >
+            <Upload size={15} />
+            {uploading ? "Updating documents…" : "Upload document"}
+          </Button>
+          <Button
+            variant="ghost"
+            className="demo"
+            onClick={() => void action(() => api.demo())}
+            disabled={uploading}
+          >
+            Load Niruthi & fictional test documents
+          </Button>
+          {documents.some((d) => d.labels?.includes("synthetic")) && (
+            <label className="scope-toggle">
+              <input
+                type="checkbox"
+                checked={includeSynthetic}
+                onChange={(e) => setIncludeSynthetic(e.target.checked)}
+              />
+              Include fictional test documents in answers
+            </label>
+          )}
+          <p className="file-note">TXT, Markdown, PDF, DOCX · up to 20 MB</p>
+        </div>
+
         <input
           ref={uploadInput}
           type="file"
@@ -459,52 +574,6 @@ export default function App() {
             e.target.value = "";
           }}
         />
-        <Button
-          variant="ghost"
-          className="upload"
-          onClick={() => uploadInput.current?.click()}
-          disabled={uploading}
-        >
-          <Upload size={15} />
-          {uploading ? "Updating documents…" : "Upload document"}
-        </Button>
-        <Button
-          variant="ghost"
-          className="demo"
-          onClick={() => void action(() => api.demo())}
-          disabled={uploading}
-        >
-          Load Niruthi & fictional test documents
-        </Button>
-        <Accordion
-          type="single"
-          collapsible
-          defaultValue="provenance"
-          className="corpus-disclosure"
-        >
-          <AccordionItem value="provenance">
-            <AccordionTrigger>About the starter documents</AccordionTrigger>
-            <AccordionContent>
-              <p className="file-note">
-                Public Niruthi notes are a dated snapshot, not internal
-                policies. Fictional internal test documents do not describe
-                Niruthi.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-        <p className="file-note">TXT, Markdown, PDF, DOCX · up to 20 MB</p>
-        <div className="local-status">
-          <i className={health?.ollama_available ? "online" : ""} />
-          <span>
-            {health?.ollama_available
-              ? "Local models connected"
-              : "Local models offline"}
-            <small>
-              <ShieldCheck size={11} /> Documents stay on this computer
-            </small>
-          </span>
-        </div>
       </aside>
       <main>
         <header className="topbar">
@@ -522,10 +591,12 @@ export default function App() {
               <small>Company knowledge, connected.</small>
             </div>
           </div>
-          <span className="topbar-state">
-            <span className="status-dot" />
-            {pending ? `${pending} processing` : `${ready} documents ready`}
-          </span>
+          {pending > 0 && (
+            <span className="topbar-state">
+              <span className="status-dot" />
+              {pending} processing
+            </span>
+          )}
         </header>
         {error && (
           <div role="alert" className="error-banner">
@@ -641,10 +712,38 @@ export default function App() {
                     {message.role === "user" ? "YOU" : "NIRUTHI ASSISTANT"}
                   </div>
                   <div className="answer-text">
-                    {message.content || (
-                      <span className="muted">
-                        {status || "Preparing answer…"}
-                      </span>
+                    {message.content ? (
+                      <>
+                        <span>{message.content}</span>
+                        {busy && index === messages.length - 1 && (
+                          <>
+                            <span
+                              className="streaming-cursor"
+                              aria-hidden="true"
+                            />
+                            <span
+                              className="sr-only"
+                              role="status"
+                              aria-label="Conversation progress"
+                            >
+                              {status}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    ) : busy && index === messages.length - 1 ? (
+                      <div
+                        className="shimmer-loading"
+                        role="status"
+                        aria-label="Conversation progress"
+                      >
+                        <span className="shimmer-pulse" />
+                        <span className="shimmer-text">
+                          {status || "Connecting sources and generating…"}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="muted">No response</span>
                     )}
                   </div>
                   {Boolean(message.citations?.length) && (
@@ -664,6 +763,12 @@ export default function App() {
                       ))}
                     </div>
                   )}
+                  {message.status === "conflicting_evidence" && (
+                    <p className="answer-warning" role="note">
+                      The sources disagree on this. Compare the cited passages
+                      before relying on the answer.
+                    </p>
+                  )}
                   {message.warnings?.map((w, i) => (
                     <p className="answer-warning" key={i}>
                       {w}
@@ -671,18 +776,6 @@ export default function App() {
                   ))}
                 </article>
               ))}
-              {busy && (
-                <div className="chat-activity">
-                  <Activity
-                    message={status || "Waiting for the local API…"}
-                    label="Conversation progress"
-                  />
-                  <small>
-                    Answer text is displayed after local generation and
-                    validation.
-                  </small>
-                </div>
-              )}
               <div ref={end} />
             </div>
             <form
@@ -738,7 +831,11 @@ export default function App() {
             </p>
           </TabsContent>
           <TabsContent value="map" forceMount className="map-tab">
-            <GraphMap graph={graph} onEvidence={selectEvidence} />
+            <GraphMap
+              graph={shownGraph}
+              onEvidence={selectEvidence}
+              previewing={Boolean(mentions)}
+            />
           </TabsContent>
         </Tabs>
       </main>

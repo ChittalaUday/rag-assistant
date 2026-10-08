@@ -1,20 +1,21 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { api, streamChat } from "./api";
+import { api, streamChat } from "@/api/client";
 import App from "./App";
-vi.mock("./GraphMap", () => ({
+vi.mock("@/features/graph/GraphMap", () => ({
   GraphMap: ({
     onEvidence,
     graph,
   }: {
-    graph: import("./types").KnowledgeGraph;
-    onEvidence: (source: import("./types").Citation) => void;
+    graph: import("@/api/types").KnowledgeGraph;
+    onEvidence: (source: import("@/api/types").Citation) => void;
   }) => (
     <div>
       <span>
         {graph.nodes.length} entities · {graph.edges.length} relations
       </span>
+      <span>highlighted: {graph.highlighted_edge_ids.join(",")}</span>
       {["A", "B"].map((id) => (
         <button
           key={id}
@@ -35,12 +36,13 @@ vi.mock("./GraphMap", () => ({
     </div>
   ),
 }));
-vi.mock("./api", () => ({
+vi.mock("@/api/client", () => ({
   api: {
     health: vi.fn(),
     documents: vi.fn(),
     documentContent: vi.fn(),
     graph: vi.fn(),
+    preview: vi.fn(),
     conversations: vi.fn(),
     source: vi.fn(),
     upload: vi.fn(),
@@ -69,6 +71,11 @@ beforeEach(() => {
     highlighted_node_ids: [],
   });
   vi.mocked(api.conversations).mockResolvedValue({ conversations: [] });
+  vi.mocked(api.preview).mockResolvedValue({
+    entities: [],
+    highlighted_node_ids: [],
+    highlighted_edge_ids: [],
+  });
 });
 it("shows offline recovery and empty graph without fabricated entities", async () => {
   render(<App />);
@@ -93,14 +100,11 @@ it("renders Niruthi branding and public-documents affordances", async () => {
   ).toBeInTheDocument();
   expect(
     screen.getAllByText(
-      /Public Niruthi notes are a dated snapshot, not internal policies/i,
+      /load public Niruthi notes alongside clearly labeled fictional internal testing documents/i,
     ).length,
   ).toBeGreaterThan(0);
-  expect(
-    screen.getByText(/Documents stay on this computer/i),
-  ).toBeInTheDocument();
 });
-async function openSourceWith(citation: import("./types").Citation) {
+async function openSourceWith(citation: import("@/api/types").Citation) {
   vi.mocked(api.source).mockResolvedValue(citation);
   render(<App />);
   await screen.findByText(/Ollama is unavailable/);
@@ -197,8 +201,14 @@ function historyFixture() {
 }
 it("keeps the newer history choice when requests finish in reverse order", async () => {
   historyFixture();
-  const a = deferred<{ id: string; messages: import("./types").Message[] }>();
-  const b = deferred<{ id: string; messages: import("./types").Message[] }>();
+  const a = deferred<{
+    id: string;
+    messages: import("@/api/types").Message[];
+  }>();
+  const b = deferred<{
+    id: string;
+    messages: import("@/api/types").Message[];
+  }>();
   vi.mocked(api.conversation).mockImplementation((id) =>
     id === "a" ? a.promise : b.promise,
   );
@@ -226,7 +236,7 @@ it("invalidates pending history when starting a new conversation", async () => {
   historyFixture();
   const pending = deferred<{
     id: string;
-    messages: import("./types").Message[];
+    messages: import("@/api/types").Message[];
   }>();
   vi.mocked(api.conversation).mockReturnValue(pending.promise);
   render(<App />);
@@ -246,8 +256,8 @@ it("invalidates pending history when starting a new conversation", async () => {
   expect(screen.getByText(/What would you like/)).toBeInTheDocument();
 });
 it("keeps the latest source and does not reopen its closed drawer", async () => {
-  const a = deferred<import("./types").Citation>();
-  const b = deferred<import("./types").Citation>();
+  const a = deferred<import("@/api/types").Citation>();
+  const b = deferred<import("@/api/types").Citation>();
   vi.mocked(api.source).mockImplementation((id) =>
     id === "A" ? a.promise : b.promise,
   );
@@ -282,8 +292,8 @@ it("keeps the latest source and does not reopen its closed drawer", async () => 
   );
 });
 it("does not replace the newer source when an older source finishes last", async () => {
-  const a = deferred<import("./types").Citation>();
-  const b = deferred<import("./types").Citation>();
+  const a = deferred<import("@/api/types").Citation>();
+  const b = deferred<import("@/api/types").Citation>();
   vi.mocked(api.source).mockImplementation((id) =>
     id === "A" ? a.promise : b.promise,
   );
@@ -315,7 +325,7 @@ it("does not replace the newer source when an older source finishes last", async
   expect(screen.getByRole("dialog")).not.toHaveTextContent("Passage A");
 });
 it("invalidates pending source inspection when starting a new conversation", async () => {
-  const pending = deferred<import("./types").Citation>();
+  const pending = deferred<import("@/api/types").Citation>();
   vi.mocked(api.source).mockReturnValue(pending.promise);
   render(<App />);
   await screen.findByText(/Ollama is unavailable/);
@@ -366,11 +376,6 @@ it("distinguishes public notes from fictional internal test documents", async ()
     }),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(
-      /Fictional internal test documents do not describe Niruthi/,
-    ),
-  ).toBeInTheDocument();
-  expect(
     screen.getByText(/Fictional policies and roles are not Niruthi facts/),
   ).toBeInTheDocument();
 });
@@ -419,7 +424,7 @@ it("sends distinct questions and displays authoritative answers and model warnin
   ).toBeInTheDocument();
 });
 it("shows backend conversation stages before displaying validated answer segments", async () => {
-  const pending = deferred<import("./types").ChatResponse>();
+  const pending = deferred<import("@/api/types").ChatResponse>();
   let emitStatus!: (message: string) => void;
   let emitToken!: (text: string) => void;
   vi.mocked(streamChat).mockImplementation((_q, _id, onToken, onStatus) => {
@@ -438,11 +443,6 @@ it("shows backend conversation stages before displaying validated answer segment
   expect(
     screen.getByRole("status", { name: "Conversation progress" }),
   ).toHaveTextContent("Generating an answer with the local model.");
-  expect(
-    screen.getByText(
-      "Answer text is displayed after local generation and validation.",
-    ),
-  ).toBeInTheDocument();
   act(() => emitToken("Validated segment"));
   expect(
     screen.getByRole("status", { name: "Conversation progress" }),
@@ -477,4 +477,188 @@ it("suggested prompts populate the composer without fabricating an answer", asyn
     "What services does Niruthi describe in the public notes?",
   );
   expect(streamChat).not.toHaveBeenCalled();
+});
+it("lets the reader exclude synthetic documents and warns when sources conflict", async () => {
+  const graph = {
+    nodes: [],
+    edges: [],
+    highlighted_node_ids: [],
+    highlighted_edge_ids: [],
+  };
+  const doc = (id: string, labels: string[]) => ({
+    id,
+    name: `${id}.md`,
+    content_hash: id,
+    status: "ready" as const,
+    chunk_count: 1,
+    created_at: "2026-10-08T00:00:00+00:00",
+    error: null,
+    warnings: [],
+    labels,
+  });
+  vi.mocked(api.documents).mockResolvedValue({
+    documents: [doc("real", []), doc("scenario", ["synthetic"])],
+  });
+  vi.mocked(streamChat).mockResolvedValue({
+    conversation_id: "chat",
+    answer: "Anil or Bob",
+    status: "conflicting_evidence",
+    citations: [],
+    graph,
+    warnings: [],
+    model: "local",
+  });
+  render(<App />);
+  const toggle = await screen.findByLabelText(
+    /Include fictional test documents/,
+  );
+  expect(toggle).toBeChecked();
+  await userEvent.type(
+    screen.getByLabelText("Ask a question"),
+    "Who is the manager?",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await screen.findByText("Anil or Bob");
+  expect(vi.mocked(streamChat).mock.calls[0][5]).toEqual([]);
+  expect(screen.getByRole("note")).toHaveTextContent(/sources disagree/i);
+  await userEvent.click(toggle);
+  await userEvent.type(screen.getByLabelText("Ask a question"), "And now?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await vi.waitFor(() => expect(streamChat).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(streamChat).mock.calls[1][5]).toEqual(["synthetic"]);
+});
+const node = (id: string) => ({
+  id,
+  label: id,
+  type: "person",
+  document_ids: [],
+  mentions: 1,
+});
+const edge = (id: string, source: string, target: string) => ({
+  id,
+  source,
+  target,
+  label: "leads",
+  evidence: [],
+});
+it("keeps the whole graph on screen and highlights only what an answer rests on", async () => {
+  vi.mocked(api.graph).mockResolvedValue({
+    nodes: [node("a"), node("b"), node("c")],
+    edges: [edge("e1", "a", "b"), edge("e2", "b", "c")],
+    highlighted_node_ids: [],
+    highlighted_edge_ids: [],
+  });
+  vi.mocked(streamChat).mockResolvedValue({
+    conversation_id: "chat",
+    answer: "A leads B",
+    citations: [],
+    graph: {
+      nodes: [node("a"), node("b")],
+      edges: [edge("e1", "a", "b")],
+      highlighted_node_ids: ["a", "b"],
+      highlighted_edge_ids: ["e1"],
+    },
+    warnings: [],
+    model: "local",
+  });
+  render(<App />);
+  await screen.findByText("3 entities · 2 relations");
+  await userEvent.type(screen.getByLabelText("Ask a question"), "Who leads B?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await screen.findByText("A leads B");
+  expect(screen.getByText("3 entities · 2 relations")).toBeInTheDocument();
+  expect(screen.getByText("highlighted: e1")).toBeInTheDocument();
+});
+it("shows the relations an answer rests on even before the polled graph has them", async () => {
+  vi.mocked(streamChat).mockResolvedValue({
+    conversation_id: "chat",
+    answer: "A leads B",
+    citations: [],
+    graph: {
+      nodes: [node("a"), node("b")],
+      edges: [edge("e1", "a", "b")],
+      highlighted_node_ids: ["a", "b"],
+      highlighted_edge_ids: ["e1"],
+    },
+    warnings: [],
+    model: "local",
+  });
+  render(<App />);
+  await screen.findByText("0 entities · 0 relations");
+  await userEvent.type(screen.getByLabelText("Ask a question"), "Who leads B?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await screen.findByText("A leads B");
+  expect(screen.getByText("2 entities · 1 relations")).toBeInTheDocument();
+  expect(screen.getByText("highlighted: e1")).toBeInTheDocument();
+});
+
+it("switches between Chat and Documents sections in the sidebar using tabs", async () => {
+  const doc = {
+    id: "doc-1",
+    name: "handbook.md",
+    content_hash: "hash123",
+    status: "ready" as const,
+    chunk_count: 5,
+    created_at: "2026-10-08T00:00:00+00:00",
+    error: null,
+    warnings: [],
+    labels: [],
+  };
+  vi.mocked(api.documents).mockResolvedValue({ documents: [doc] });
+
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+
+  // Sidebar navigation tabs are present
+  const chatTab = screen.getByRole("tab", { name: /^Chat/i });
+  const docsTab = screen.getByRole("tab", { name: /^Documents/i });
+  expect(chatTab).toBeInTheDocument();
+  expect(docsTab).toBeInTheDocument();
+  expect(chatTab).toHaveAttribute("aria-selected", "true");
+
+  // In sidebar Chat tab: New conversation is present
+  expect(
+    screen.getByRole("button", { name: "New conversation" }),
+  ).toBeInTheDocument();
+
+  // Click Documents in sidebar
+  await userEvent.click(docsTab);
+  expect(docsTab).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByText("Document library")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Upload document" }),
+  ).toBeInTheDocument();
+
+  // Question composer is available in main workspace
+  expect(screen.getByLabelText("Ask a question")).toBeInTheDocument();
+
+  // Switch back to Chat
+  await userEvent.click(chatTab);
+  expect(chatTab).toHaveAttribute("aria-selected", "true");
+});
+it("marks the entities and relations a question mentions while it is typed", async () => {
+  vi.mocked(api.graph).mockResolvedValue({
+    nodes: [node("a"), node("b"), node("c")],
+    edges: [edge("e1", "a", "b"), edge("e2", "b", "c")],
+    highlighted_node_ids: [],
+    highlighted_edge_ids: [],
+  });
+  vi.mocked(api.preview).mockResolvedValue({
+    entities: [{ id: "a", name: "Mira", type: "Person" }],
+    highlighted_node_ids: ["a", "b"],
+    highlighted_edge_ids: ["e1"],
+  });
+  render(<App />);
+  await screen.findByText("3 entities · 2 relations");
+  const input = screen.getByLabelText("Ask a question");
+  await userEvent.type(input, "who does Mira lead");
+  expect(await screen.findByText("highlighted: e1")).toBeInTheDocument();
+  expect(api.preview).toHaveBeenLastCalledWith(
+    "who does Mira lead",
+    expect.any(AbortSignal),
+  );
+  await userEvent.clear(input);
+  await waitFor(() =>
+    expect(screen.queryByText("highlighted: e1")).not.toBeInTheDocument(),
+  );
 });

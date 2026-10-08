@@ -1,4 +1,4 @@
-from company_assistant.provenance import source_urls
+from knowledge_engine.provenance import source_urls
 
 
 def test_explicit_source_headers_only():

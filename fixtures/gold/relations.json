@@ -1,0 +1,102 @@
+{
+  "_comment": "Core facts hand-labelled for extraction recall. Triples are [subject, predicate, object]; '|' separates accepted surface variants, '/' accepted predicates. Not exhaustive: unmatched extractions are candidates for manual review, not proven errors.",
+  "documents": {
+    "teams-and-ownership.md": [
+      ["Elena Rossi", "leads/responsible_for", "Platform"],
+      ["Elena Rossi", "has_role", "VP Engineering"],
+      ["Platform", "responsible_for", "API gateway|Pulse backend services"],
+      ["Rafael Costa", "leads", "Firmware"],
+      ["Firmware", "responsible_for", "Beacon firmware"],
+      ["Noor Al-Fahim", "leads", "Data"],
+      ["Data", "responsible_for", "Harbor pipeline|Lantern alerting engine"],
+      ["Tomás Herrera", "leads", "SRE"],
+      ["Jonas Keller", "leads", "Security"],
+      ["Security", "responsible_for/uses", "Okta administration|Okta|Vanta"],
+      ["Yuki Tanaka", "leads", "Product"],
+      ["Yuki Tanaka", "responsible_for/leads", "Pulse"],
+      ["Aisha Patel", "leads", "Customer Success"],
+      ["Hana Park", "leads", "People Ops"],
+      ["Mira Chen", "responsible_for", "Beacon"],
+      ["Elena Rossi", "responsible_for", "Pulse"],
+      ["Noor Al-Fahim", "responsible_for", "Relay"],
+      ["Noor Al-Fahim", "responsible_for", "Harbor"],
+      ["Dev Shah", "responsible_for", "Lantern"],
+      ["Elena Rossi", "reports_to", "Marcus Wu"],
+      ["Rafael Costa", "reports_to", "Marcus Wu"],
+      ["Noor Al-Fahim", "reports_to", "Marcus Wu"],
+      ["Tomás Herrera", "reports_to", "Marcus Wu"],
+      ["Jonas Keller", "reports_to", "Marcus Wu"],
+      ["Yuki Tanaka", "reports_to", "Marcus Wu"],
+      ["Aisha Patel", "reports_to", "Marcus Wu"],
+      ["Hana Park", "reports_to", "Priya Venkatesan"]
+    ],
+    "company-overview.md": [
+      ["Northstar Signal", "founded_by", "Priya Venkatesan"],
+      ["Northstar Signal", "founded_by", "Marcus Wu"],
+      ["Priya Venkatesan", "has_role", "CEO"],
+      ["Marcus Wu", "has_role", "CTO"],
+      ["Elena Rossi", "has_role", "VP Engineering"],
+      ["Jonas Keller", "has_role", "Head of Security"],
+      ["Aisha Patel", "has_role", "Head of Customer Success"],
+      ["Hana Park", "has_role", "Head of People"],
+      ["Northstar Signal", "located_in", "Rotterdam"],
+      ["Northstar Signal", "located_in", "Austin"],
+      ["Northstar Signal", "provides", "Beacon"],
+      ["Northstar Signal", "provides", "Pulse"],
+      ["Northstar Signal", "provides", "Relay"],
+      ["Mira Chen", "responsible_for", "Beacon"],
+      ["Yuki Tanaka", "leads/responsible_for", "Pulse"],
+      ["Northstar Signal", "uses", "AWS"],
+      ["Northstar Signal", "uses", "Datadog"],
+      ["Northstar Signal", "uses", "Snowflake"],
+      ["Northstar Signal", "uses", "Okta"],
+      ["Northstar Signal", "uses", "Vanta"],
+      ["SensorWare GmbH", "collaborates_with", "Northstar Signal|Beacon"],
+      ["OrbitLink", "provides", "Satellite comms|Satellite communications"],
+      ["Northfield Capital", "participates_in/related_to/leads", "Series B|Northstar Signal"]
+    ],
+    "fictional-teams.md": [
+      ["Vikram Sen", "has_role", "engineering manager"],
+      ["Vikram Sen", "approves", "leave request|leave requests"],
+      ["Asha Rao", "reports_to", "Vikram Sen"],
+      ["Leela Das", "reports_to", "Vikram Sen"],
+      ["Asha Rao", "leads", "Monsoon Lens|Monsoon Lens team"],
+      ["Asha Rao", "collaborates_with", "Leela Das"],
+      ["Leela Das", "participates_in/member_of/related_to", "FieldBridge"],
+      ["Leela Das", "responsible_for", "handoff|handoffs"]
+    ],
+    "fictional-projects.md": [
+      ["Asha Rao", "leads", "Monsoon Lens"],
+      ["Vikram Sen", "leads", "FieldBridge"],
+      ["Vikram Sen", "has_role", "engineering manager"],
+      ["Leela Das", "has_role", "senior engineer"],
+      ["Leela Das", "participates_in/member_of", "Monsoon Lens"],
+      ["Leela Das", "participates_in/related_to", "FieldBridge"],
+      ["Monsoon Lens", "is_a", "imaging pipeline"],
+      ["FieldBridge", "is_a", "logistics coordination service"]
+    ],
+    "fictional-leave-policy.md": [
+      ["Vikram Sen", "approves", "leave request|leave requests|leave"],
+      ["Leela Das", "responsible_for/related_to", "handoff|handoffs|written handoff"]
+    ],
+    "leadership-and-products.md": [
+      ["Rama Nemani", "has_role", "Founder"],
+      ["Mallikarjun Kukunuri", "has_role", "CEO|Co-Founder & CEO"],
+      ["Cristina Milesi", "has_role", "CSO|Co-Founder & CSO"],
+      ["Arun Balla", "has_role", "Deputy CEO"],
+      ["Shiva Ram Krishna", "has_role", "CTO"],
+      ["Makarand Kulkarni", "has_role", "CPO"],
+      ["Raj Patnaik", "has_role", "CGO"],
+      ["Suresh Mudragiri", "has_role", "Commodities Desk Head"],
+      ["WeatherSnap", "provides", "weather information"]
+    ],
+    "technology.md": [
+      ["Niruthi", "uses/depends_on/related_to", "NASA TOPS|TOPS"],
+      ["Ramakrishna Nemani", "has_role", "Principal Investigator"],
+      ["Ramakrishna Nemani", "member_of/has_role/related_to", "NASA Ames Research Center"]
+    ],
+    "company-identity.md": [
+      ["Niruthi Climate and Ecosystems Pvt. Ltd.|Niruthi", "located_in", "Hyderabad"]
+    ]
+  }
+}

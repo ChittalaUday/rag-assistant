@@ -82,13 +82,13 @@ async def main():
             embedding_func=EmbeddingFunc(
                 embedding_dim=384,
                 func=embed,
-                max_token_size=256,
+                max_token_size=1000,
                 model_name=report["embedding_model"],
             ),
             entity_extract_max_gleaning=0,
             llm_model_max_async=1,
             max_parallel_insert=1,
-            chunk_token_size=400,
+            chunk_token_size=1000,
             chunk_overlap_token_size=40,
             default_llm_timeout=100,
         )

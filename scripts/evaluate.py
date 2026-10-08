@@ -13,8 +13,14 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def assess(case: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
-    """Conservative smoke metrics; captured answers still need semantic review."""
+def assess(
+    case: dict[str, Any], result: dict[str, Any], source_text: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """Conservative smoke metrics; captured answers still need semantic review.
+
+    source_text maps chunk id -> passage text for the evidence of highlighted graph edges (graph
+    evidence carries a reference and a quote, not the passage)."""
+    source_text = source_text or {}
     answer = str(result.get("answer", ""))
     expected = case.get("expected_keywords", [])
     found = [word for word in expected if str(word).casefold() in answer.casefold()]
@@ -41,7 +47,8 @@ def assess(case: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
         if not any(c["chunk_id"] in cited_chunks for c in evidence):
             invalid.append(f"Highlighted edge {edge['id']} has no answer citation")
         for citation in evidence:
-            if not citation.get("quote") or citation["quote"] not in citation["text"]:
+            passage = source_text.get(citation["chunk_id"], "")
+            if not citation.get("quote") or citation["quote"] not in passage:
                 invalid.append(f"Edge {edge['id']} quote is absent from passage")
     unknown = case.get("type") in {"unknown", "unanswerable", "abstention"}
     abstained = bool(
@@ -70,9 +77,30 @@ def assess(case: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+async def highlighted_sources(client: httpx.AsyncClient, result: dict[str, Any]) -> dict[str, str]:
+    """Passage text for the evidence of the highlighted edges, fetched from /sources."""
+    graph = result.get("graph", {})
+    selected = set(graph.get("highlighted_edge_ids", []))
+    chunk_ids = {
+        c["chunk_id"] for e in graph.get("edges", []) if e["id"] in selected for c in e["evidence"]
+    }
+    texts: dict[str, str] = {}
+    for chunk_id in sorted(chunk_ids):
+        response = await client.get(f"/api/sources/{chunk_id}")
+        texts[chunk_id] = "" if response.is_error else response.json()["text"]
+    return texts
+
+
 async def run(args: argparse.Namespace) -> int:
-    corpus = json.loads((ROOT / "fixtures/questions.json").read_text())
-    cases = corpus if isinstance(corpus, list) else corpus["questions"]
+    cases: list[dict[str, Any]] = []
+    for path in args.questions:
+        loaded = json.loads(path.read_text())
+        for case in loaded if isinstance(loaded, list) else loaded["questions"]:
+            # Namespace ids by file so follow-up chains cannot collide across question sets.
+            case = {**case, "id": f"{path.stem}:{case['id']}"}
+            if case.get("followup_of"):
+                case["followup_of"] = f"{path.stem}:{case['followup_of']}"
+            cases.append(case)
     if args.limit:
         cases = cases[: args.limit]
     results: list[dict[str, Any]] = []
@@ -104,7 +132,7 @@ async def run(args: argparse.Namespace) -> int:
             else:
                 result = response.json()
                 conversation_ids[case["id"]] = result["conversation_id"]
-                record.update(assess(case, result))
+                record.update(assess(case, result, await highlighted_sources(client, result)))
                 record.update(
                     answer=result["answer"],
                     warnings=result.get("warnings", []),
@@ -132,5 +160,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api", default="http://127.0.0.1:8000")
     parser.add_argument("--limit", type=int)
+    parser.add_argument(
+        "--questions", nargs="+", type=Path, default=[ROOT / "fixtures/questions.json"]
+    )
     parser.add_argument("--output", type=Path, default=ROOT / "docs/reports/live-evaluation.json")
     raise SystemExit(asyncio.run(run(parser.parse_args())))

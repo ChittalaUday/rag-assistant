@@ -22,6 +22,13 @@ class ConversationRepo:
         )
         return [r["payload"] for r in rows]
 
+    def every_message(self) -> list[Row]:
+        """Every saved message with its conversation, oldest conversation first, in order."""
+        return self.db.rows(
+            "SELECT c.id AS conversation_id, c.title, m.payload FROM messages m "
+            "JOIN conversations c ON c.id=m.conversation_id ORDER BY c.created_at, c.id, m.seq"
+        )
+
     def delete(self, id: str) -> None:
         self.db.run("DELETE FROM conversations WHERE id=%s", (id,))  # cascades to messages
 

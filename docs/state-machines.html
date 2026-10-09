@@ -1,0 +1,136 @@
+<title>Assistant State Machines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one reading column; each flow is a diagram, then a table of its states. */
+:root {
+  --bg: #f6f7f9; --surface: #fcfcfb; --fg: #16202c; --fg-2: #4a5563; --muted: #7a8494; --line: #dde2e9; --accent: #2c4b74;
+  --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #121417; --surface: #1a1a19; --fg: #eef1f5; --fg-2: #b6bfcb; --muted: #8b95a3; --line: #2c3139; --accent: #8fb3e3; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #121417; --surface: #1a1a19; --fg: #eef1f5; --fg-2: #b6bfcb; --muted: #8b95a3; --line: #2c3139; --accent: #8fb3e3; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-sans); }
+.page { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 64px; display: grid; gap: 44px; }
+header, section { display: grid; gap: 12px; min-width: 0; }
+.eyebrow { font: 500 12px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.15; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; max-width: 72ch; color: var(--fg-2); }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; display: flex; justify-content: center; background: transparent; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 9px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--fg-2); background: var(--bg); white-space: nowrap; }
+td { color: var(--fg); min-width: 120px; }
+td.s { font-family: var(--font-mono); font-weight: 500; white-space: nowrap; color: var(--accent); }
+td.c { font-family: var(--font-mono); font-size: 12px; color: var(--fg-2); min-width: 200px; }
+tr:last-child td { border-bottom: 0; }
+.note { font-size: 13px; color: var(--muted); }
+@media (max-width: 520px) { .page { padding-inline: 16px; } }
+</style>
+<div class="page">
+  <header>
+    <div class="eyebrow">Company Knowledge Assistant · knowledge engine</div>
+    <h1>Document processing and question answering</h1>
+    <p>Two state machines, drawn from the code as it stands (commit 9896220 plus uncommitted metrics work). Lower-case state names are the stage names the app shows while the work runs.</p>
+  </header>
+  <section aria-labelledby="h-doc">
+    <h2 id="h-doc">A document, from upload to searchable</h2>
+    <p>Uploads are checked and deduplicated in the request; the heavy work runs in one background worker, one document at a time. A document is always in one of four stored states: queued, processing, ready or failed.</p>
+    <div class="diagram"><pre class="mermaid">stateDiagram-v2
+    direction TB
+    [*] --&gt; Checking: upload (file, labels)
+    Checking: Checking the upload&lt;br/&gt;size ≤ 20 MB, not empty, TXT MD CSV PDF DOCX
+    Checking --&gt; Rejected: too large, empty, unsupported, queue full, replaced document still processing
+    Rejected --&gt; [*]
+    Checking --&gt; Deduplicating
+    Deduplicating: Deduplicating&lt;br/&gt;SHA-256 of the content
+    Deduplicating --&gt; Ready: same content failed earlier but kept its passages (restored)
+    Deduplicating --&gt; Unchanged: same content already present
+    Unchanged --&gt; [*]: existing document returned
+    Deduplicating --&gt; Queued: new content, or a replacement (old version stays searchable)
+    Deduplicating --&gt; Queued: same content failed earlier (retry)
+    Queued: queued
+    Queued --&gt; Processing: worker takes the job (one at a time)
+    state Processing {
+        [*] --&gt; Parsing
+        Parsing: parsing&lt;br/&gt;read TXT MD CSV, PDF DOCX via Docling&lt;br/&gt;normalise, chunk, fit to the embedding window
+        Parsing --&gt; Situating: contextual summaries on
+        Parsing --&gt; Embedding: contextual summaries off
+        Situating: situating&lt;br/&gt;one or two model sentences per passage&lt;br/&gt;(a failed passage keeps plain context, warning)
+        Situating --&gt; Embedding
+        Embedding: embedding&lt;br/&gt;passages in batches, vectors checked
+        Embedding --&gt; Publishing: vectors valid
+        Publishing: publishing&lt;br/&gt;one transaction (text, passages, lexicon, ready)
+    }
+    Processing --&gt; Ready: published
+    Processing --&gt; Failed: no readable text, over 600 passages, invalid vectors, model error, 30 min timeout
+    Processing --&gt; Queued: server restarted mid-job
+    Ready: ready (searchable)
+    Failed: failed (error kept)
+    Ready --&gt; Queued: re-index (older pipeline or new embedding model) or replacement upload
+    Failed --&gt; Queued: uploaded again
+    Ready --&gt; [*]: deleted
+    Failed --&gt; [*]: deleted
+    Queued --&gt; [*]: deleted</pre></div>
+    <div class="scroll"><table><thead><tr><th>State</th><th>What happens</th><th>Shown in the app</th><th>Code (backend/knowledge_engine)</th></tr></thead><tbody><tr><td class="s">Checking</td><td>Size up to 20 MB, not empty, a supported type (TXT, Markdown, CSV, PDF, DOCX); the queue has room; a replaced document is not mid-processing.</td><td>rejected with 400, 409, 413 or 429</td><td class="c">ingestion/intake.py upload</td></tr><tr><td class="s">Deduplicating</td><td>SHA-256 of the content. Same content already present returns that document; same content that failed but kept its passages is restored; otherwise the file is stored and queued. A replacement is staged so the old version stays searchable until the new one is published.</td><td>queued</td><td class="c">ingestion/intake.py upload</td></tr><tr><td class="s">queued</td><td>Waiting for the single worker (bounded queue of 32). Interrupted jobs return here when the server restarts; re-indexing (older pipeline, new embedding model) also queues here.</td><td>queued</td><td class="c">pipeline/indexing.py worker, store/documents.py requeue_interrupted</td></tr><tr><td class="s">parsing</td><td>Read the text (PDF and DOCX through Docling), normalise it, cut it into passages at headings and sentence ends, and split any passage longer than the embedding window. No readable text or more than 600 passages fails the job.</td><td>parsing</td><td class="c">ingestion/parser.py, ingestion/chunker.py, pipeline/indexing.py build</td></tr><tr><td class="s">situating</td><td>One or two model-written sentences per passage placing it in its document (searched with it). A passage whose summary fails keeps its plain context and the document gets a warning.</td><td>situating (n of total)</td><td class="c">ingestion/situate.py</td></tr><tr><td class="s">embedding</td><td>Embed the passages in batches; vectors of the wrong size or with invalid numbers fail the job.</td><td>embedding (n of total)</td><td class="c">pipeline/indexing.py build</td></tr><tr><td class="s">publishing</td><td>One transaction: document text, passages (replacing the old ones), spelling lexicon, status ready.</td><td>publishing</td><td class="c">pipeline/indexing.py publish</td></tr><tr><td class="s">ready</td><td>Searchable. Leaves only for re-indexing, a replacement upload or deletion.</td><td>ready</td><td class="c">store/documents.py mark_ready</td></tr><tr><td class="s">failed</td><td>The error is kept on the document. Uploading the same file again retries it. A job that runs past 30 minutes also ends here.</td><td>failed</td><td class="c">pipeline/indexing.py process, worker</td></tr></tbody></table></div>
+  </section>
+  <section aria-labelledby="h-q">
+    <h2 id="h-q">A question, from message to answer</h2>
+    <p>Every message is routed first. Small talk gets a short reply without the documents; everything else is answered only from passages it can cite, or the assistant says it could not find the information. Typical times are the p50 of the response-time baseline (49 questions, 9 October 2026).</p>
+    <div class="diagram"><pre class="mermaid">stateDiagram-v2
+    direction TB
+    [*] --&gt; Routing: question (answer language, excluded labels)
+    Routing: routing&lt;br/&gt;embed the message, compare with example messages (~20 ms)
+    Routing --&gt; Replying: small talk (closer to small talk by the margin)
+    Routing --&gt; Answering: a question (or routing failed)
+    Replying: replying&lt;br/&gt;chat model, no passages, states no facts
+    Replying --&gt; Saving: reply (status conversation)
+    Replying --&gt; Answering: reply failed or too long
+    state Answering {
+        [*] --&gt; Understanding
+        Understanding: rewriting (follow-ups only), spelling correction, intent
+        Understanding --&gt; Searching
+        Searching: embedding_query, searching&lt;br/&gt;dense + keyword search, fused
+        Searching --&gt; NoEvidence: no passages indexed or no candidates
+        Searching --&gt; Reranking: candidates
+        Reranking: reranking&lt;br/&gt;cross-encoder (feature ranking if it fails)
+        Reranking --&gt; Expanding
+        Expanding: second hop to linked documents&lt;br/&gt;complete split tables and lists
+        Expanding --&gt; Budgeting
+        Budgeting: evidence within the 9,000-character budget
+        Budgeting --&gt; NoEvidence: no passages fit
+        Budgeting --&gt; Generating
+        Generating: generating&lt;br/&gt;answer JSON, draft streamed
+        Generating --&gt; Retrying: no valid citation, or wrong language
+        Retrying: one retry with a reminder
+        Retrying --&gt; Validating
+        Generating --&gt; Validating
+        Validating: validating&lt;br/&gt;citation ids checked against the passages
+        Validating --&gt; Abstained: model says not in the passages
+        Validating --&gt; Withheld: no valid citation or empty answer
+        Validating --&gt; Verifying: cited answer
+        Verifying: verifying&lt;br/&gt;each sentence matched to passages, unsupported marked
+        NoEvidence: insufficient_evidence
+        Abstained: insufficient_evidence
+        Withheld: insufficient_evidence + warning
+        Verifying --&gt; [*]: answered or conflicting_evidence
+        NoEvidence --&gt; [*]
+        Abstained --&gt; [*]
+        Withheld --&gt; [*]
+    }
+    Answering --&gt; Saving
+    Answering --&gt; Error: model failure (503, nothing saved)
+    Error --&gt; [*]
+    Saving: saving&lt;br/&gt;exchange with trace and metrics
+    Saving --&gt; [*]: result (answer tokens streamed)</pre></div>
+    <div class="scroll"><table><thead><tr><th>State</th><th>What happens</th><th>Shown in the app</th><th>Typical time</th><th>Code (backend/knowledge_engine)</th></tr></thead><tbody><tr><td class="s">routing</td><td>Embed the message and compare it with the small-talk and question examples (generation/smalltalk.toml).</td><td>routing</td><td>0.02 s</td><td class="c">generation/smalltalk.py route_score</td></tr><tr><td class="s">replying</td><td>Small talk only: the chat model writes one or two sentences, sees no passages and states no facts. Status conversation.</td><td>replying</td><td>1.1 s</td><td class="c">generation/smalltalk.py small_talk_reply</td></tr><tr><td class="s">understanding</td><td>Follow-ups are rewritten into a standalone question using the conversation; spelling is corrected from the corpus vocabulary; the intent (lookup, relationship, overview) is classified.</td><td>rewriting (follow-ups)</td><td>1.0 s for follow-ups, otherwise under 0.1 s</td><td class="c">retrieval/analyzer.py analyze</td></tr><tr><td class="s">searching</td><td>Embed the question; dense and keyword search; the two rankings fused.</td><td>embedding_query, searching</td><td>under 0.1 s</td><td class="c">retrieval/search.py retrieve</td></tr><tr><td class="s">reranking</td><td>A cross-encoder scores 30 candidates against the question; if it fails, ranking falls back to features.</td><td>reranking</td><td>2.9 s</td><td class="c">retrieval/search.py, llm/ollama.py relevance</td></tr><tr><td class="s">second hop and budget</td><td>Names in the best passage pull in passages from other documents; split tables and lists are completed; the best passages are kept within the 9,000-character evidence budget.</td><td>(part of searching)</td><td>under 0.1 s</td><td class="c">retrieval/hop.py, retrieval/structure.py, reasoning/evidence.py</td></tr><tr><td class="s">generating</td><td>The answer model writes JSON (answer, citation ids, status); the answer text streams to the app as a draft. One retry with a reminder if no citation is valid or the answer is in the wrong language.</td><td>generating</td><td>4.2 s</td><td class="c">generation/answer.py, generation/prompt.py</td></tr><tr><td class="s">validating</td><td>Citation ids are checked against the passages actually shown. A model that says the passages do not answer gives insufficient_evidence; an answer with no valid citation is withheld with a warning.</td><td>validating</td><td>under 0.1 s</td><td class="c">generation/answer.py generate_answer</td></tr><tr><td class="s">verifying</td><td>Each sentence of a cited answer is matched to the passages that state it; citations are completed and unsupported sentences marked. Answered or conflicting_evidence.</td><td>verifying</td><td>3.3 s</td><td class="c">generation/attribution.py</td></tr><tr><td class="s">saving</td><td>The question and answer are saved with the trace and metrics, then the validated answer is sent. A model failure anywhere before this returns 503 and saves nothing.</td><td>streaming</td><td>under 0.1 s</td><td class="c">pipeline/querying.py chat, api/chat.py</td></tr></tbody></table></div>
+    <p class="note">Statuses an answer can end with: answered, conflicting_evidence, insufficient_evidence, conversation.</p>
+  </section>
+</div>

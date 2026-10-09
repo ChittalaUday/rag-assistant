@@ -88,6 +88,8 @@ async def run_cases(ctx: AppContext, cases: list[Case], verbose: bool = False) -
             "cited": sorted(cited),
             "retrieved": sorted(retrieved),
             "unsupported": [x["text"] for x in result["statements"] if not x["sources"]],
+            "timings": result["trace"].get("timings", {}),
+            "metrics": result.get("metrics"),
             **score(case, result["answer"], result["status"], cited, retrieved),
         }
         rows.append(row)

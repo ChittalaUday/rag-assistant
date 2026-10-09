@@ -1,5 +1,5 @@
-"""python -m knowledge_engine.evaluation {retrieval,answers,rescore,routing,chunking}: measure
-pipeline stages."""
+"""python -m knowledge_engine.evaluation STAGE: measure pipeline stages (retrieval, answers,
+rescore, latency, routing, chunking)."""
 
 import argparse
 import asyncio
@@ -120,6 +120,8 @@ def main() -> None:
     )
     ch.add_argument("--k", type=int, default=5)
     ch.add_argument("--out", type=Path, default=Path("work/chunk-bench/results.json"))
+    la = sub.add_parser("latency", help="time per stage and question type of an `answers` run")
+    la.add_argument("results", type=Path, help="JSON file written by `answers --out`")
     ro = sub.add_parser("routing", help="small-talk routing scores and margins (embeddings only)")
     ro.add_argument("--held-out", type=Path, default=FIXTURES / "small-talk.json")
     rs = sub.add_parser("rescore", help="score saved answers again with the current questions")
@@ -134,6 +136,11 @@ def main() -> None:
             benchmark(Settings(), dirs, args.long_docs, args.kinds, args.k, args.long_docs.parent)
         )
         args.out.write_text(json.dumps(results, ensure_ascii=False, indent=1))
+        return
+    if args.stage == "latency":
+        from knowledge_engine.evaluation.latency import latency_report, print_report
+
+        print_report(latency_report(json.loads(args.results.read_text())["results"]))
         return
     if args.stage == "routing":
         from knowledge_engine.evaluation.routing import evaluate_routing

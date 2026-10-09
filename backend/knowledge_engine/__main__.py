@@ -2,7 +2,7 @@
 
 python -m knowledge_engine ingest PATH [PATH ...] [--labels a,b]   index files/folders
 python -m knowledge_engine reindex [--all]                         rebuild derived data
-python -m knowledge_engine export OUT_DIR                          write the passages
+python -m knowledge_engine export OUT_DIR                          write passages and exchanges
 python -m knowledge_engine eval ...                                retrieval/answer evaluation
 """
 
@@ -82,7 +82,8 @@ async def reindex(ctx: AppContext, args: argparse.Namespace) -> int:
 
 
 async def export(ctx: AppContext, args: argparse.Namespace) -> int:
-    """Pipeline output as JSON Lines: the searchable passages (chunks) of every document."""
+    """Pipeline output as JSON Lines: the searchable passages (chunks) of every document, and
+    every answered question with its timings and metrics (exchanges, for evaluations)."""
     out: Path = args.out
     out.mkdir(parents=True, exist_ok=True)
     store = ctx.store
@@ -101,7 +102,38 @@ async def export(ctx: AppContext, args: argparse.Namespace) -> int:
                            "heading": c["heading"], "start": c["char_start"], "end": c["char_end"],
                            "text": c["text"]})  # fmt: skip
     write("chunks.jsonl", chunks)
+    write("exchanges.jsonl", exchanges(store.conversations.every_message()))
     return 0
+
+
+def exchanges(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One row per answer: the question before it, the answer, and what is needed to evaluate it
+    (status, cited documents, statement support, trace timings and counts, metrics)."""
+    out, question = [], None
+    for row in rows:
+        m = row["payload"]
+        if m["role"] == "user":
+            question = m
+            continue
+        trace = m.get("trace") or {}
+        out.append({
+            "conversation_id": row["conversation_id"],
+            "conversation": row["title"],
+            "asked_at": (question or {}).get("asked_at"),
+            "question": (question or {}).get("content"),
+            "answer": m["content"],
+            "status": m.get("status"),
+            "cited_documents": sorted({c["document_name"] for c in m.get("citations") or []}),
+            "statements": len(m.get("statements") or []),
+            "unsupported_statements": sum(1 for s in m.get("statements") or [] if not s["sources"]),
+            "warnings": m.get("warnings") or [],
+            "intent": trace.get("intent"),
+            "passages_shown": len(trace.get("passages") or []),
+            "timings": trace.get("timings") or {},
+            "metrics": m.get("metrics"),  # absent on answers saved before metrics were recorded
+        })  # fmt: skip
+        question = None
+    return out
 
 
 def main() -> None:

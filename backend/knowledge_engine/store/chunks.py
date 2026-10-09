@@ -63,6 +63,14 @@ class ChunkRepo:
             (document_id,),
         )
 
+    def passages(self, document_id: str) -> list[Row]:
+        """A document's passages in order, with what indexing stored for each."""
+        return self.db.rows(
+            "SELECT id, position, heading, text, context, char_start, char_end, page, "
+            "embedding_model FROM chunks WHERE document_id=%s ORDER BY position",
+            (document_id,),
+        )
+
     def all_texts(self, exclude_labels: list[str]) -> list[Row]:
         """Every chunk's text with its document name, in document order."""
         return self.db.rows(

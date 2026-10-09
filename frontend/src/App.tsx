@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+} from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Tabs as RadixTabs } from "radix-ui";
 import { Streamdown } from "streamdown";
@@ -40,12 +48,25 @@ import {
   Users,
   Route,
   Tag,
+  Workflow,
 } from "lucide-react";
 import { api, streamChat } from "@/api/client";
 import { DocumentProgress } from "@/features/documents/Progress";
 import { DocumentReader } from "@/features/documents/DocumentReader";
 import { AnswerTrace } from "@/features/trace/AnswerTrace";
 import { KnowledgeGraph } from "@/features/graph/KnowledgeGraph";
+import type { LiveStage } from "@/features/pipeline/PipelineView";
+// the state-machine canvases (React Flow) load only when opened
+const DocumentPipeline = lazy(() =>
+  import("@/features/pipeline/DocumentPipeline").then((m) => ({
+    default: m.DocumentPipeline,
+  })),
+);
+const PipelineView = lazy(() =>
+  import("@/features/pipeline/PipelineView").then((m) => ({
+    default: m.PipelineView,
+  })),
+);
 import type {
   Citation,
   Conversation,
@@ -111,6 +132,8 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  // pipeline stages of the answer being produced, as their events arrive (Pipeline tab)
+  const [liveStages, setLiveStages] = useState<LiveStage[]>([]);
   const [evidence, setEvidence] = useState<Citation | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"chat" | "documents">("chat");
   const [mobileTab, setMobileTab] = useState("chat");
@@ -140,6 +163,8 @@ export default function App() {
   };
   const [includeSynthetic, setIncludeSynthetic] = useState(true);
   const [sidebar, setSidebar] = useState(false);
+  // the document whose processing state machine is open
+  const [pipelineDoc, setPipelineDoc] = useState<string | null>(null);
   const [reader, setReader] = useState<{ id: string; name: string } | null>(
     null,
   );
@@ -366,6 +391,7 @@ export default function App() {
     setStartedAt(sentAt);
     setNow(Date.now());
     setStatus("Sending your question to the local API…");
+    setLiveStages([]);
     const original = messagesRef.current;
     setMessages([
       ...original,
@@ -393,7 +419,15 @@ export default function App() {
             ),
           );
         },
-        setStatus,
+        (message, stage) => {
+          setStatus(message);
+          if (stage)
+            setLiveStages((current) =>
+              current.some((s) => s.stage === stage)
+                ? current
+                : [...current, { stage, at: Date.now() }],
+            );
+        },
         abort.current.signal,
         includeSynthetic ? [] : ["synthetic"],
         (trace) =>
@@ -424,6 +458,7 @@ export default function App() {
           status: result.status,
           statements: result.statements,
           trace: result.trace,
+          metrics: result.metrics,
           response_ms: Date.now() - sentAt,
         },
       ]);
@@ -639,6 +674,14 @@ export default function App() {
                     </Button>
                     <Button
                       variant="ghost"
+                      aria-label={`Processing of ${d.name}`}
+                      onClick={() => setPipelineDoc(d.id)}
+                    >
+                      <Workflow size={12} />
+                      Processing
+                    </Button>
+                    <Button
+                      variant="ghost"
                       aria-label={`${d.status === "failed" ? "Retry" : "Replace"} ${d.name}`}
                       onClick={() => {
                         replacing.current = d.id;
@@ -775,7 +818,7 @@ export default function App() {
         <Tabs className="panels" value={mobileTab} onValueChange={setMobileTab}>
           <TabsList className="mobile-tabs" aria-label="Workspace panels">
             <TabsTrigger value="chat">Conversation</TabsTrigger>
-            <TabsTrigger value="trace">Trace & graph</TabsTrigger>
+            <TabsTrigger value="trace">Insights</TabsTrigger>
           </TabsList>
           <TabsContent value="chat" forceMount className="chat-panel">
             <header className="panel-header">
@@ -1052,6 +1095,7 @@ export default function App() {
                 {[
                   ["trace", "Answer trace"],
                   ["graph", "Knowledge graph"],
+                  ["pipeline", "Pipeline"],
                 ].map(([value, label]) => (
                   <RadixTabs.Trigger key={value} value={value}>
                     {label}
@@ -1080,6 +1124,26 @@ export default function App() {
                   text={graph?.text ?? null}
                   onSource={selectEvidence}
                 />
+              </RadixTabs.Content>
+              <RadixTabs.Content value="pipeline" className="right-tab">
+                {/* while answering: the answer in progress, live; otherwise the traced answer */}
+                <Suspense
+                  fallback={
+                    <p className="trace-empty">Loading the pipeline…</p>
+                  }
+                >
+                  <PipelineView
+                    message={busy ? (messages.at(-1) ?? null) : shownAnswer}
+                    question={
+                      busy ? (messages.at(-2)?.content ?? null) : shownQuestion
+                    }
+                    live={
+                      busy && startedAt !== null
+                        ? { stages: liveStages, startedAt, now }
+                        : null
+                    }
+                  />
+                </Suspense>
               </RadixTabs.Content>
             </RadixTabs.Root>
           </TabsContent>
@@ -1150,6 +1214,18 @@ export default function App() {
           <pre dir="auto">{evidence?.text}</pre>
         </DialogContent>
       </Dialog>
+      {pipelineDoc && (
+        <Suspense fallback={null}>
+          <DocumentPipeline
+            document={documents.find((d) => d.id === pipelineDoc) ?? null}
+            onClose={() => setPipelineDoc(null)}
+            onOpenDocument={(d) => {
+              setPipelineDoc(null);
+              setReader({ id: d.id, name: d.name });
+            }}
+          />
+        </Suspense>
+      )}
       <DocumentReader
         id={reader?.id ?? null}
         name={reader?.name ?? "Document"}

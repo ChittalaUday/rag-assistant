@@ -3,6 +3,7 @@ import json
 import math
 import re
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
 from typing import Any, Protocol
 
 import httpx
@@ -10,6 +11,28 @@ import httpx
 from knowledge_engine.config import Settings
 
 OnText = Callable[[str], Awaitable[None]]  # receives the output so far, as it is generated
+
+# Model usage of the request being answered, per kind of call (generate, embed, rerank): calls,
+# tokens in and out, model time and load time from Ollama's own counters. Set by the query pipeline
+# for each question; calls outside it (indexing) are not counted.
+USAGE: ContextVar[dict[str, dict[str, int]] | None] = ContextVar("usage", default=None)
+
+
+def record_usage(kind: str, body: dict[str, Any]) -> None:
+    usage = USAGE.get()
+    if usage is None:
+        return
+    total = usage.setdefault(
+        kind,
+        {"calls": 0, "prompt_tokens": 0, "output_tokens": 0, "model_ms": 0, "load_ms": 0},
+    )
+    total["calls"] += 1
+    total["prompt_tokens"] += int(body.get("prompt_eval_count") or 0)
+    total["output_tokens"] += int(body.get("eval_count") or 0)
+    total["model_ms"] += int(body.get("total_duration") or 0) // 1_000_000  # Ollama reports ns
+    total["load_ms"] += int(body.get("load_duration") or 0) // 1_000_000
+
+
 NUM_CTX = 16384
 NUM_PREDICT = 2048
 THINKING_NUM_PREDICT = 6144  # reasoning tokens come out of the same output budget
@@ -88,6 +111,7 @@ class Ollama:
                 if r.status_code == 400 and not truncate:
                     continue
                 r.raise_for_status()
+                record_usage("embed", r.json())
                 result: list[list[float]] = r.json()["embeddings"]
                 return result
         raise AssertionError("unreachable")  # pragma: no cover
@@ -135,6 +159,7 @@ class Ollama:
                         },
                     )
                     r.raise_for_status()
+                    record_usage("rerank", r.json())
                     tokens = r.json().get("logprobs") or []
                     return yes_probability(tokens[0].get("top_logprobs", [])) if tokens else 0.0
 
@@ -166,6 +191,7 @@ class Ollama:
             if on_text is None:
                 r = await c.post(self.s.ollama_url + "/api/chat", json=body)
                 r.raise_for_status()
+                record_usage("generate", r.json())
                 content = r.json()["message"]["content"]
             else:
                 content = ""
@@ -177,6 +203,8 @@ class Ollama:
                         part = json.loads(line)
                         if part.get("error"):
                             raise ValueError(f"Model error: {part['error']}")
+                        if part.get("done"):  # the last line carries the counters
+                            record_usage("generate", part)
                         piece = part.get("message", {}).get("content", "")
                         if piece:
                             content += piece

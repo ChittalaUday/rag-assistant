@@ -4,6 +4,7 @@ import type {
   Citation,
   Conversation,
   Document,
+  DocumentChunks,
   DocumentContent,
   Health,
   Message,
@@ -33,6 +34,8 @@ function upload(file: File) {
 export const api = {
   health: () => request<Health>("/health"),
   documents: () => request<{ documents: Document[] }>("/documents"),
+  documentChunks: (id: string) =>
+    request<DocumentChunks>(`/documents/${encodeURIComponent(id)}/chunks`),
   documentContent: (id: string) =>
     request<DocumentContent>(`/documents/${encodeURIComponent(id)}/content`),
   preview: (text: string, signal?: AbortSignal, excludeLabels: string[] = []) =>
@@ -78,7 +81,7 @@ export async function streamChat(
   question: string,
   conversation_id: string | null,
   onToken: (text: string) => void,
-  onStatus: (message: string) => void,
+  onStatus: (message: string, stage?: string) => void, // stage: the pipeline step starting
   signal?: AbortSignal,
   excludeLabels: string[] = [],
   onTrace?: (trace: AnswerTrace) => void,
@@ -127,7 +130,10 @@ export async function streamChat(
     if (event === "draft" && typeof value.text === "string")
       onDraft?.(value.text);
     if (event === "status" && typeof value.message === "string")
-      onStatus(value.message);
+      onStatus(
+        value.message,
+        typeof value.stage === "string" ? value.stage : undefined,
+      );
     if (event === "trace" && typeof value.search_text === "string")
       onTrace?.(payload as AnswerTrace);
     if (event === "result") {

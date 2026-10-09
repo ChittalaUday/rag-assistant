@@ -101,10 +101,31 @@ export interface ChatResponse {
   statements: Statement[];
   trace: AnswerTrace;
   model: string;
+  metrics?: AnswerMetrics;
+}
+// stored with every answer for evaluation (backend pipeline/querying.py); absent on older answers
+export interface ModelUsage {
+  calls: number;
+  prompt_tokens: number;
+  output_tokens: number;
+  model_ms: number;
+  load_ms: number;
+}
+export interface AnswerMetrics {
+  asked_at?: string;
+  route?: "small_talk" | "documents";
+  route_score?: number | null;
+  first_draft_ms?: number | null;
+  retries?: string[];
+  statements?: { total: number; supported: number };
+  stages_ms?: Record<string, number>;
+  usage?: Record<string, ModelUsage>;
+  models?: { chat: string; embedding: string; rerank: string | null };
 }
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  metrics?: AnswerMetrics;
   citations?: Citation[];
   warnings?: string[];
   status?: AnswerStatus;
@@ -133,6 +154,24 @@ export interface Health {
     stale_documents: number;
     chunks: number;
   };
+}
+// one searchable passage as indexing stored it (GET /documents/{id}/chunks)
+export interface DocumentChunk {
+  id: string;
+  position: number;
+  heading: string | null;
+  text: string;
+  location: string; // "Title › Heading", searched and embedded with the passage
+  summary: string; // model-written sentences placing it in the document; empty when off or failed
+  char_start: number;
+  char_end: number;
+  page: number | null;
+  embedding_model: string;
+}
+export interface DocumentChunks {
+  document: Document;
+  text_chars: number;
+  chunks: DocumentChunk[];
 }
 export interface DocumentContent {
   document: Document;

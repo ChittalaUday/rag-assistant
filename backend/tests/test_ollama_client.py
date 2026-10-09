@@ -113,3 +113,35 @@ async def test_a_model_error_mid_stream_fails_loudly():
 
     with pytest.raises(ValueError, match="out of memory"):
         await Ollama(Settings()).generate("q", {"type": "object"}, on_text=on_text)
+
+
+async def test_model_usage_is_counted_for_the_request_being_answered():
+    FakeClient.script = [
+        (200, [{"message": {"content": '{"a": 1}'}}, {"done": True, "prompt_eval_count": 120,
+               "eval_count": 7, "total_duration": 2_500_000_000, "load_duration": 500_000_000}]),
+        (200, {"embeddings": [[0.1]], "prompt_eval_count": 4, "total_duration": 30_000_000}),
+        (200, {"embeddings": [[0.1]]}),
+    ]  # fmt: skip
+    usage: dict = {}
+    token = ollama.USAGE.set(usage)
+
+    async def on_text(text: str) -> None:
+        pass
+
+    try:
+        await Ollama(Settings()).generate("q", {"type": "object"}, on_text=on_text)
+        await Ollama(Settings()).embed(["x"])
+    finally:
+        ollama.USAGE.reset(token)
+    assert usage == {
+        "generate": {
+            "calls": 1,
+            "prompt_tokens": 120,
+            "output_tokens": 7,
+            "model_ms": 2500,
+            "load_ms": 500,
+        },
+        "embed": {"calls": 1, "prompt_tokens": 4, "output_tokens": 0, "model_ms": 30, "load_ms": 0},
+    }
+    await Ollama(Settings()).embed(["outside a request"])  # not counted
+    assert usage["embed"]["calls"] == 1

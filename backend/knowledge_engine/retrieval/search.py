@@ -56,7 +56,7 @@ async def retrieve(
     if store.chunks.count() == 0:
         return Retrieval()
     vector = await embed_query(ctx, plan.search_text, notify)
-    await notify("retrieving", "Ranking source passages")
+    await notify("searching", "Ranking source passages")
     dense = store.chunks.dense(vector, DENSE_K, exclude_labels)
     sparse = store.chunks.sparse(plan.terms, SPARSE_K, exclude_labels)
     rankings = {"dense": dense, "sparse": sparse}

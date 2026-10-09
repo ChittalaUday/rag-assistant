@@ -1,0 +1,431 @@
+<title>Answer Response Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one reading column; numbers first, then where the time goes, then every table. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #fcfcfb;
+  --fg: #16202c;
+  --fg-2: #4a5563;
+  --muted: #7a8494;
+  --line: #dde2e9;
+  --accent: #2c4b74;
+  --s-rerank: #2a78d6;
+  --s-generate: #eb6834;
+  --s-verify: #1baf7a;
+  --s-rewrite: #eda100;
+  --s-other: #e87ba4;
+  --good: #0ca30c;
+  --bad: #d03b3b;
+  --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121417; --surface: #1a1a19; --fg: #eef1f5; --fg-2: #b6bfcb; --muted: #8b95a3;
+    --line: #2c3139; --accent: #8fb3e3;
+    --s-rerank: #3987e5; --s-generate: #d95926; --s-verify: #199e70; --s-rewrite: #c98500; --s-other: #d55181;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121417; --surface: #1a1a19; --fg: #eef1f5; --fg-2: #b6bfcb; --muted: #8b95a3;
+  --line: #2c3139; --accent: #8fb3e3;
+  --s-rerank: #3987e5; --s-generate: #d95926; --s-verify: #199e70; --s-rewrite: #c98500; --s-other: #d55181;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-sans); }
+.page { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 64px; display: grid; gap: 40px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font: 500 12px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.15; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: 21px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0; }
+p { margin: 0; max-width: 72ch; color: var(--fg-2); }
+.lede { font-size: 17px; color: var(--fg-2); }
+section { display: grid; gap: 14px; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 2px; }
+.tile .v { font: 600 28px/1.1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg); }
+.tile .v small { font-size: 15px; color: var(--muted); font-weight: 500; }
+.tile .k { font-size: 13px; color: var(--fg-2); }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart svg text { fill: var(--fg-2); font: 11px var(--font-mono); }
+.chart svg .lbl { fill: var(--fg-2); }
+.chart svg .axis { stroke: var(--line); }
+.chart svg .grid { stroke: var(--line); stroke-dasharray: 2 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--fg-2); margin-bottom: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.note { font-size: 13px; color: var(--muted); }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-weight: 600; color: var(--fg-2); background: var(--bg); position: sticky; top: 0; }
+td { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg); }
+td.t, th.t { text-align: left; font-family: var(--font-sans); }
+td.q { text-align: left; font-family: var(--font-sans); white-space: normal; min-width: 260px; max-width: 460px; }
+tr:last-child td { border-bottom: 0; }
+th button { all: unset; cursor: pointer; }
+th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+th button::after { content: " ↕"; color: var(--muted); font-size: 11px; }
+th[aria-sort="ascending"] button::after { content: " ↑"; color: var(--accent); }
+th[aria-sort="descending"] button::after { content: " ↓"; color: var(--accent); }
+.pill { font: 500 11px var(--font-sans); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.pill.ok { color: var(--good); }
+.pill.no { color: var(--bad); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; }
+ol, ul { margin: 0; padding-left: 20px; color: var(--fg-2); display: grid; gap: 6px; max-width: 76ch; }
+li strong { color: var(--fg); }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
+dt { color: var(--muted); }
+dd { margin: 0; color: var(--fg); min-width: 0; }
+code, pre { font-family: var(--font-mono); font-size: 13px; }
+pre { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 0; color: var(--fg); }
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--fg); color: var(--bg); padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.45; max-width: 320px; box-shadow: 0 6px 24px rgb(0 0 0 / 0.18); }
+#tip b { font-weight: 600; }
+#tip .row { display: flex; justify-content: space-between; gap: 14px; font-family: var(--font-mono); }
+@media (max-width: 520px) { .page { padding-inline: 16px; } dl { grid-template-columns: 1fr; } dt { margin-top: 6px; } }
+@media (prefers-reduced-motion: no-preference) { .chart rect.seg, .chart circle { transition: opacity 0.12s; } }
+</style>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">Company Knowledge Assistant · response-time baseline · 9 October 2026</div>
+    <h1>Where the time goes when the assistant answers</h1>
+    <p class="lede">49 questions of 11 kinds, answered one at a time by the real pipeline on local models, timed stage by stage. This is the baseline every response-time change is measured against.</p>
+  </header>
+
+  <section aria-labelledby="h-numbers">
+    <h2 id="h-numbers">The numbers</h2>
+    <div class="tiles" id="tiles"></div>
+    <p class="note">Questions after the first (n=48). The first question also loads the models and is counted separately.</p>
+  </section>
+
+  <section aria-labelledby="h-stack">
+    <h2 id="h-stack">Every answer, split by stage</h2>
+    <p>Each bar is one question, sorted by total time. Three model steps fill almost every bar: reranking the candidate passages, generating the answer, and verifying which passage states each sentence. Hover a bar for its question and stage times.</p>
+    <div class="chart">
+      <div class="legend" id="legend-stack"></div>
+      <div id="chart-stack"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-length">
+    <h2 id="h-length">Longer answers take longer, almost linearly</h2>
+    <p id="length-text"></p>
+    <div class="chart"><div id="chart-length"></div></div>
+  </section>
+
+  <section aria-labelledby="h-spread">
+    <h2 id="h-spread">How much each stage varies</h2>
+    <p>The thin line runs from the fastest to the slowest question; the band covers p50 to p90; the tick marks p50. Reranking is steady; generation and verification spread with answer length.</p>
+    <div class="chart"><div id="chart-spread"></div></div>
+  </section>
+
+  <section aria-labelledby="h-pct">
+    <h2 id="h-pct">Percentiles: total and each stage</h2>
+    <p class="note">Seconds, questions after the first. Stages that only some questions have show their own n; below 10 values only p50 is given, because higher percentiles would just repeat the slowest question.</p>
+    <div class="scroll"><table id="t-pct"></table></div>
+  </section>
+
+  <section aria-labelledby="h-type">
+    <h2 id="h-type">By question type</h2>
+    <p class="note">Total seconds. Most types have 2 to 11 questions, so read these as ranges rather than precise percentiles.</p>
+    <div class="scroll"><table id="t-type"></table></div>
+    <h3>Median seconds per stage, by type</h3>
+    <div class="scroll"><table id="t-type-stage"></table></div>
+  </section>
+
+  <section aria-labelledby="h-usage">
+    <h2 id="h-usage">Model usage per question</h2>
+    <p>From Ollama's own counters for each question. <em>Generate</em> covers every chat-model call (answer, verification, follow-up rewrite, small-talk reply). Rerank time adds up 30 calls that run 4 at a time, so the rerank stage takes about a quarter of it in wall-clock time.</p>
+    <div class="scroll"><table id="t-usage"></table></div>
+  </section>
+
+  <section aria-labelledby="h-all">
+    <h2 id="h-all">Every question</h2>
+    <p class="note">Seconds. Other is routing, query embedding, search and citation validation together, or the whole reply for small talk. Output tokens count every chat-model call for the question. Select a column header to sort.</p>
+    <div class="scroll"><table id="t-all"></table></div>
+  </section>
+
+  <section aria-labelledby="h-next">
+    <h2 id="h-next">What this suggests</h2>
+    <p>Not yet measured; each is to be tested against this baseline with accuracy held.</p>
+    <ol>
+      <li><strong>Return the answer before verification.</strong> The answer and its checked citations are ready after generation; the per-sentence support marks could follow. Takes the whole verification stage out of the wait (p50 3.3 s, p90 10.2 s) without changing any answer.</li>
+      <li><strong>Fewer rerank candidates.</strong> Scoring 12 to 15 passages instead of 30 could roughly halve the 2.9 s stage, if retrieval recall holds. <code>make eval-retrieval</code> measures that without the chat model.</li>
+      <li><strong>Cheaper verification.</strong> Matching sentences to passages by embeddings would take milliseconds instead of seconds, but it decides which statements show as unsupported, so it needs its own accuracy check.</li>
+      <li><strong>Keep models loaded.</strong> A longer keep-alive removes the cold start (6.2 s of reranker loading) at the cost of holding about 7.7 GB of models in memory.</li>
+      <li><strong>Shorter answers or a smaller evidence budget.</strong> Fewer tokens are the most direct lever, at about 27 ms per output token, but the riskiest for accuracy.</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="h-setup">
+    <h2 id="h-setup">How it was measured</h2>
+    <div class="cols">
+      <div class="card">
+        <h3>Setup</h3>
+        <dl>
+          <dt>Machine</dt><dd>Apple M5 Pro, 24 GB unified memory, macOS 27.0</dd>
+          <dt>Ollama</dt><dd>0.35.1, every model local</dd>
+          <dt>Answer model</dt><dd>qwen3.5:9b, thinking off</dd>
+          <dt>Embeddings</dt><dd>embeddinggemma, 768 dimensions</dd>
+          <dt>Reranker</dt><dd>Qwen3-Reranker-0.6B (F16), 30 candidates, 4 at a time</dd>
+          <dt>Settings</dt><dd>defaults: verification on, second hop always, contextual chunk summaries, structure chunker, 9,000-character evidence budget, small-talk margin 0.11</dd>
+          <dt>Code</dt><dd>commit 9896220 plus the stage-timing changes</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Questions and method</h3>
+        <dl>
+          <dt>Corpus</dt><dd>the four fixture sets (company, testing, Northstar, Indian-language), indexed in a scratch schema in 133 s</dd>
+          <dt>Questions</dt><dd>fixtures/latency-questions.json: 30 from questions.json (single, cross-document, unknown, conflicting, follow-ups with parents), 3 list, 4 multi-hop, 8 Indian-language, 4 small talk</dd>
+          <dt>Mode</dt><dd>one question at a time, in process (no HTTP), not streamed</dd>
+          <dt>Stage times</dt><dd>the pipeline's own stage markers (metrics.stages_ms): each stage from its start to the next one's</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-limits">
+    <h2 id="h-limits">Limitations</h2>
+    <ul>
+      <li>One run on one machine, one question at a time. Concurrent users share a single model slot and wait for each other; this run does not show that.</li>
+      <li>Not streamed. In the app the answer appears as a draft while it is generated, so text shows up sooner than these totals (streamed answers record this as metrics.first_draft_ms).</li>
+      <li>Few questions per type. Per-type figures are indicative.</li>
+      <li>Accuracy in this run: 41 of 45 document questions correct. The harness has no small-talk category, so its score counts the four small-talk messages as wrong; all four got a reply in about a second.</li>
+    </ul>
+    <h3>Reproduce</h3>
+    <pre>make eval-latency NAME=my-run      # about 10 minutes with the models loaded
+PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation latency work/latency/my-run.json</pre>
+  </section>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+const D = {"questions": [{"n": 1, "type": "single", "q": "How does Niruthi describe itself on its homepage?", "total": 19401, "parts": {"other": 859, "rewrite": 0, "rerank": 2606, "generate": 8226, "verify": 7709}, "stages": {"setup": 0, "routing": 779, "retrieving": 21, "embedding_query": 23, "searching": 25, "reranking": 2606, "generating": 8226, "validating": 11, "verifying": 7709}, "tokens": 484, "result": "correct"}, {"n": 2, "type": "single", "q": "Who is listed as the Founder of Niruthi?", "total": 8798, "parts": {"other": 99, "rewrite": 0, "rerank": 1088, "generate": 4249, "verify": 3362}, "stages": {"setup": 0, "routing": 44, "retrieving": 12, "embedding_query": 19, "searching": 13, "reranking": 1088, "generating": 4249, "validating": 11, "verifying": 3362}, "tokens": 70, "result": "wrong"}, {"n": 3, "type": "single", "q": "Who is listed as CEO of Niruthi on the homepage?", "total": 8987, "parts": {"other": 141, "rewrite": 0, "rerank": 993, "generate": 4345, "verify": 3508}, "stages": {"setup": 0, "routing": 104, "retrieving": 3, "embedding_query": 20, "searching": 13, "reranking": 993, "generating": 4345, "validating": 1, "verifying": 3508}, "tokens": 120, "result": "correct"}, {"n": 4, "type": "single", "q": "What is WeatherSnap and at what spatial resolution does the homepage describe it?", "total": 8267, "parts": {"other": 120, "rewrite": 0, "rerank": 1379, "generate": 3914, "verify": 2855}, "stages": {"setup": 0, "routing": 68, "retrieving": 18, "embedding_query": 19, "searching": 12, "reranking": 1379, "generating": 3914, "validating": 3, "verifying": 2855}, "tokens": 81, "result": "correct"}, {"n": 5, "type": "single", "q": "Which NASA system does Niruthi's homepage say its approach is derived from?", "total": 9794, "parts": {"other": 71, "rewrite": 0, "rerank": 901, "generate": 6199, "verify": 2623}, "stages": {"setup": 0, "routing": 39, "retrieving": 2, "embedding_query": 15, "searching": 14, "reranking": 901, "generating": 6199, "validating": 1, "verifying": 2623}, "tokens": 84, "result": "correct"}, {"n": 6, "type": "single", "q": "Who is listed as the Principal Investigator of NASA TOPS?", "total": 7657, "parts": {"other": 68, "rewrite": 0, "rerank": 1000, "generate": 3939, "verify": 2650}, "stages": {"setup": 0, "routing": 43, "retrieving": 2, "embedding_query": 14, "searching": 8, "reranking": 1000, "generating": 3939, "validating": 1, "verifying": 2650}, "tokens": 84, "result": "correct"}, {"n": 7, "type": "single", "q": "What recognition from GIIF does the public interview describe Niruthi receiving?", "total": 7569, "parts": {"other": 76, "rewrite": 0, "rerank": 1118, "generate": 3678, "verify": 2696}, "stages": {"setup": 0, "routing": 42, "retrieving": 4, "embedding_query": 17, "searching": 10, "reranking": 1118, "generating": 3678, "validating": 3, "verifying": 2696}, "tokens": 93, "result": "correct"}, {"n": 8, "type": "single", "q": "What is Niruthi's registered legal entity name?", "total": 7879, "parts": {"other": 79, "rewrite": 0, "rerank": 1136, "generate": 4035, "verify": 2630}, "stages": {"setup": 0, "routing": 50, "retrieving": 2, "embedding_query": 17, "searching": 10, "reranking": 1136, "generating": 4035, "validating": 0, "verifying": 2630}, "tokens": 95, "result": "correct"}, {"n": 9, "type": "single", "q": "When was the Niruthi privacy policy last updated?", "total": 6969, "parts": {"other": 88, "rewrite": 0, "rerank": 887, "generate": 3550, "verify": 2444}, "stages": {"setup": 0, "routing": 42, "retrieving": 11, "embedding_query": 16, "searching": 14, "reranking": 887, "generating": 3550, "validating": 5, "verifying": 2444}, "tokens": 84, "result": "correct"}, {"n": 10, "type": "single", "q": "What email contact is published on the Niruthi privacy policy?", "total": 7057, "parts": {"other": 59, "rewrite": 0, "rerank": 991, "generate": 3430, "verify": 2575}, "stages": {"setup": 0, "routing": 31, "retrieving": 3, "embedding_query": 15, "searching": 10, "reranking": 991, "generating": 3430, "validating": 0, "verifying": 2575}, "tokens": 81, "result": "correct"}, {"n": 11, "type": "single", "q": "What categories of data does the Niruthi privacy policy describe collecting?", "total": 10021, "parts": {"other": 79, "rewrite": 0, "rerank": 893, "generate": 5129, "verify": 3920}, "stages": {"setup": 0, "routing": 45, "retrieving": 2, "embedding_query": 15, "searching": 16, "reranking": 893, "generating": 5129, "validating": 1, "verifying": 3920}, "tokens": 190, "result": "correct"}, {"n": 12, "type": "single", "q": "Which Indian ministry's press release confirms YES-TECH under PMFBY?", "total": 8684, "parts": {"other": 89, "rewrite": 0, "rerank": 1159, "generate": 4169, "verify": 3267}, "stages": {"setup": 0, "routing": 38, "retrieving": 18, "embedding_query": 15, "searching": 15, "reranking": 1159, "generating": 4169, "validating": 3, "verifying": 3267}, "tokens": 108, "result": "correct"}, {"n": 13, "type": "crossdoc", "q": "How does Niruthi's public-facing brand name differ from its registered legal name?", "total": 7739, "parts": {"other": 110, "rewrite": 0, "rerank": 1114, "generate": 3886, "verify": 2629}, "stages": {"setup": 0, "routing": 44, "retrieving": 37, "embedding_query": 18, "searching": 10, "reranking": 1114, "generating": 3886, "validating": 1, "verifying": 2629}, "tokens": 103, "result": "correct"}, {"n": 14, "type": "crossdoc", "q": "Which Niruthi leaders were interviewed by GIIF and what roles does the homepage list for them?", "total": 22825, "parts": {"other": 90, "rewrite": 0, "rerank": 1058, "generate": 9833, "verify": 11843}, "stages": {"setup": 0, "routing": 57, "retrieving": 6, "embedding_query": 15, "searching": 11, "reranking": 1058, "generating": 9833, "validating": 1, "verifying": 11843}, "tokens": 601, "result": "correct"}, {"n": 15, "type": "crossdoc", "q": "What is the relationship between NASA TOPS and the technology Niruthi describes on its homepage?", "total": 15900, "parts": {"other": 177, "rewrite": 0, "rerank": 2639, "generate": 6993, "verify": 6092}, "stages": {"setup": 0, "routing": 107, "retrieving": 27, "embedding_query": 27, "searching": 14, "reranking": 2639, "generating": 6993, "validating": 2, "verifying": 6092}, "tokens": 273, "result": "wrong"}, {"n": 16, "type": "crossdoc", "q": "Which Niruthi products relate to the crop monitoring and yield forecasting described in the GIIF interview?", "total": 17118, "parts": {"other": 97, "rewrite": 0, "rerank": 3709, "generate": 7247, "verify": 6066}, "stages": {"setup": 0, "routing": 51, "retrieving": 13, "embedding_query": 17, "searching": 12, "reranking": 3709, "generating": 7247, "validating": 4, "verifying": 6066}, "tokens": 300, "result": "correct"}, {"n": 17, "type": "crossdoc", "q": "How does GIIF characterize Niruthi, and where does its privacy policy place the registered entity?", "total": 13142, "parts": {"other": 115, "rewrite": 0, "rerank": 3317, "generate": 5116, "verify": 4593}, "stages": {"setup": 0, "routing": 65, "retrieving": 23, "embedding_query": 16, "searching": 11, "reranking": 3317, "generating": 5116, "validating": 0, "verifying": 4593}, "tokens": 229, "result": "correct"}, {"n": 18, "type": "crossdoc", "q": "What does the PIB press release say about YES-TECH, and how is Niruthi's role described relative to it in our sources?", "total": 12025, "parts": {"other": 91, "rewrite": 0, "rerank": 2857, "generate": 5349, "verify": 3728}, "stages": {"setup": 0, "routing": 56, "retrieving": 6, "embedding_query": 16, "searching": 12, "reranking": 2857, "generating": 5349, "validating": 1, "verifying": 3728}, "tokens": 167, "result": "correct"}, {"n": 19, "type": "crossdoc", "q": "Which of the sources used in this collection are primary government or international-organization sources, and which are company-published?", "total": 16848, "parts": {"other": 104, "rewrite": 0, "rerank": 2885, "generate": 5704, "verify": 8154}, "stages": {"setup": 0, "routing": 50, "retrieving": 21, "embedding_query": 17, "searching": 14, "reranking": 2885, "generating": 5704, "validating": 2, "verifying": 8154}, "tokens": 335, "result": "correct"}, {"n": 20, "type": "unknown", "q": "What is Niruthi's current headcount?", "total": 9097, "parts": {"other": 62, "rewrite": 0, "rerank": 3387, "generate": 3084, "verify": 2564}, "stages": {"setup": 0, "routing": 34, "retrieving": 2, "embedding_query": 16, "searching": 10, "reranking": 3387, "generating": 3084, "validating": 0, "verifying": 2564}, "tokens": 71, "result": "correct"}, {"n": 21, "type": "unknown", "q": "What is Niruthi's annual revenue?", "total": 11022, "parts": {"other": 64, "rewrite": 0, "rerank": 4757, "generate": 3585, "verify": 2616}, "stages": {"setup": 0, "routing": 36, "retrieving": 2, "embedding_query": 17, "searching": 9, "reranking": 4757, "generating": 3585, "validating": 0, "verifying": 2616}, "tokens": 77, "result": "correct"}, {"n": 22, "type": "unknown", "q": "What is the average salary at Niruthi?", "total": 8821, "parts": {"other": 76, "rewrite": 0, "rerank": 2544, "generate": 3820, "verify": 2382}, "stages": {"setup": 0, "routing": 44, "retrieving": 5, "embedding_query": 15, "searching": 9, "reranking": 2544, "generating": 3820, "validating": 3, "verifying": 2382}, "tokens": 109, "result": "correct"}, {"n": 23, "type": "unknown", "q": "What is Niruthi's employee leave policy?", "total": 18070, "parts": {"other": 75, "rewrite": 0, "rerank": 2862, "generate": 7775, "verify": 7359}, "stages": {"setup": 0, "routing": 35, "retrieving": 12, "embedding_query": 14, "searching": 9, "reranking": 2862, "generating": 7775, "validating": 5, "verifying": 7359}, "tokens": 434, "result": "wrong"}, {"n": 24, "type": "followup", "q": "What is her role at Niruthi?", "total": 11477, "parts": {"other": 89, "rewrite": 1190, "rerank": 3152, "generate": 4172, "verify": 2873}, "stages": {"setup": 0, "routing": 38, "retrieving": 1, "rewriting": 1190, "embedding_query": 35, "searching": 14, "reranking": 3152, "generating": 4172, "validating": 1, "verifying": 2873}, "tokens": 134, "result": "correct"}, {"n": 25, "type": "followup", "q": "What company did he found?", "total": 9431, "parts": {"other": 123, "rewrite": 566, "rerank": 3379, "generate": 2942, "verify": 2420}, "stages": {"setup": 0, "routing": 89, "retrieving": 0, "rewriting": 566, "embedding_query": 26, "searching": 8, "reranking": 3379, "generating": 2942, "validating": 0, "verifying": 2420}, "tokens": 93, "result": "correct"}, {"n": 26, "type": "followup", "q": "Which research center is named alongside him in that program source?", "total": 10488, "parts": {"other": 67, "rewrite": 884, "rerank": 3648, "generate": 3199, "verify": 2690}, "stages": {"setup": 0, "routing": 35, "retrieving": 0, "rewriting": 884, "embedding_query": 23, "searching": 9, "reranking": 3648, "generating": 3199, "validating": 0, "verifying": 2690}, "tokens": 119, "result": "correct"}, {"n": 27, "type": "followup", "q": "At what spatial grid does it provide data?", "total": 11483, "parts": {"other": 80, "rewrite": 1126, "rerank": 3015, "generate": 3956, "verify": 3307}, "stages": {"setup": 0, "routing": 40, "retrieving": 0, "rewriting": 1126, "embedding_query": 27, "searching": 8, "reranking": 3015, "generating": 3956, "validating": 5, "verifying": 3307}, "tokens": 97, "result": "correct"}, {"n": 28, "type": "conflict", "q": "Does Niruthi use one name for its public brand and a different name for its legal registration?", "total": 12859, "parts": {"other": 100, "rewrite": 0, "rerank": 3429, "generate": 5052, "verify": 4277}, "stages": {"setup": 0, "routing": 53, "retrieving": 19, "embedding_query": 16, "searching": 11, "reranking": 3429, "generating": 5052, "validating": 1, "verifying": 4277}, "tokens": 145, "result": "correct"}, {"n": 29, "type": "conflict", "q": "Can the company marketing claims or displayed certification badges be treated as independently verified facts in this collection?", "total": 23366, "parts": {"other": 94, "rewrite": 0, "rerank": 3402, "generate": 9514, "verify": 10355}, "stages": {"setup": 0, "routing": 58, "retrieving": 10, "embedding_query": 15, "searching": 10, "reranking": 3402, "generating": 9514, "validating": 1, "verifying": 10355}, "tokens": 650, "result": "correct"}, {"n": 30, "type": "conflict", "q": "The privacy policy is dated 1 March 2024. Can we treat it as current as of today without further checking?", "total": 9968, "parts": {"other": 86, "rewrite": 0, "rerank": 3265, "generate": 3742, "verify": 2877}, "stages": {"setup": 0, "routing": 54, "retrieving": 5, "embedding_query": 16, "searching": 10, "reranking": 3265, "generating": 3742, "validating": 1, "verifying": 2877}, "tokens": 120, "result": "correct"}, {"n": 31, "type": "list", "q": "Who are the leaders at Niruthi?", "total": 26153, "parts": {"other": 64, "rewrite": 0, "rerank": 3602, "generate": 10399, "verify": 12088}, "stages": {"setup": 0, "routing": 33, "retrieving": 5, "embedding_query": 16, "searching": 8, "reranking": 3602, "generating": 10399, "validating": 2, "verifying": 12088}, "tokens": 697, "result": "correct"}, {"n": 32, "type": "list", "q": "Which compliance regimes is Northstar not subject to?", "total": 13713, "parts": {"other": 83, "rewrite": 0, "rerank": 3024, "generate": 4429, "verify": 6176}, "stages": {"setup": 0, "routing": 52, "retrieving": 5, "embedding_query": 16, "searching": 9, "reranking": 3024, "generating": 4429, "validating": 1, "verifying": 6176}, "tokens": 252, "result": "correct"}, {"n": 33, "type": "list", "q": "Which roles is Northstar trying to fill at the moment?", "total": 35488, "parts": {"other": 76, "rewrite": 0, "rerank": 2652, "generate": 13952, "verify": 18809}, "stages": {"setup": 0, "routing": 39, "retrieving": 7, "embedding_query": 19, "searching": 10, "reranking": 2652, "generating": 13952, "validating": 1, "verifying": 18809}, "tokens": 1088, "result": "wrong"}, {"n": 34, "type": "multihop", "q": "Who does the lead of the Firmware team report to?", "total": 19891, "parts": {"other": 91, "rewrite": 0, "rerank": 3058, "generate": 9373, "verify": 7369}, "stages": {"setup": 0, "routing": 60, "retrieving": 2, "embedding_query": 17, "searching": 11, "reranking": 3058, "generating": 9373, "validating": 1, "verifying": 7369}, "tokens": 400, "result": "correct"}, {"n": 35, "type": "multihop", "q": "Who leads the team that owns the Harbor pipeline?", "total": 24635, "parts": {"other": 81, "rewrite": 0, "rerank": 2840, "generate": 10271, "verify": 11444}, "stages": {"setup": 0, "routing": 50, "retrieving": 2, "embedding_query": 18, "searching": 10, "reranking": 2840, "generating": 10271, "validating": 1, "verifying": 11444}, "tokens": 611, "result": "correct"}, {"n": 36, "type": "multihop", "q": "Which team handles vendor security review, and who leads that team?", "total": 21758, "parts": {"other": 200, "rewrite": 0, "rerank": 2991, "generate": 8745, "verify": 9822}, "stages": {"setup": 0, "routing": 132, "retrieving": 28, "embedding_query": 27, "searching": 12, "reranking": 2991, "generating": 8745, "validating": 1, "verifying": 9822}, "tokens": 497, "result": "correct"}, {"n": 37, "type": "multihop", "q": "Who is the current engineering owner of Beacon, and who held that ownership before?", "total": 17299, "parts": {"other": 80, "rewrite": 0, "rerank": 2993, "generate": 6502, "verify": 7723}, "stages": {"setup": 0, "routing": 50, "retrieving": 2, "embedding_query": 16, "searching": 11, "reranking": 2993, "generating": 6502, "validating": 1, "verifying": 7723}, "tokens": 338, "result": "correct"}, {"n": 38, "type": "native", "q": "जयपुर ज़िला जल सहकारी समिति के कितने सदस्य हैं?", "total": 11961, "parts": {"other": 106, "rewrite": 0, "rerank": 3006, "generate": 4916, "verify": 3933}, "stages": {"setup": 0, "routing": 57, "retrieving": 1, "embedding_query": 21, "searching": 12, "reranking": 3006, "generating": 4916, "validating": 15, "verifying": 3933}, "tokens": 158, "result": "correct"}, {"n": 39, "type": "native", "q": "जयपुर जल सहकारी समिति की अध्यक्ष कौन हैं?", "total": 14879, "parts": {"other": 67, "rewrite": 0, "rerank": 5696, "generate": 5364, "verify": 3752}, "stages": {"setup": 0, "routing": 41, "retrieving": 1, "embedding_query": 18, "searching": 6, "reranking": 5696, "generating": 5364, "validating": 1, "verifying": 3752}, "tokens": 149, "result": "correct"}, {"n": 40, "type": "native", "q": "নদিয়া তাঁতশিল্পী সমবায়ে কতজন তাঁতি সদস্য আছেন?", "total": 9964, "parts": {"other": 93, "rewrite": 0, "rerank": 3152, "generate": 3742, "verify": 2977}, "stages": {"setup": 0, "routing": 56, "retrieving": 1, "embedding_query": 20, "searching": 12, "reranking": 3152, "generating": 3742, "validating": 4, "verifying": 2977}, "tokens": 90, "result": "correct"}, {"n": 41, "type": "native", "q": "নদিয়া তাঁতশিল্পী সমবায়ের সভাপতি কে?", "total": 9585, "parts": {"other": 61, "rewrite": 0, "rerank": 3111, "generate": 3698, "verify": 2717}, "stages": {"setup": 0, "routing": 34, "retrieving": 1, "embedding_query": 18, "searching": 6, "reranking": 3111, "generating": 3698, "validating": 2, "verifying": 2717}, "tokens": 79, "result": "correct"}, {"n": 42, "type": "crosslingual", "q": "What is the annual membership fee of the Jaipur district water cooperative?", "total": 11416, "parts": {"other": 136, "rewrite": 0, "rerank": 4238, "generate": 3712, "verify": 3330}, "stages": {"setup": 0, "routing": 58, "retrieving": 43, "embedding_query": 23, "searching": 9, "reranking": 4238, "generating": 3712, "validating": 3, "verifying": 3330}, "tokens": 81, "result": "correct"}, {"n": 43, "type": "crosslingual", "q": "What is the maximum loan a member of the Nadia weavers' cooperative can take?", "total": 12753, "parts": {"other": 114, "rewrite": 0, "rerank": 5292, "generate": 4046, "verify": 3302}, "stages": {"setup": 0, "routing": 75, "retrieving": 14, "embedding_query": 15, "searching": 8, "reranking": 5292, "generating": 4046, "validating": 2, "verifying": 3302}, "tokens": 87, "result": "correct"}, {"n": 44, "type": "indic-on-english", "q": "Northstar Signal में साल 2026 की तीसरी तिमाही के अंत में कितने कर्मचारी थे?", "total": 9767, "parts": {"other": 131, "rewrite": 0, "rerank": 2858, "generate": 3832, "verify": 2947}, "stages": {"setup": 0, "routing": 99, "retrieving": 3, "embedding_query": 17, "searching": 11, "reranking": 2858, "generating": 3832, "validating": 1, "verifying": 2947}, "tokens": 94, "result": "correct"}, {"n": 45, "type": "indic-on-english", "q": "நார்த்ஸ்டார் நிறுவனத்தின் Series B நிதி எந்த தேதியில் முடிந்தது?", "total": 10047, "parts": {"other": 82, "rewrite": 0, "rerank": 2871, "generate": 4016, "verify": 3078}, "stages": {"setup": 0, "routing": 51, "retrieving": 1, "embedding_query": 18, "searching": 11, "reranking": 2871, "generating": 4016, "validating": 1, "verifying": 3078}, "tokens": 98, "result": "correct"}, {"n": 46, "type": "small-talk", "q": "hello", "total": 1136, "parts": {"other": 1135, "rewrite": 0, "rerank": 0, "generate": 0, "verify": 0}, "stages": {"setup": 0, "routing": 36, "replying": 1099}, "tokens": 16, "result": "reply"}, {"n": 47, "type": "small-talk", "q": "thanks!", "total": 793, "parts": {"other": 794, "rewrite": 0, "rerank": 0, "generate": 0, "verify": 0}, "stages": {"setup": 0, "routing": 27, "replying": 767}, "tokens": 20, "result": "reply"}, {"n": 48, "type": "small-talk", "q": "who are you?", "total": 1055, "parts": {"other": 1055, "rewrite": 0, "rerank": 0, "generate": 0, "verify": 0}, "stages": {"setup": 0, "routing": 24, "replying": 1031}, "tokens": 31, "result": "reply"}, {"n": 49, "type": "small-talk", "q": "నమస్కారం", "total": 1639, "parts": {"other": 1639, "rewrite": 0, "rerank": 0, "generate": 0, "verify": 0}, "stages": {"setup": 0, "routing": 23, "replying": 1616}, "tokens": 52, "result": "reply"}], "all": {"n": 48, "total_ms": {"min": 793, "mean": 12235, "stdev": 6773, "p50": 10268, "p75": 15134, "p90": 22078, "p95": 24191, "p99": 31101, "max": 35488}, "stages_ms": {"routing": {"min": 23, "mean": 52, "stdev": 22, "p50": 48, "p75": 57, "p90": 79, "p95": 102, "p99": 120, "max": 132}, "replying": {"min": 767, "mean": 1128, "stdev": 355, "p50": 1065, "max": 1616}, "rewriting": {"min": 566, "mean": 942, "stdev": 283, "p50": 1005, "max": 1190}, "embedding_query": {"min": 14, "mean": 18, "stdev": 4, "p50": 17, "p75": 19, "p90": 25, "p95": 27, "p99": 32, "max": 35}, "searching": {"min": 6, "mean": 11, "stdev": 2, "p50": 10, "p75": 12, "p90": 14, "p95": 14, "p99": 16, "max": 16}, "reranking": {"min": 887, "mean": 2667, "stdev": 1224, "p50": 2938, "p75": 3332, "p90": 3691, "p95": 4679, "p99": 5522, "max": 5696}, "generating": {"min": 2942, "mean": 5423, "stdev": 2488, "p50": 4210, "p75": 6275, "p90": 9472, "p95": 10205, "p99": 12424, "max": 13952}, "validating": {"min": 0, "mean": 2, "stdev": 3, "p50": 1, "p75": 3, "p90": 5, "p95": 5, "p99": 13, "max": 15}, "verifying": {"min": 2382, "mean": 4973, "stdev": 3536, "p50": 3318, "p75": 6113, "p90": 10195, "p95": 11783, "p99": 15919, "max": 18809}}}, "by_type": {"list": {"n": 3, "total_ms": {"min": 13713, "mean": 25118, "stdev": 10924, "p50": 26153, "max": 35488}, "stages_ms": {"routing": {"min": 33, "mean": 41, "stdev": 10, "p50": 39, "max": 52}, "embedding_query": {"min": 16, "mean": 17, "stdev": 2, "p50": 16, "max": 19}, "searching": {"min": 8, "mean": 9, "stdev": 1, "p50": 9, "max": 10}, "reranking": {"min": 2652, "mean": 3093, "stdev": 479, "p50": 3024, "max": 3602}, "generating": {"min": 4429, "mean": 9593, "stdev": 4812, "p50": 10399, "max": 13952}, "validating": {"min": 1, "mean": 1, "stdev": 1, "p50": 1, "max": 2}, "verifying": {"min": 6176, "mean": 12358, "stdev": 6321, "p50": 12088, "max": 18809}}}, "multihop": {"n": 4, "total_ms": {"min": 17299, "mean": 20896, "stdev": 3091, "p50": 20824, "max": 24635}, "stages_ms": {"routing": {"min": 50, "mean": 73, "stdev": 40, "p50": 55, "max": 132}, "embedding_query": {"min": 16, "mean": 20, "stdev": 5, "p50": 18, "max": 27}, "searching": {"min": 10, "mean": 11, "stdev": 1, "p50": 11, "max": 12}, "reranking": {"min": 2840, "mean": 2970, "stdev": 92, "p50": 2992, "max": 3058}, "generating": {"min": 6502, "mean": 8723, "stdev": 1607, "p50": 9059, "max": 10271}, "validating": {"min": 1, "mean": 1, "stdev": 0, "p50": 1, "max": 1}, "verifying": {"min": 7369, "mean": 9090, "stdev": 1907, "p50": 8772, "max": 11444}}}, "crossdoc": {"n": 7, "total_ms": {"min": 7739, "mean": 15085, "stdev": 4742, "p50": 15900, "max": 22825}, "stages_ms": {"routing": {"min": 44, "mean": 61, "stdev": 21, "p50": 56, "max": 107}, "embedding_query": {"min": 15, "mean": 18, "stdev": 4, "p50": 17, "max": 27}, "searching": {"min": 10, "mean": 12, "stdev": 2, "p50": 12, "max": 14}, "reranking": {"min": 1058, "mean": 2511, "stdev": 1035, "p50": 2857, "max": 3709}, "generating": {"min": 3886, "mean": 6304, "stdev": 1930, "p50": 5704, "max": 9833}, "validating": {"min": 0, "mean": 2, "stdev": 1, "p50": 1, "max": 4}, "verifying": {"min": 2629, "mean": 6158, "stdev": 3086, "p50": 6066, "max": 11843}}}, "conflict": {"n": 3, "total_ms": {"min": 9968, "mean": 15398, "stdev": 7051, "p50": 12859, "max": 23366}, "stages_ms": {"routing": {"min": 53, "mean": 55, "stdev": 3, "p50": 54, "max": 58}, "embedding_query": {"min": 15, "mean": 16, "stdev": 1, "p50": 16, "max": 16}, "searching": {"min": 10, "mean": 10, "stdev": 1, "p50": 10, "max": 11}, "reranking": {"min": 3265, "mean": 3365, "stdev": 88, "p50": 3402, "max": 3429}, "generating": {"min": 3742, "mean": 6103, "stdev": 3026, "p50": 5052, "max": 9514}, "validating": {"min": 1, "mean": 1, "stdev": 0, "p50": 1, "max": 1}, "verifying": {"min": 2877, "mean": 5836, "stdev": 3975, "p50": 4277, "max": 10355}}}, "crosslingual": {"n": 2, "total_ms": {"min": 11416, "mean": 12084, "stdev": 945, "p50": 12084, "max": 12753}, "stages_ms": {"routing": {"min": 58, "mean": 66, "stdev": 12, "p50": 66, "max": 75}, "embedding_query": {"min": 15, "mean": 19, "stdev": 6, "p50": 19, "max": 23}, "searching": {"min": 8, "mean": 8, "stdev": 1, "p50": 8, "max": 9}, "reranking": {"min": 4238, "mean": 4765, "stdev": 745, "p50": 4765, "max": 5292}, "generating": {"min": 3712, "mean": 3879, "stdev": 236, "p50": 3879, "max": 4046}, "validating": {"min": 2, "mean": 2, "stdev": 1, "p50": 2, "max": 3}, "verifying": {"min": 3302, "mean": 3316, "stdev": 20, "p50": 3316, "max": 3330}}}, "followup": {"n": 4, "total_ms": {"min": 9431, "mean": 10720, "stdev": 978, "p50": 10982, "max": 11483}, "stages_ms": {"routing": {"min": 35, "mean": 50, "stdev": 26, "p50": 39, "max": 89}, "rewriting": {"min": 566, "mean": 942, "stdev": 283, "p50": 1005, "max": 1190}, "embedding_query": {"min": 23, "mean": 28, "stdev": 5, "p50": 26, "max": 35}, "searching": {"min": 8, "mean": 10, "stdev": 3, "p50": 8, "max": 14}, "reranking": {"min": 3015, "mean": 3298, "stdev": 277, "p50": 3266, "max": 3648}, "generating": {"min": 2942, "mean": 3567, "stdev": 590, "p50": 3578, "max": 4172}, "validating": {"min": 0, "mean": 2, "stdev": 2, "p50": 0, "max": 5}, "verifying": {"min": 2420, "mean": 2822, "stdev": 373, "p50": 2782, "max": 3307}}}, "native": {"n": 4, "total_ms": {"min": 9585, "mean": 11597, "stdev": 2423, "p50": 10962, "max": 14879}, "stages_ms": {"routing": {"min": 34, "mean": 47, "stdev": 11, "p50": 48, "max": 57}, "embedding_query": {"min": 18, "mean": 19, "stdev": 2, "p50": 19, "max": 21}, "searching": {"min": 6, "mean": 9, "stdev": 3, "p50": 9, "max": 12}, "reranking": {"min": 3006, "mean": 3741, "stdev": 1305, "p50": 3132, "max": 5696}, "generating": {"min": 3698, "mean": 4430, "stdev": 840, "p50": 4329, "max": 5364}, "validating": {"min": 1, "mean": 6, "stdev": 6, "p50": 3, "max": 15}, "verifying": {"min": 2717, "mean": 3345, "stdev": 589, "p50": 3364, "max": 3933}}}, "unknown": {"n": 4, "total_ms": {"min": 8821, "mean": 11752, "stdev": 4324, "p50": 10060, "max": 18070}, "stages_ms": {"routing": {"min": 34, "mean": 37, "stdev": 5, "p50": 36, "max": 44}, "embedding_query": {"min": 14, "mean": 16, "stdev": 1, "p50": 16, "max": 17}, "searching": {"min": 9, "mean": 9, "stdev": 0, "p50": 9, "max": 10}, "reranking": {"min": 2544, "mean": 3388, "stdev": 977, "p50": 3124, "max": 4757}, "generating": {"min": 3084, "mean": 4566, "stdev": 2161, "p50": 3702, "max": 7775}, "validating": {"min": 0, "mean": 2, "stdev": 2, "p50": 2, "max": 5}, "verifying": {"min": 2382, "mean": 3730, "stdev": 2421, "p50": 2590, "max": 7359}}}, "indic-on-english": {"n": 2, "total_ms": {"min": 9767, "mean": 9907, "stdev": 198, "p50": 9907, "max": 10047}, "stages_ms": {"routing": {"min": 51, "mean": 75, "stdev": 34, "p50": 75, "max": 99}, "embedding_query": {"min": 17, "mean": 18, "stdev": 1, "p50": 18, "max": 18}, "searching": {"min": 11, "mean": 11, "stdev": 0, "p50": 11, "max": 11}, "reranking": {"min": 2858, "mean": 2864, "stdev": 9, "p50": 2864, "max": 2871}, "generating": {"min": 3832, "mean": 3924, "stdev": 130, "p50": 3924, "max": 4016}, "validating": {"min": 1, "mean": 1, "stdev": 0, "p50": 1, "max": 1}, "verifying": {"min": 2947, "mean": 3012, "stdev": 93, "p50": 3012, "max": 3078}}}, "single": {"n": 11, "total_ms": {"min": 6969, "mean": 8335, "stdev": 1024, "p50": 8267, "p75": 8892, "p90": 9794, "p95": 9908, "p99": 9998, "max": 10021}, "stages_ms": {"routing": {"min": 31, "mean": 50, "stdev": 20, "p50": 43, "p75": 48, "p90": 68, "p95": 86, "p99": 100, "max": 104}, "embedding_query": {"min": 14, "mean": 17, "stdev": 2, "p50": 16, "p75": 18, "p90": 19, "p95": 20, "p99": 20, "max": 20}, "searching": {"min": 8, "mean": 12, "stdev": 2, "p50": 13, "p75": 14, "p90": 15, "p95": 16, "p99": 16, "max": 16}, "reranking": {"min": 887, "mean": 1050, "stdev": 147, "p50": 1000, "p75": 1127, "p90": 1159, "p95": 1269, "p99": 1357, "max": 1379}, "generating": {"min": 3430, "mean": 4240, "stdev": 796, "p50": 4035, "p75": 4297, "p90": 5129, "p95": 5664, "p99": 6092, "max": 6199}, "validating": {"min": 0, "mean": 3, "stdev": 3, "p50": 1, "p75": 3, "p90": 5, "p95": 8, "p99": 10, "max": 11}, "verifying": {"min": 2444, "mean": 2957, "stdev": 479, "p50": 2696, "p75": 3314, "p90": 3508, "p95": 3714, "p99": 3879, "max": 3920}}}, "small-talk": {"n": 4, "total_ms": {"min": 793, "mean": 1156, "stdev": 354, "p50": 1096, "max": 1639}, "stages_ms": {"routing": {"min": 23, "mean": 28, "stdev": 6, "p50": 26, "max": 36}, "replying": {"min": 767, "mean": 1128, "stdev": 355, "p50": 1065, "max": 1616}}}}, "usage": {"generate": {"calls": {"min": 1, "mean": 2, "stdev": 0, "p50": 2, "p75": 2, "p90": 2, "p95": 3, "p99": 3, "max": 3}, "prompt_tokens": {"min": 139, "mean": 3583, "stdev": 1190, "p50": 3645, "p75": 4067, "p90": 4678, "p95": 5062, "p99": 5227, "max": 5237}, "output_tokens": {"min": 16, "mean": 208, "stdev": 217, "p50": 108, "p75": 257, "p90": 528, "p95": 636, "p99": 904, "max": 1088}, "model_ms": {"min": 762, "mean": 9676, "stdev": 6213, "p50": 7497, "p75": 11190, "p90": 18934, "p95": 21653, "p99": 27897, "max": 32730}, "load_ms": {"min": 0, "mean": 3, "stdev": 2, "p50": 2, "p75": 3, "p90": 4, "p95": 6, "p99": 9, "max": 9}}, "embed": {"calls": {"min": 1, "mean": 2, "stdev": 0, "p50": 2, "p75": 2, "p90": 2, "p95": 2, "p99": 2, "max": 2}, "prompt_tokens": {"min": 10, "mean": 43, "stdev": 14, "p50": 42, "p75": 50, "p90": 58, "p95": 63, "p99": 73, "max": 74}, "output_tokens": {"min": 0, "mean": 0, "stdev": 0, "p50": 0, "p75": 0, "p90": 0, "p95": 0, "p99": 0, "max": 0}, "model_ms": {"min": 13, "mean": 48, "stdev": 21, "p50": 44, "p75": 54, "p90": 70, "p95": 88, "p99": 115, "max": 128}, "load_ms": {"min": 1, "mean": 3, "stdev": 2, "p50": 3, "p75": 3, "p90": 6, "p95": 7, "p99": 10, "max": 11}}, "rerank": {"calls": {"min": 30, "mean": 30, "stdev": 0, "p50": 30, "p75": 30, "p90": 30, "p95": 30, "p99": 30, "max": 30}, "prompt_tokens": {"min": 7054, "mean": 8350, "stdev": 1284, "p50": 7892, "p75": 8786, "p90": 10620, "p95": 11390, "p99": 11520, "max": 11563}, "output_tokens": {"min": 30, "mean": 30, "stdev": 0, "p50": 30, "p75": 30, "p90": 30, "p95": 30, "p99": 30, "max": 30}, "model_ms": {"min": 3274, "mean": 10063, "stdev": 4710, "p50": 11117, "p75": 12705, "p90": 14090, "p95": 17976, "p99": 21200, "max": 21997}, "load_ms": {"min": 27, "mean": 39, "stdev": 10, "p50": 36, "p75": 43, "p90": 51, "p95": 55, "p99": 67, "max": 68}}}, "length": {"ms_per_output_token": 27.1, "ms_at_zero_tokens": 7167, "correlation": 0.97}, "first": {"total_ms": 19401, "load_ms": {"embed": 3, "rerank": 6217, "generate": 6}}};
+const STACK = [
+  ["other", "Routing, search, other", "--s-other"],
+  ["rewrite", "Follow-up rewrite", "--s-rewrite"],
+  ["rerank", "Reranking", "--s-rerank"],
+  ["generate", "Answer generation", "--s-generate"],
+  ["verify", "Statement verification", "--s-verify"],
+];
+const NAMES = { routing: "Routing (embedding)", replying: "Small-talk reply", rewriting: "Follow-up rewrite",
+  embedding_query: "Query embedding", searching: "Search (dense + keyword)", reranking: "Reranking",
+  waiting_for_model: "Waiting for the model", generating: "Answer generation", validating: "Citation validation",
+  verifying: "Statement verification" };
+const COLS = ["min", "mean", "stdev", "p50", "p75", "p90", "p95", "p99", "max"];
+const sec = (ms) => (ms / 1000).toFixed(1);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const warm = D.questions.slice(1);
+const NS = "http://www.w3.org/2000/svg";
+
+/* tooltip */
+const tip = document.getElementById("tip");
+function showTip(e, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+function bindTip(el, html) {
+  el.addEventListener("mousemove", (e) => showTip(e, html));
+  el.addEventListener("mouseleave", hideTip);
+}
+function questionTip(q) {
+  const rows = STACK.filter(([k]) => q.parts[k]).map(([k, label]) =>
+    `<div class="row"><span>${label}</span><span>${sec(q.parts[k])} s</span></div>`).join("");
+  return `<b>#${q.n} · ${esc(q.type)}</b><br>${esc(q.q)}<div class="row" style="margin-top:6px"><span>Total</span><span>${sec(q.total)} s</span></div>${rows}<div class="row"><span>Output tokens</span><span>${q.tokens}</span></div>`;
+}
+
+/* tiles */
+const A = D.all.total_ms;
+const talk = D.by_type["small-talk"];
+const tiles = [
+  [sec(A.p50), "s", "typical answer (p50)"],
+  [sec(A.p90), "s", "one in ten slower than (p90)"],
+  [sec(A.max), "s", "slowest answer"],
+  [talk ? sec(talk.total_ms.p50) : "–", "s", "small talk (p50)"],
+  [sec(D.first.total_ms), "s", "first question, models loading"],
+  ["41/45", "", "document questions correct"],
+];
+document.getElementById("tiles").innerHTML = tiles.map(([v, u, k]) =>
+  `<div class="tile"><div class="v">${v}${u ? ` <small>${u}</small>` : ""}</div><div class="k">${k}</div></div>`).join("");
+
+/* legend */
+document.getElementById("legend-stack").innerHTML = STACK.map(([, label, c]) =>
+  `<span><i style="background:var(${c})"></i>${label}</span>`).join("");
+
+function svg(w, h) {
+  const s = document.createElementNS(NS, "svg");
+  s.setAttribute("viewBox", `0 0 ${w} ${h}`); s.setAttribute("width", w); s.setAttribute("height", h);
+  return s;
+}
+function el(parent, tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e); return e;
+}
+function niceMax(v, step) { return Math.ceil(v / step) * step; }
+
+/* chart 1: stacked bars, one per question */
+function drawStack() {
+  const box = document.getElementById("chart-stack");
+  const W = box.clientWidth, row = 15, gap = 4, left = Math.min(140, W * 0.36), right = 44, top = 18;
+  const sorted = [...D.questions].sort((a, b) => b.total - a.total);
+  const H = top + sorted.length * (row + gap) + 6;
+  const max = niceMax(Math.max(...sorted.map((q) => q.total)) / 1000, 5);
+  const x = (s) => left + (s / max) * (W - left - right);
+  const s = svg(W, H);
+  for (let t = 0; t <= max; t += 5) {
+    el(s, "line", { x1: x(t), x2: x(t), y1: top - 4, y2: H - 4, class: "grid" });
+    el(s, "text", { x: x(t), y: 10, "text-anchor": "middle" }, t + (t === max ? " s" : ""));
+  }
+  sorted.forEach((q, i) => {
+    const y = top + i * (row + gap);
+    el(s, "text", { x: left - 8, y: y + row - 3, "text-anchor": "end", class: "lbl" }, `#${q.n} ${q.type}`);
+    let acc = 0;
+    STACK.forEach(([k, , c]) => {
+      const v = q.parts[k] / 1000;
+      if (v <= 0) return;
+      const x0 = x(acc), x1 = x(acc + v);
+      const wdt = Math.max(1, x1 - x0 - (acc > 0 ? 2 : 0));
+      el(s, "rect", { x: acc > 0 ? x0 + 2 : x0, y, width: wdt, height: row, rx: 2, fill: `var(${c})`, class: "seg" });
+      acc += v;
+    });
+    el(s, "text", { x: x(acc) + 6, y: y + row - 3 }, sec(q.total));
+    const hit = el(s, "rect", { x: 0, y: y - gap / 2, width: W, height: row + gap, fill: "transparent" });
+    bindTip(hit, questionTip(q));
+  });
+  box.replaceChildren(s);
+}
+
+/* chart 2: total time against output tokens, with the fitted line */
+function drawLength() {
+  const L = D.length;
+  document.getElementById("length-text").textContent =
+    `Total time ≈ ${sec(L.ms_at_zero_tokens)} s + ${Math.round(L.ms_per_output_token)} ms per output token (generation and verification together), correlation ${L.correlation}. The fixed part is mostly reranking and reading the prompts; everything above it is the model writing. Each dot is one question; small talk is left out.`;
+  const box = document.getElementById("chart-length");
+  const pts = warm.filter((q) => q.type !== "small-talk" && q.tokens);
+  const W = box.clientWidth, H = Math.min(380, Math.max(260, W * 0.44)), l = 44, r = 16, t = 34, b = 40;
+  const mx = niceMax(Math.max(...pts.map((q) => q.tokens)), 200), my = niceMax(Math.max(...pts.map((q) => q.total)) / 1000, 5);
+  const x = (v) => l + (v / mx) * (W - l - r), y = (v) => H - b - (v / my) * (H - t - b);
+  const s = svg(W, H);
+  for (let v = 0; v <= my; v += 5) {
+    el(s, "line", { x1: l, x2: W - r, y1: y(v), y2: y(v), class: "grid" });
+    el(s, "text", { x: l - 8, y: y(v) + 4, "text-anchor": "end" }, v);
+  }
+  for (let v = 0; v <= mx; v += 200) el(s, "text", { x: x(v), y: H - b + 18, "text-anchor": "middle" }, v);
+  el(s, "text", { x: (l + W - r) / 2, y: H - 4, "text-anchor": "middle" }, "output tokens per question");
+  el(s, "text", { x: l - 8, y: 12, "text-anchor": "end" }, "seconds");
+  const fy = (v) => (L.ms_at_zero_tokens + L.ms_per_output_token * v) / 1000;
+  el(s, "line", { x1: x(0), y1: y(fy(0)), x2: x(mx), y2: y(Math.min(my, fy(mx))), stroke: css("--fg-2"), "stroke-width": 1.5, "stroke-dasharray": "5 4" });
+  pts.forEach((q) => {
+    const c = el(s, "circle", { cx: x(q.tokens), cy: y(q.total / 1000), r: 4.5, fill: "var(--s-rerank)", stroke: "var(--surface)", "stroke-width": 2 });
+    const hit = el(s, "circle", { cx: x(q.tokens), cy: y(q.total / 1000), r: 11, fill: "transparent" });
+    bindTip(hit, questionTip(q));
+  });
+  box.replaceChildren(s);
+}
+
+/* chart 3: spread per stage */
+function drawSpread() {
+  const box = document.getElementById("chart-spread");
+  const rows = [["Total", A, "--fg-2"], ["Reranking", D.all.stages_ms.reranking, "--s-rerank"],
+    ["Answer generation", D.all.stages_ms.generating, "--s-generate"],
+    ["Statement verification", D.all.stages_ms.verifying, "--s-verify"]].filter((r) => r[1]);
+  const W = box.clientWidth, row = 40, l = Math.min(170, W * 0.32), r = 16, t = 20;
+  const H = t + rows.length * row + 10;
+  const max = niceMax(A.max / 1000, 5);
+  const x = (ms) => l + (ms / 1000 / max) * (W - l - r);
+  const s = svg(W, H);
+  for (let v = 0; v <= max; v += 5) {
+    el(s, "line", { x1: x(v * 1000), x2: x(v * 1000), y1: t - 6, y2: H - 6, class: "grid" });
+    el(s, "text", { x: x(v * 1000), y: 10, "text-anchor": "middle" }, v + (v === max ? " s" : ""));
+  }
+  rows.forEach(([label, d, c], i) => {
+    const y = t + i * row + row / 2;
+    el(s, "text", { x: l - 10, y: y + 4, "text-anchor": "end", class: "lbl" }, label);
+    el(s, "line", { x1: x(d.min), x2: x(d.max), y1: y, y2: y, stroke: `var(${c})`, "stroke-width": 2, opacity: 0.55 });
+    el(s, "rect", { x: x(d.p50), y: y - 7, width: Math.max(2, x(d.p90) - x(d.p50)), height: 14, rx: 3, fill: `var(${c})`, opacity: 0.85 });
+    el(s, "line", { x1: x(d.p50), x2: x(d.p50), y1: y - 11, y2: y + 11, stroke: "var(--fg)", "stroke-width": 2 });
+    el(s, "circle", { cx: x(d.max), cy: y, r: 3.5, fill: `var(${c})` });
+    const hit = el(s, "rect", { x: 0, y: y - row / 2, width: W, height: row, fill: "transparent" });
+    bindTip(hit, `<b>${label}</b>` + COLS.filter((k) => k in d).map((k) =>
+      `<div class="row"><span>${k}</span><span>${sec(d[k])} s</span></div>`).join(""));
+  });
+  box.replaceChildren(s);
+}
+
+/* tables */
+const cell = (d, k) => (k in d ? sec(d[k]) : "–");
+function distTable(id, first, rows) {
+  document.getElementById(id).innerHTML =
+    `<thead><tr><th class="t">${first}</th>${rows[0].length > 2 ? "<th>n</th>" : ""}${COLS.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(([label, d, n]) => `<tr><td class="t">${label}</td>${n !== undefined ? `<td>${n}</td>` : ""}${COLS.map((c) => `<td>${cell(d, c)}</td>`).join("")}</tr>`).join("") + "</tbody>";
+}
+const stageN = (st) => warm.filter((q) => st in q.stages).length;
+distTable("t-pct", "Stage", [["<strong>Total</strong>", A, warm.length],
+  ...Object.entries(D.all.stages_ms).map(([st, d]) => [NAMES[st] || st, d, stageN(st)])]);
+distTable("t-type", "Type", Object.entries(D.by_type).map(([t, g]) => [t, g.total_ms, g.n]));
+document.getElementById("t-type-stage").innerHTML =
+  `<thead><tr><th class="t">Type</th><th>n</th><th>Rewrite</th><th>Rerank</th><th>Generate</th><th>Verify</th><th>Total</th></tr></thead><tbody>` +
+  Object.entries(D.by_type).map(([t, g]) => {
+    const m = (k) => (g.stages_ms[k] && g.stages_ms[k].p50 >= 50 ? sec(g.stages_ms[k].p50) : "–");
+    return `<tr><td class="t">${t}</td><td>${g.n}</td><td>${m("rewriting")}</td><td>${m("reranking")}</td><td>${m("generating")}</td><td>${m("verifying")}</td><td>${sec(g.total_ms.p50)}</td></tr>`;
+  }).join("") + "</tbody>";
+const UNITS = { calls: "", prompt_tokens: "", output_tokens: "", model_ms: " ms", load_ms: " ms" };
+document.getElementById("t-usage").innerHTML =
+  `<thead><tr><th class="t">Call</th><th class="t">Measure</th>${COLS.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>` +
+  Object.entries(D.usage).flatMap(([kind, f]) => Object.entries(f).map(([field, d]) =>
+    `<tr><td class="t">${kind}</td><td class="t">${field.replace("_", " ")}${UNITS[field] ? " (ms)" : ""}</td>${COLS.map((c) => `<td>${c in d ? d[c].toLocaleString("en") : "–"}</td>`).join("")}</tr>`)).join("") + "</tbody>";
+
+/* every question, sortable */
+const ALL_COLS = [["n", "#", (q) => q.n], ["type", "Type", (q) => q.type], ["q", "Question", (q) => q.q],
+  ["total", "Total", (q) => q.total], ["rewrite", "Rewrite", (q) => q.parts.rewrite], ["rerank", "Rerank", (q) => q.parts.rerank],
+  ["generate", "Generate", (q) => q.parts.generate], ["verify", "Verify", (q) => q.parts.verify],
+  ["other", "Other", (q) => q.parts.other], ["tokens", "Output tokens", (q) => q.tokens], ["result", "Result", (q) => q.result]];
+let sortKey = "n", sortDir = 1;
+function drawAll() {
+  const getter = ALL_COLS.find((c) => c[0] === sortKey)[2];
+  const rows = [...D.questions].sort((a, b) => {
+    const va = getter(a), vb = getter(b);
+    return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * sortDir;
+  });
+  const fmt = (k, q) => {
+    if (k === "n") return q.n;
+    if (k === "tokens") return q.tokens;
+    if (k === "total") return `<strong>${sec(q.total)}</strong>`;
+    if (k === "result") return `<span class="pill ${q.result === "wrong" ? "no" : "ok"}">${q.result}</span>`;
+    const v = q.parts[k];
+    return v >= 50 ? sec(v) : "–";
+  };
+  document.getElementById("t-all").innerHTML =
+    `<thead><tr>${ALL_COLS.map(([k, label]) => `<th class="${["type", "q", "result"].includes(k) ? "t" : ""}" aria-sort="${k === sortKey ? (sortDir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-k="${k}">${label}</button></th>`).join("")}</tr></thead><tbody>` +
+    rows.map((q) => `<tr>${ALL_COLS.map(([k]) => k === "type" ? `<td class="t">${esc(q.type)}</td>` : k === "q" ? `<td class="q">${esc(q.q)}</td>` : k === "result" ? `<td class="t">${fmt(k, q)}</td>` : `<td>${fmt(k, q)}</td>`).join("")}</tr>`).join("") + "</tbody>";
+  document.querySelectorAll("#t-all th button").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.k;
+    sortDir = k === sortKey ? -sortDir : (["total", "rewrite", "rerank", "generate", "verify", "other", "tokens"].includes(k) ? -1 : 1);
+    sortKey = k; drawAll();
+    document.querySelector(`#t-all th button[data-k="${k}"]`).focus();
+  }));
+}
+
+function drawCharts() { drawStack(); drawLength(); drawSpread(); }
+drawCharts(); drawAll();
+let raf = 0;
+new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawCharts); }).observe(document.querySelector(".page"));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawCharts);
+</script>

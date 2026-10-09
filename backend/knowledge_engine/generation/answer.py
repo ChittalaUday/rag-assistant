@@ -94,6 +94,8 @@ class Generated:
     warnings: list[str] = field(default_factory=list)
     # each sentence of the answer and the chunk ids of the passages that state it
     statements: list[dict[str, Any]] = field(default_factory=list)
+    # why the answer model was asked again: "no_valid_citations", "wrong_language" (kept or not)
+    retries: list[str] = field(default_factory=list)
 
 
 def draft_answer(raw: str) -> str:
@@ -165,11 +167,14 @@ async def generate_answer(
     def valid_ids(r: dict[str, Any]) -> list[str]:
         return list(dict.fromkeys(a for a in r.get("citation_ids", []) if a in by_alias))
 
+    retries: list[str] = []
     abstained = raw.get("status") == "insufficient_evidence"
     if not valid_ids(raw) and not abstained:
+        retries.append("no_valid_citations")
         raw = await _ask(ctx, plan, history, ev, notify, RETRY_NOTE)  # one corrective retry
         abstained = raw.get("status") == "insufficient_evidence"
     elif wrong_language(plan.question, str(raw.get("answer", "")), plan.answer_language):
+        retries.append("wrong_language")
         retry = await _ask(
             ctx, plan, history, ev, notify, language_reminder(plan.answer_language)
         )  # one retry, kept if valid
@@ -178,7 +183,7 @@ async def generate_answer(
         ):
             raw, abstained = retry, retry.get("status") == "insufficient_evidence"
     await notify("validating", "Checking the citations")
-    out = Generated()
+    out = Generated(retries=retries)
     cited = valid_ids(raw)
     if set(raw.get("citation_ids", [])) - set(by_alias):
         out.warnings.append("Model returned unknown citation IDs; these were discarded")

@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -83,17 +83,22 @@ class ChatResponse(BaseModel):
     warnings: list[str]
     statements: list[Statement] = []
     trace: AnswerTrace
+    metrics: dict[str, Any] | None = None  # as stored with the answer (Message.metrics)
     model: str
 
 
 class Message(BaseModel):
     role: Literal["user", "assistant"]
     content: str
+    asked_at: str | None = None  # user messages: when the question was asked (ISO, UTC)
     citations: list[Citation] | None = None
     warnings: list[str] | None = None
     status: AnswerStatus | None = None
     statements: list[Statement] | None = None
     trace: AnswerTrace | None = None
+    # for evaluations: route, retries, models, settings, Ollama usage, code version (answers);
+    # absent on messages saved before it was recorded
+    metrics: dict[str, Any] | None = None
 
 
 class ConversationSummary(BaseModel):

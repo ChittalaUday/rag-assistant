@@ -13,6 +13,7 @@ API at 127.0.0.1:8000; the Vite dev server at 127.0.0.1:5173 proxies `/api`.
 | `PUT /documents/{id}` multipart `file` | `Document` (202); the previous version stays searchable until the replacement publishes |
 | `DELETE /documents/{id}` | `{ok: true}`; removes the document and its chunks |
 | `GET /documents/{id}/content` | `{document, text, text_kind: "extracted"\|"original"\|"reconstructed", showing_last_published_version, provenance_note, chunks: Citation[], source_urls}` |
+| `GET /documents/{id}/chunks` | `{document, text_chars, chunks: [{id, position, heading, text, location, summary, char_start, char_end, page, embedding_model}]}`: the passages in order, with the location line (`Title › Heading`) and model-written summary indexed with each (empty when summaries were off or failed) |
 | `POST /documents/reindex` | `{queued: number}`: re-run indexing for documents built by an older pipeline version |
 | `POST /demo` | `{documents: Document[]}` (202): loads the bundled sample corpus; `fixtures/testing/*` get label `synthetic` |
 
@@ -41,6 +42,18 @@ an unknown name is a `422`.
 `ChatResponse`: `{conversation_id, answer, status: "answered"|"insufficient_evidence"|
 "conflicting_evidence"|"conversation", citations: Citation[], warnings[], statements: Statement[],
 trace: AnswerTrace, model}`.
+
+`metrics` (returned and stored with every answer; absent on answers saved before it was recorded)
+is for evaluations: `asked_at` (ISO, UTC; also on the user message), `route` (`small_talk` |
+`documents`) and `route_score`, `first_draft_ms` (streamed requests: time to the first draft
+text), `retries` (`no_valid_citations`, `wrong_language`), `statements` (`{total, supported}`),
+`request` (`answer_language`, `exclude_labels`), `models` (chat, embedding, rerank), `settings`
+(the answer-quality settings in force), `usage` (per call kind `generate` / `embed` / `rerank`:
+`calls`, `prompt_tokens`, `output_tokens`, `model_ms`, `load_ms`, from Ollama's own counters for
+this question only) and `engine` (`pipeline_version`, `code`: git commit, `+dirty` with
+uncommitted changes). Stage timings stay in `trace.timings`. `make export OUT=dir` writes them all
+to `exchanges.jsonl` (one row per answer with its question, status, cited documents, statement
+support, timings and metrics) next to `chunks.jsonl`; it only reads the database.
 
 `status: "conversation"` is a reply to small talk (a greeting, thanks, a question about the
 assistant). Routing is semantic: the message is embedded (about 20 ms) and compared with generic,

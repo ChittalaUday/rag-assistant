@@ -13,6 +13,7 @@ about the corpus.
 import json
 import math
 import tomllib
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -60,13 +61,21 @@ async def route_score(ctx: AppContext, message: str) -> float:
 
 
 async def small_talk_reply(
-    ctx: AppContext, message: str, history: list[dict[str, Any]], language: str = ""
-) -> str | None:
-    """The reply to `message` when it is small talk; None when it should be answered from the
-    documents. `language`: the answer language asked for (empty: the message's)."""
+    ctx: AppContext,
+    message: str,
+    history: list[dict[str, Any]],
+    language: str = "",
+    notify: Callable[[str, str], Awaitable[None]] | None = None,
+) -> tuple[str | None, float | None]:
+    """(the reply when `message` is small talk, else None; its routing score, None if routing
+    failed). `language`: the answer language asked for (empty: the message's)."""
+    score = None
     try:
-        if await route_score(ctx, message) < ctx.settings.small_talk_margin:
-            return None
+        score = await route_score(ctx, message)
+        if score < ctx.settings.small_talk_margin:
+            return None, score
+        if notify:
+            await notify("replying", "Writing a reply")
         recent = [{"role": m["role"], "content": m["content"][:300]} for m in history[-2:]]
         prompt = "\n\n".join(
             [
@@ -77,6 +86,6 @@ async def small_talk_reply(
         )
         raw = await ctx.model.generate(prompt, SCHEMA, max_tokens=200)
     except Exception:  # the answer pipeline reports model failures; here it just means "not sure"
-        return None
+        return None, score
     reply = str(raw.get("reply", "")).strip()
-    return reply if 0 < len(reply) <= MAX_REPLY_CHARS else None
+    return (reply if 0 < len(reply) <= MAX_REPLY_CHARS else None), score

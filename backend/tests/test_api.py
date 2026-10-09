@@ -731,3 +731,47 @@ def test_an_abstention_does_not_talk_about_the_sources(tmp_path):
         }
         reply = c.post("/api/chat", json={"question": "what is the parking policy"}).json()
         assert reply["answer"] == "I don't have information about the parking policy."
+
+
+def test_answers_are_saved_with_metrics_for_evaluation(tmp_path):
+    from knowledge_engine.__main__ import exchanges
+
+    with client(tmp_path) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        c.post("/api/chat", json={"question": "hello", "conversation_id": reply["conversation_id"]})
+        saved = c.get(f"/api/conversations/{reply['conversation_id']}").json()["messages"]
+        question, answer, _, small_talk = saved
+        assert question["asked_at"] == answer["metrics"]["asked_at"]
+        metrics = answer["metrics"]
+        assert metrics == reply["metrics"]  # returned and stored alike
+        assert metrics["route"] == "documents" and metrics["route_score"] < 0.11
+        assert metrics["retries"] == [] and metrics["statements"]["total"] >= 1
+        assert metrics["models"]["chat"] and metrics["engine"]["pipeline_version"] >= 1
+        assert set(metrics["settings"]) >= {"answer_thinking", "small_talk_margin"}
+        assert small_talk["metrics"]["route"] == "small_talk"
+        rows = exchanges(c.app.state.ctx.store.conversations.every_message())
+        assert [(r["question"], r["status"]) for r in rows] == [
+            ("Who leads Acme?", "answered"),
+            ("hello", "conversation"),
+        ]
+        assert rows[0]["cited_documents"] == ["a.txt"] and rows[0]["timings"]["total_ms"] >= 0
+
+
+def test_a_documents_passages_are_listed_in_order_with_their_indexed_context(tmp_path):
+    with client(tmp_path) as c:
+        text = "# Team\n\nMira leads Acme.\n\n# Leave\n\n" + "Leave needs approval. " * 60
+        doc = ready(c, upload(c, "team.md", text)["id"])
+        body = c.get(f"/api/documents/{doc['id']}/chunks").json()
+        assert body["document"]["id"] == doc["id"] and body["text_chars"] > 0
+        chunks = body["chunks"]
+        assert len(chunks) == doc["chunk_count"] >= 2
+        assert [ch["position"] for ch in chunks] == list(range(len(chunks)))
+        assert "Mira leads Acme." in chunks[0]["text"]
+        # the location searched with each passage is "Title › Heading"; summaries are off in tests
+        assert all(ch["location"] == f"team › {ch['heading']}" for ch in chunks)
+        assert all(ch["summary"] == "" for ch in chunks)
+        assert all(ch["char_start"] < ch["char_end"] for ch in chunks)
+        assert chunks[0]["char_start"] < chunks[1]["char_start"]  # in document order
+        assert chunks[0]["embedding_model"] == "all-minilm:l6-v2"
+        assert c.get("/api/documents/missing/chunks").status_code == 404

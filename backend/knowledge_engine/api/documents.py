@@ -8,6 +8,7 @@ from knowledge_engine.pipeline.indexing import PIPELINE_VERSION, queue_reindex
 from knowledge_engine.schemas.common import OkResponse
 from knowledge_engine.schemas.documents import (
     Document,
+    DocumentChunks,
     DocumentContent,
     DocumentList,
     ReindexResponse,
@@ -49,6 +50,22 @@ async def delete_document(id: str, ctx: Ctx) -> OkResponse:
 @router.get("/documents/{id}/content")
 async def document_content(id: str, ctx: Ctx) -> DocumentContent:
     return DocumentContent.model_validate(intake.document_content(ctx, id))
+
+
+@router.get("/documents/{id}/chunks")
+async def document_chunks(id: str, ctx: Ctx) -> DocumentChunks:
+    """The document's searchable passages in order, with the location and summary indexed with
+    each (for the document pipeline view)."""
+    store = ctx.store
+    document = store.documents.get(id)  # 404 when missing
+    chunks = []
+    for row in store.chunks.passages(id):
+        location, _, summary = row["context"].partition("\n")
+        chunks.append({**row, "location": location, "summary": summary.strip()})
+    text = store.documents.text(id)
+    return DocumentChunks.model_validate(
+        {"document": document, "text_chars": len(text or ""), "chunks": chunks}
+    )
 
 
 @router.post("/demo", status_code=202)

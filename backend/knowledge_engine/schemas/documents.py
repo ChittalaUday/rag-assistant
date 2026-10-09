@@ -41,3 +41,24 @@ class DocumentContent(BaseModel):
     provenance_note: str | None = None
     chunks: list[Citation]
     source_urls: list[str]
+
+
+class DocumentChunk(BaseModel):
+    """One searchable passage of a document, as indexing stored it."""
+
+    id: str
+    position: int
+    heading: str | None = None
+    text: str
+    location: str  # "Title › Heading": searched and embedded with the passage
+    summary: str  # model-written sentences placing it in the document; empty when off or failed
+    char_start: int
+    char_end: int
+    page: int | None = None
+    embedding_model: str
+
+
+class DocumentChunks(BaseModel):
+    document: Document
+    text_chars: int  # length of the parsed text the passages were cut from
+    chunks: list[DocumentChunk]

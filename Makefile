@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: setup env db-create migrate migrate-data dev dev-lan check test evaluate ingest reindex export eval-retrieval eval-answers eval-multilingual eval-routing
+.PHONY: setup env db-create migrate migrate-data dev dev-lan check test evaluate ingest reindex export eval-retrieval eval-answers eval-multilingual eval-routing eval-latency
 setup: env
 	uv sync --extra documents
 	npm --prefix frontend ci
@@ -59,3 +59,9 @@ eval-multilingual:
 # generation/smalltalk.toml, per margin (embedding model only); run after editing the examples
 eval-routing:
 	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation routing $(ARGS)
+# response time per stage and question type: 49 questions (fixtures/latency-questions.json) through
+# the real pipeline in a scratch schema, then the per-stage medians (docs/reports/response-time.md)
+eval-latency:
+	mkdir -p work/latency
+	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation answers --corpus fixtures/documents fixtures/testing fixtures/archive/northstar fixtures/multilingual --questions fixtures/latency-questions.json --out work/latency/$(or $(NAME),run).json $(ARGS)
+	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation latency work/latency/$(or $(NAME),run).json

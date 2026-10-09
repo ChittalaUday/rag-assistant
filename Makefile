@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: setup env db-create migrate migrate-data dev check test evaluate ingest reindex export eval-retrieval eval-answers eval-multilingual
+.PHONY: setup env db-create migrate migrate-data dev dev-lan check test evaluate ingest reindex export eval-retrieval eval-answers eval-multilingual
 setup: env
 	uv sync --extra documents
 	npm --prefix frontend ci
@@ -21,6 +21,9 @@ migrate-data:
 	PYTHONPATH=backend uv run --no-sync python scripts/migrate_sqlite_to_postgres.py
 dev:
 	./scripts/dev.sh
+# serve to the local network so others can test (no login: anyone on the network has full access)
+dev-lan:
+	LAN=1 ./scripts/dev.sh
 check:
 	uv run --no-sync ruff check backend scripts
 	uv run --no-sync ruff format --check backend scripts

@@ -52,6 +52,11 @@ class FakeModel:
             return value
         if "question" in props:
             return {"question": prompt.rsplit("FINAL QUESTION:", 1)[1].strip()}
+        if "kind" in props:  # small talk check: a few fixed greetings are small talk
+            message = prompt.rsplit("MESSAGE:\n", 1)[1].strip()
+            if message.casefold() in {"hello", "hi", "thanks", "thank you"}:
+                return {"kind": "small_talk", "reply": "Hello! Ask me about your documents."}
+            return {"kind": "question", "reply": ""}
         if "statements" in props:  # attribution: every statement rests on the first passage
             count = props["statements"]["maxItems"]
             first = re.findall(r"^(S\d+):$", prompt, re.M)[:1]

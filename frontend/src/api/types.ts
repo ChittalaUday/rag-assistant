@@ -88,7 +88,10 @@ export interface SearchPreview {
   graph?: PreviewGraph;
 }
 export type AnswerStatus =
-  "answered" | "insufficient_evidence" | "conflicting_evidence";
+  | "answered"
+  | "insufficient_evidence"
+  | "conflicting_evidence"
+  | "conversation"; // a reply to small talk: no facts, no citations
 export interface ChatResponse {
   conversation_id: string;
   answer: string;

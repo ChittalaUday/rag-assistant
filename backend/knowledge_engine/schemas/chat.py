@@ -5,7 +5,9 @@ from pydantic import BaseModel, Field, field_validator
 from knowledge_engine.schemas.sources import Citation
 from knowledge_engine.text import ANSWER_LANGUAGES
 
-AnswerStatus = Literal["answered", "insufficient_evidence", "conflicting_evidence"]
+# conversation: a reply to small talk (a greeting, thanks), made without passages: no facts, no
+# citations
+AnswerStatus = Literal["answered", "insufficient_evidence", "conflicting_evidence", "conversation"]
 
 
 class Question(BaseModel):

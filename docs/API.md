@@ -39,8 +39,16 @@ written in that language whatever the question's, retried once if it comes back 
 an unknown name is a `422`.
 
 `ChatResponse`: `{conversation_id, answer, status: "answered"|"insufficient_evidence"|
-"conflicting_evidence", citations: Citation[], warnings[], statements: Statement[], trace:
-AnswerTrace, model}`.
+"conflicting_evidence"|"conversation", citations: Citation[], warnings[], statements: Statement[],
+trace: AnswerTrace, model}`.
+
+`status: "conversation"` is a reply to small talk (a greeting, thanks, a question about the
+assistant). Messages of up to 12 words are first put to one short model call that decides whether
+they are small talk and, if so, writes the reply; it sees no passages and is told to state no facts,
+so the reply has no citations and the trace has no passages (`intent: "conversation"`). Anything
+else, and any failed or doubtful call, goes through retrieval and cite-or-abstain. An answer the
+documents do not support reads "I couldn't find information about that." or the model's own short
+statement of it, never a remark about "the provided sources".
 
 - `Statement`: `{text, sources: chunk_id[]}`: one sentence of the answer and the passages that state
   (part of) it, found by a separate attribution call (`KE_VERIFY_CITATIONS`). `sources: []` means no

@@ -62,7 +62,7 @@ def test_offline_job_and_stream_error(tmp_path):
         # No evidence should yield an honest abstention without inventing a model result.
         response = c.post("/api/chat/stream", json={"question": "Who leads Acme?"})
         assert "event: status" in response.text and "event: result" in response.text
-        assert "could not find supporting evidence" in response.text
+        assert "couldn't find information about that" in response.text
         assert '"status": "insufficient_evidence"' in response.text
 
 
@@ -673,3 +673,62 @@ def test_the_stream_sends_the_growing_trace_and_the_final_timings(tmp_path):
         stages = ("understand_ms", "retrieve_ms", "answer_ms", "check_ms")
         assert set(timings) == {*stages, "total_ms"} and all(v >= 0 for v in timings.values())
         assert sum(timings[k] for k in stages) <= timings["total_ms"] + 4  # rounding
+
+
+class ScriptedModel(RecordingModel):
+    """Gives one scripted answer object."""
+
+    def __init__(self, reply):
+        super().__init__()
+        self.reply = reply
+
+    def answer(self, prompt):
+        return self.reply
+
+
+def test_small_talk_is_answered_without_retrieval_or_citations(tmp_path):
+    model = RecordingModel()
+    with client(tmp_path, model) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        reply = c.post("/api/chat", json={"question": "hello"}).json()
+        assert reply["status"] == "conversation" and reply["citations"] == []
+        assert reply["answer"] == "Hello! Ask me about your documents."
+        assert reply["trace"]["intent"] == "conversation" and reply["trace"]["passages"] == []
+        assert model.answer_prompts() == []  # no passages were put before the model
+        saved = c.get(f"/api/conversations/{reply['conversation_id']}").json()["messages"]
+        assert saved[-1]["status"] == "conversation"
+        # a real question still goes through retrieval and is cited
+        asked = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert asked["status"] == "answered" and asked["citations"]
+
+
+def test_long_messages_skip_the_small_talk_check(tmp_path):
+    model = RecordingModel()
+    with client(tmp_path, model) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        question = (
+            "Could you please tell me who leads Acme and what that person is responsible for?"
+        )
+        c.post("/api/chat", json={"question": question})
+        assert not any("MESSAGE:" in p for p in model.prompts)
+
+
+def test_an_abstention_does_not_talk_about_the_sources(tmp_path):
+    model = ScriptedModel(
+        {
+            "answer": "The provided sources do not contain information to answer the question.",
+            "citation_ids": [],
+            "status": "insufficient_evidence",
+        }
+    )
+    with client(tmp_path, model) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        reply = c.post("/api/chat", json={"question": "what is the parking policy"}).json()
+        assert reply["answer"] == "I couldn't find information about that."
+        model.reply = {
+            "answer": "I don't have information about the parking policy.",
+            "citation_ids": [],
+            "status": "insufficient_evidence",
+        }
+        reply = c.post("/api/chat", json={"question": "what is the parking policy"}).json()
+        assert reply["answer"] == "I don't have information about the parking policy."

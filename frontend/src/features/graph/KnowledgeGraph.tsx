@@ -16,10 +16,10 @@ import type { GraphRelation, PreviewGraph } from "@/api/types";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 
 // sigma draws on a canvas, so its colours cannot come from CSS variables
-const ACCENT = "#3b6554";
-const NODE = "#8caaa9";
-const EDGE = "#c3cec0";
-const DIM = "#e8ece6";
+const ACCENT = "#2c4b74";
+const NODE = "#8c99aa";
+const EDGE = "#c0c6ce";
+const DIM = "#e6e9ec";
 
 // the API names scripts as Unicode does ("TELUGU"); JS regexes want "Telugu"
 const scriptName = (script: string) =>
@@ -121,10 +121,10 @@ export function KnowledgeGraph({
           defaultEdgeType: "arrow",
           labelFont: "Helvetica Neue, Arial, sans-serif",
           labelSize: 11,
-          labelColor: { color: "#34493e" },
+          labelColor: { color: "#2d3c50" },
           labelRenderedSizeThreshold: 5,
           edgeLabelSize: 9,
-          edgeLabelColor: { color: "#6c7a70" },
+          edgeLabelColor: { color: "#6c727a" },
           minCameraRatio: 0.05,
           maxCameraRatio: 3,
         });

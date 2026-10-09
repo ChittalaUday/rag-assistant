@@ -42,7 +42,7 @@ store / llm`.
 | `store/` | index | One repository per aggregate (`documents`, `chunks`, `conversations`, `cache`); all SQL lives here; Alembic migrations |
 | `retrieval/` | understand · retrieve · rerank | `analyzer` (follow-up rewrite, spelling, intent), `search` (dense + sparse, optional cross-encoder), `fusion` (RRF, feature rerank, duplicate-free selection), `structure` (whole tables/lists), `hop` (second retrieval round) |
 | `reasoning/` | evidence | `evidence` (citable passages within the context budget, in reading order) |
-| `generation/` | generate · validate · attribute | `prompt` (source-agnostic, budgeted), `answer` (cite-or-abstain, status, notices), `attribution` (each sentence → the passages that state it) |
+| `generation/` | generate · validate · attribute | `prompt` (source-agnostic, budgeted), `answer` (cite-or-abstain, status, notices), `attribution` (each sentence → the passages that state it), `smalltalk` (greetings and thanks answered without retrieval or facts) |
 | `pipeline/` | orchestration | `indexing` (document → published passages, worker), `querying` (question → answer + trace), `preview` (likely sources for text being typed; no model) |
 | `llm/` | models | Loopback-only Ollama client (chat with JSON schema and optional thinking, embeddings, Qwen3-Reranker relevance via token log-probabilities); `gateway` serialises access to the local model server |
 | `evaluation/` | measurement | Retrieval systems and end-to-end answers on the fixtures, rescoring of saved runs |

@@ -35,6 +35,7 @@ ollama pull dengcao/Qwen3-Reranker-0.6B:F16     # reranker (optional, KE_RERANK_
 ```bash
 make setup      # deps, backend/.env + frontend/.env, create + migrate the databases
 make dev        # API on :8000, UI on :5173 (needs PostgreSQL and Ollama running)
+make dev-lan    # the same, served to your network so others can test: http://<your-ip>:5173
 ```
 
 Open <http://127.0.0.1:5173>, load the demo documents or upload TXT, Markdown, CSV, PDF or DOCX
@@ -116,3 +117,11 @@ Ollama only, no cloud calls by the application. Development tooling (Git, Linear
 code and tracking data, not your documents. PDF parsing with Docling can download its own parser
 weights on first use. This is an unauthenticated single-user application; network deployment and
 document-level access control are out of scope.
+
+## Sharing on your network
+
+`make dev-lan` serves the UI and API on this machine's network address for that run only (the
+address is added to `KE_ALLOWED_HOSTS` and `KE_CORS_ORIGINS` without touching `backend/.env`).
+There is no login: anyone who can reach the machine can read, upload and delete documents and
+conversations, so use it on a trusted network only. Ollama and PostgreSQL stay on loopback. `make
+dev` keeps everything on loopback.

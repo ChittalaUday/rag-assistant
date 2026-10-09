@@ -147,7 +147,9 @@ export default function App() {
   const replaceInput = useRef<HTMLInputElement>(null);
   const replacing = useRef<string | null>(null);
   const abort = useRef<AbortController | null>(null);
-  const end = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  // follow new text only while the reader is at the bottom; scrolling up mid-stream stops it
+  const following = useRef(true);
   const historyRequest = useRef(0);
   const sourceRequest = useRef(0);
   const messagesRef = useRef(messages);
@@ -176,11 +178,16 @@ export default function App() {
       sourceRequest.current += 1;
     };
   }, [refresh]);
+  // Scroll the message list itself (scrollIntoView would also scroll every ancestor), instantly
+  // while an answer streams so each token does not restart a smooth scroll.
   useEffect(() => {
-    end.current?.scrollIntoView?.({
-      behavior: reducedMotion ? "auto" : "smooth",
+    const box = list.current;
+    if (!box || !following.current) return;
+    box.scrollTo?.({
+      top: box.scrollHeight,
+      behavior: busy || reducedMotion ? "auto" : "smooth",
     });
-  }, [messages, status, reducedMotion]);
+  }, [messages, status, busy, reducedMotion]);
   // While a question is typed, show the passages it is likely to draw on (no model call).
   useEffect(() => {
     const text = question.trim();
@@ -354,6 +361,7 @@ export default function App() {
     setQuestion("");
     setError("");
     setBusy(true);
+    following.current = true; // a new question brings the view back to the bottom
     const sentAt = Date.now();
     setStartedAt(sentAt);
     setNow(Date.now());
@@ -779,7 +787,16 @@ export default function App() {
                 <ShieldCheck size={12} /> Local inference
               </span>
             </header>
-            <div className="messages" aria-live="polite">
+            <div
+              className="messages"
+              aria-live="polite"
+              ref={list}
+              onScroll={(e) => {
+                const box = e.currentTarget;
+                following.current =
+                  box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+              }}
+            >
               {!messages.length && (
                 <div className="chat-empty">
                   <div className="empty-icon">
@@ -860,6 +877,7 @@ export default function App() {
                           )}
                           <Streamdown
                             components={streamdownComponents}
+                            tableMaxHeight={0} // show every row; the modal is for wide tables
                             isAnimating={busy && index === messages.length - 1}
                           >
                             {message.content}
@@ -949,7 +967,6 @@ export default function App() {
                   )}
                 </article>
               ))}
-              <div ref={end} />
             </div>
             <form
               className="composer"

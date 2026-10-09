@@ -22,7 +22,10 @@ from knowledge_engine.text import ANSWER_LANGUAGES, script_of
 Notify = Callable[[str, str], Awaitable[None]]
 Draft = Callable[[str], Awaitable[None]]  # the answer text so far, before any validation
 _ANSWER_KEY = re.compile(r'"answer"\s*:\s*"')
-NO_EVIDENCE = "I could not find supporting evidence in the uploaded documents."
+NO_EVIDENCE = "I couldn't find information about that."
+# an abstention that talks about the material instead of the question (English only); replaced by
+# NO_EVIDENCE. ponytail: English wording only, other languages rely on the prompt.
+_META = re.compile(r"\b(?:provided|given)\b|\b(?:sources?|passages?|context|excerpts?)\b", re.I)
 RETRY_NOTE = (
     "REMINDER: your previous reply cited no valid passage. Cite the SOURCE aliases (S1, S2, ...) "
     "that support each statement, or set status to insufficient_evidence if nothing supports it."
@@ -184,7 +187,7 @@ async def generate_answer(
     )
     if not cited:
         if abstained and text:
-            out.text = text
+            out.text = NO_EVIDENCE if _META.search(text) else text
         elif not raw.get("citation_ids"):
             out.text = "The local model did not provide verifiable citations for this question."
             out.warnings.append(

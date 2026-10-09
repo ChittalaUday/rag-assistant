@@ -8,7 +8,8 @@ from typing import Any
 
 from knowledge_engine.context import AppContext
 from knowledge_engine.errors import AppError
-from knowledge_engine.generation.answer import Draft, generate_answer
+from knowledge_engine.generation.answer import Draft, Generated, generate_answer
+from knowledge_engine.generation.smalltalk import small_talk_reply
 from knowledge_engine.reasoning.evidence import build_evidence
 from knowledge_engine.retrieval.analyzer import analyze
 from knowledge_engine.retrieval.models import QueryPlan
@@ -42,25 +43,33 @@ async def chat(
         if progress:
             await progress(stage, message)
 
-    await notify("retrieving", "Finding source documents for your question")
+    await notify("reading", "Reading your message")
     cid = q.conversation_id or str(uuid.uuid4())
     full_history = ctx.store.conversations.messages(cid) if q.conversation_id else []
     history = [
         {"role": m["role"], "content": m["content"]} for m in full_history[-HISTORY_MESSAGES:]
     ]
     try:
-        plan = await analyze(ctx, q.question, history, notify)
-        plan.answer_language = q.answer_language or ""
-        understood = time.perf_counter()
-        if on_trace:
-            await on_trace(build_trace(plan, Retrieval(), set()))
-        retrieval = await retrieve(ctx, plan, q.exclude_labels, notify)
-        evidence = build_evidence(ctx, retrieval)
-        shown = {s.chunk_id for s in evidence.sources}
-        found = time.perf_counter()
-        if on_trace:
-            await on_trace(build_trace(plan, retrieval, shown))
-        result = await generate_answer(ctx, plan, history, evidence, notify, on_draft)
+        reply = await small_talk_reply(ctx, q.question, history, q.answer_language or "")
+        if reply is not None:  # small talk: answered without retrieval, states no facts
+            plan = QueryPlan(q.question, q.question, False, [], "conversation", 0)
+            retrieval, shown = Retrieval(), set()
+            understood = found = time.perf_counter()
+            result = Generated(text=reply, status="conversation")
+        else:
+            await notify("retrieving", "Finding source documents for your question")
+            plan = await analyze(ctx, q.question, history, notify)
+            plan.answer_language = q.answer_language or ""
+            understood = time.perf_counter()
+            if on_trace:
+                await on_trace(build_trace(plan, Retrieval(), set()))
+            retrieval = await retrieve(ctx, plan, q.exclude_labels, notify)
+            evidence = build_evidence(ctx, retrieval)
+            shown = {s.chunk_id for s in evidence.sources}
+            found = time.perf_counter()
+            if on_trace:
+                await on_trace(build_trace(plan, retrieval, shown))
+            result = await generate_answer(ctx, plan, history, evidence, notify, on_draft)
     except AppError:
         raise
     except Exception as exc:

@@ -254,7 +254,8 @@ def test_failed_staged_replacement_retries_after_restart(tmp_path):
 
 def test_full_question_and_complete_recent_history_reach_the_prompt(tmp_path):
     model = RecordingModel()
-    with client(tmp_path, model) as c:
+    # routing is not under test: the fake hash embedding puts "Context" x150 near a greeting
+    with client(tmp_path, model, small_talk_margin=2.0) as c:
         ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
         question = "Context " * 150 + " Who leads Acme?"
         reply = c.post("/api/chat", json={"question": question}).json()
@@ -702,15 +703,13 @@ def test_small_talk_is_answered_without_retrieval_or_citations(tmp_path):
         assert asked["status"] == "answered" and asked["citations"]
 
 
-def test_long_messages_skip_the_small_talk_check(tmp_path):
+def test_questions_are_routed_by_embeddings_without_a_chat_model_call(tmp_path):
     model = RecordingModel()
     with client(tmp_path, model) as c:
         ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
-        question = (
-            "Could you please tell me who leads Acme and what that person is responsible for?"
-        )
-        c.post("/api/chat", json={"question": question})
-        assert not any("MESSAGE:" in p for p in model.prompts)
+        c.post("/api/chat", json={"question": "Who leads Acme?"})
+        assert not any("MESSAGE:" in p for p in model.prompts)  # no small-talk reply asked for
+        assert len(model.answer_prompts()) == 1
 
 
 def test_an_abstention_does_not_talk_about_the_sources(tmp_path):

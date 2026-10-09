@@ -43,9 +43,13 @@ an unknown name is a `422`.
 trace: AnswerTrace, model}`.
 
 `status: "conversation"` is a reply to small talk (a greeting, thanks, a question about the
-assistant). Messages of up to 12 words are first put to one short model call that decides whether
-they are small talk and, if so, writes the reply; it sees no passages and is told to state no facts,
-so the reply has no citations and the trace has no passages (`intent: "conversation"`). Anything
+assistant). Routing is semantic: the message is embedded (about 20 ms) and compared with generic,
+multilingual example messages of each route (`generation/smalltalk.toml`); it is small talk when its nearest small-talk example is
+closer than its nearest question example by `KE_SMALL_TALK_MARGIN` (0.11, measured for embeddinggemma:
+0 of 176 fixture questions misrouted, 25 of 26 unseen small-talk messages caught; `make
+eval-routing` re-measures after the examples change). Only then does
+the chat model write a reply; it sees no passages and is told to state no facts, so the reply has
+no citations and the trace has no passages (`intent: "conversation"`). Anything
 else, and any failed or doubtful call, goes through retrieval and cite-or-abstain. An answer the
 documents do not support reads "I couldn't find information about that." or the model's own short
 statement of it, never a remark about "the provided sources".

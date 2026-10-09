@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # task prefixes the embedding model was trained with (these are embeddinggemma's)
     embedding_document_prefix: str = "title: none | text: "
     embedding_query_prefix: str = "task: search result | query: "
+    # small talk when the nearest small-talk example is this much closer (cosine) than the nearest
+    # question example (generation/smalltalk.py). Measured for embeddinggemma on 170 fixture
+    # questions (highest 0.094) and 26 unseen small-talk messages (25 at 0.126 or more)
+    small_talk_margin: float = 0.11
     model_timeout: float = 180
     job_timeout: float = 1800
     # ingestion

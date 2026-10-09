@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: setup env db-create migrate migrate-data dev dev-lan check test evaluate ingest reindex export eval-retrieval eval-answers eval-multilingual
+.PHONY: setup env db-create migrate migrate-data dev dev-lan check test evaluate ingest reindex export eval-retrieval eval-answers eval-multilingual eval-routing
 setup: env
 	uv sync --extra documents
 	npm --prefix frontend ci
@@ -55,3 +55,7 @@ eval-answers:
 # fixtures/multilingual (one fictional document per language).
 eval-multilingual:
 	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation answers --corpus fixtures/documents fixtures/testing fixtures/archive/northstar fixtures/multilingual --questions fixtures/multilingual-questions.json $(ARGS)
+# small-talk routing: scores of fixture questions and held-out small talk against
+# generation/smalltalk.toml, per margin (embedding model only); run after editing the examples
+eval-routing:
+	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation routing $(ARGS)

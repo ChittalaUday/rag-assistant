@@ -1,0 +1,15 @@
+{
+  "_about": "Held-out messages for `make eval-routing`: none of these may appear in backend/knowledge_engine/generation/smalltalk.toml. small_talk should route to small talk; questions (greetings joined to a real question) and every fixture question should not.",
+  "small_talk": [
+    "hey there!", "hiya", "thx", "thanks a ton, very helpful", "good night", "bye bye",
+    "cool, thank you", "how's it going?", "what are you able to help with?", "are you an AI?",
+    "who built this assistant?", "good morning! how are you today?", "nice", "perfect, thanks",
+    "namaste", "शुक्रिया", "सुप्रभात", "నమస్తే", "శుభోదయం", "காலை வணக்கம்", "ধন্যবাদ আপনাকে",
+    "ಧನ್ಯವಾದಗಳು", "നന്ദി", "આભાર", "ਧੰਨਵਾਦ", "خدا حافظ"
+  ],
+  "questions": [
+    "hello, who leads the company?", "thanks! what is the leave policy?",
+    "hi there, can you list the products?", "good morning, who approves expenses?",
+    "hey, how many casual leaves do I get?", "नमस्ते, छुट्टी की नीति क्या है?"
+  ]
+}

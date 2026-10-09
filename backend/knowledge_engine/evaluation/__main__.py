@@ -1,4 +1,5 @@
-"""python -m knowledge_engine.evaluation {retrieval,answers,rescore}: measure pipeline stages."""
+"""python -m knowledge_engine.evaluation {retrieval,answers,rescore,routing,chunking}: measure
+pipeline stages."""
 
 import argparse
 import asyncio
@@ -119,6 +120,8 @@ def main() -> None:
     )
     ch.add_argument("--k", type=int, default=5)
     ch.add_argument("--out", type=Path, default=Path("work/chunk-bench/results.json"))
+    ro = sub.add_parser("routing", help="small-talk routing scores and margins (embeddings only)")
+    ro.add_argument("--held-out", type=Path, default=FIXTURES / "small-talk.json")
     rs = sub.add_parser("rescore", help="score saved answers again with the current questions")
     rs.add_argument("results", nargs="+", type=Path, help="JSON files written by `answers`")
     rs.add_argument("--questions", nargs="+", default=[str(p) for p in ANSWER_QUESTIONS])
@@ -131,6 +134,18 @@ def main() -> None:
             benchmark(Settings(), dirs, args.long_docs, args.kinds, args.k, args.long_docs.parent)
         )
         args.out.write_text(json.dumps(results, ensure_ascii=False, indent=1))
+        return
+    if args.stage == "routing":
+        from knowledge_engine.evaluation.routing import evaluate_routing
+
+        files = sorted(FIXTURES.rglob("*questions*.json"))
+        print(
+            json.dumps(
+                asyncio.run(evaluate_routing(Settings(), files, args.held_out)),
+                ensure_ascii=False,
+                indent=1,
+            )
+        )
         return
     if args.stage == "rescore":
         cases = load_cases([Path(p) for p in args.questions])

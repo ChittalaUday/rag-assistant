@@ -24,7 +24,3 @@ async def index_text(ctx, name: str, text: str, labels=None) -> str:
     ctx.store.documents.add(id, name, digest, str(path), labels or [])
     await process(ctx, id)
     return id
-
-
-def relations(ctx):
-    return ctx.store.graph.relations(None)

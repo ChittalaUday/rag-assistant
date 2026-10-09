@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 from knowledge_engine.app import create_app
 from knowledge_engine.config import Settings
 from knowledge_engine.pipeline.indexing import PIPELINE_VERSION
-from knowledge_engine.store.chunks import ChunkRepo
 
 
 def client(tmp_path, model=None, **settings):
@@ -23,13 +22,6 @@ def test_document_lifecycle(tmp_path):
         doc = upload(c, "a.txt", "Mira leads Acme.")
         assert ready(c, doc["id"])["status"] == "ready"
         assert upload(c, "b.txt", "Mira leads Acme.")["id"] == doc["id"]
-        graph = c.get("/api/graph").json()
-        assert len(graph["edges"]) == 1 and len(graph["nodes"]) == 2
-        edge = graph["edges"][0]
-        assert (edge["label"], edge["predicate"]) == ("leads", "leads")
-        assert (
-            edge["evidence"][0]["quote"] == "Mira leads Acme." and 0.5 < edge["confidence"] <= 0.95
-        )
         reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
         assert reply["citations"] and reply["status"] == "answered"
         follow = c.post(
@@ -38,19 +30,8 @@ def test_document_lifecycle(tmp_path):
         )
         assert follow.status_code == 200
         c.delete("/api/documents/" + doc["id"])
-        assert c.get("/api/graph").json() == {
-            "nodes": [],
-            "edges": [],
-            "highlighted_node_ids": [],
-            "highlighted_edge_ids": [],
-        }
-
-
-def test_invalid_quotes_are_rejected_with_a_warning(tmp_path):
-    with client(tmp_path) as c:
-        d = upload(c, "a.txt", "Acme employs Mira.")
-        assert ready(c, d["id"])["warnings"]
-        assert c.get("/api/graph").json()["edges"] == []
+        assert c.get("/api/documents").json()["documents"] == []
+        assert c.post("/api/search", json={"query": "Mira"}).json()["hits"] == []
 
 
 class OfflineModel(FakeModel):
@@ -66,11 +47,12 @@ def test_failed_replacement_keeps_evidence(tmp_path):
         failed = ready(c, d["id"])
         assert failed["status"] == "failed"
         assert failed["name"] == d["name"] and failed["content_hash"] == d["content_hash"]
-        edges = c.get("/api/graph").json()["edges"]
-        assert len(edges) == 1 and edges[0]["evidence"][0]["document_name"] == d["name"]
+        (hit,) = c.post("/api/search", json={"query": "Mira leads"}).json()["hits"]
+        assert hit["document_name"] == d["name"]  # the published version stays searchable
         c.put("/api/documents/" + d["id"], files={"file": ("new.txt", b"Acme employs Mira.")})
         assert ready(c, d["id"])["status"] == "ready"
-        assert c.get("/api/graph").json()["edges"] == []
+        (hit,) = c.post("/api/search", json={"query": "Mira"}).json()["hits"]
+        assert hit["text"] == "Acme employs Mira."
 
 
 def test_offline_job_and_stream_error(tmp_path):
@@ -90,8 +72,8 @@ def test_upload_limits_and_sources(tmp_path):
         assert c.post("/api/documents", files={"file": ("a.exe", b"x")}).status_code == 400
         d = upload(c, "a.txt", "Mira leads Acme.")
         ready(c, d["id"])
-        citation = c.get("/api/graph").json()["edges"][0]["evidence"][0]
-        source = c.get("/api/sources/" + citation["chunk_id"]).json()
+        (hit,) = c.post("/api/search", json={"query": "Mira"}).json()["hits"]
+        source = c.get("/api/sources/" + hit["chunk_id"]).json()
         assert source["text"] == "Mira leads Acme." and source["document_name"] == "a.txt"
         assert c.get("/api/sources/nope").status_code == 404
         assert (
@@ -112,7 +94,7 @@ class RecordingModel(FakeModel):
             raise RuntimeError("Ollama is offline")
         return await super().embed(texts)
 
-    async def generate(self, prompt, schema, max_tokens=None):
+    async def generate(self, prompt, schema, max_tokens=None, think=False, model=None):
         self.prompts.append(prompt)
         return await super().generate(prompt, schema)
 
@@ -143,101 +125,23 @@ def test_persisted_followups_dedup_and_chat_failure(tmp_path):
         assert "event: error" in stream and "offline" in stream
 
 
-class SelectiveModel(FakeModel):
-    def extract(self, prompt):
-        return {
-            "entities": [
-                {"name": "Mira", "type": "Person"},
-                {"name": "Acme", "type": "Organization"},
-                {"name": "Nova", "type": "Product"},
-            ],
-            "relations": [
-                {
-                    "subject": "Mira",
-                    "predicate": "leads",
-                    "object": "Acme",
-                    "phrase": "leads",
-                    "quote": "Mira leads Acme.",
-                },
-                {
-                    "subject": "Acme",
-                    "predicate": "uses",
-                    "object": "Nova",
-                    "phrase": "uses",
-                    "quote": "Acme uses Nova.",
-                },
-            ],
-        }
-
-
-def test_only_relations_the_answer_uses_are_highlighted(tmp_path):
-    with client(tmp_path, SelectiveModel()) as c:
-        d = upload(c, "a.txt", "Mira leads Acme. Acme uses Nova.")
-        ready(c, d["id"])
-        assert len(c.get("/api/graph").json()["edges"]) == 2
-        graph = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()["graph"]
-        (edge,) = graph["edges"]  # the relation the answer rests on, not the whole graph
-        assert edge["label"] == "leads"
-        assert graph["highlighted_edge_ids"] == [edge["id"]]
-        assert set(graph["highlighted_node_ids"]) == {edge["source"], edge["target"]}
-        assert {n["id"] for n in graph["nodes"]} == {edge["source"], edge["target"]}
-
-
-def test_graph_edges_point_to_passages_instead_of_embedding_them(tmp_path):
+def test_messages_store_the_trace_and_statements(tmp_path):
     with client(tmp_path) as c:
         ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
-        (edge,) = c.get("/api/graph").json()["edges"]
-        (evidence,) = edge["evidence"]
-        assert set(evidence) == {
-            "chunk_id",
-            "document_id",
-            "document_name",
-            "quote",
-            "page",
-            "heading",
-        }
-        assert len(json.dumps(edge)) < 600  # an edge costs bytes, not passages
-        assert c.get("/api/sources/" + evidence["chunk_id"]).json()["text"] == "Mira leads Acme."
-
-
-def test_graph_does_not_read_document_text(tmp_path, monkeypatch):
-    """The UI polls /graph; building it must not load every document to look for source URLs."""
-    with client(tmp_path) as c:
-        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
-
-        def fail(*args, **kwargs):
-            raise AssertionError("the graph read document text")
-
-        monkeypatch.setattr(ChunkRepo, "source_urls_for", fail)
-        assert len(c.get("/api/graph").json()["edges"]) == 1
-        entity = c.get("/api/graph").json()["nodes"][0]["id"]
-        assert len(c.get("/api/entities/" + entity).json()["relations"]) == 1
-
-
-def test_messages_store_highlight_ids_not_graph_snapshots(tmp_path):
-    with client(tmp_path, SelectiveModel()) as c:
-        ready(c, upload(c, "a.txt", "Mira leads Acme. Acme uses Nova.")["id"])
         reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
-        highlights = {
-            "highlighted_node_ids": reply["graph"]["highlighted_node_ids"],
-            "highlighted_edge_ids": reply["graph"]["highlighted_edge_ids"],
-        }
-        assert highlights["highlighted_edge_ids"]
-        stored = c.app.state.ctx.store.conversations.messages(reply["conversation_id"])
-        assert stored[1]["graph"] == highlights
+        (passage,) = reply["trace"]["passages"]
+        assert passage["document"] == "a.txt" and {"dense", "sparse"} <= set(passage["ranks"])
+        assert passage["snippet"] == "Mira leads Acme."
+        assert reply["trace"]["counts"]["candidates"] == 1
+        assert reply["statements"] == [
+            {"text": "Mira leads Acme.", "sources": [reply["citations"][0]["chunk_id"]]}
+        ]
         history = c.get("/api/conversations/" + reply["conversation_id"]).json()
-        assert history["messages"][1]["graph"] == highlights
+        assert history["messages"][1]["trace"] == reply["trace"]
+        assert history["messages"][1]["statements"] == reply["statements"]
 
 
-def test_history_saved_with_a_full_graph_snapshot_still_loads(tmp_path):
-    snapshot = {
-        "nodes": [
-            {"id": "n", "label": "Mira", "type": "person", "document_ids": [], "mentions": 1}
-        ],
-        "edges": [],
-        "highlighted_node_ids": ["n"],
-        "highlighted_edge_ids": ["e"],
-    }
+def test_history_saved_with_a_graph_field_still_loads(tmp_path):
     with client(tmp_path) as c:
         c.app.state.ctx.store.conversations.save_exchange(
             "old",
@@ -245,28 +149,46 @@ def test_history_saved_with_a_full_graph_snapshot_still_loads(tmp_path):
             title="Who leads Acme?",
             messages=[
                 {"role": "user", "content": "Who leads Acme?"},
-                {"role": "assistant", "content": "Mira.", "citations": [], "graph": snapshot},
+                {
+                    "role": "assistant",
+                    "content": "Mira.",
+                    "citations": [],
+                    "graph": {"highlighted_node_ids": ["n"], "highlighted_edge_ids": ["e"]},
+                },
             ],
         )
-        graph = c.get("/api/conversations/old").json()["messages"][1]["graph"]
-        assert graph == {"highlighted_node_ids": ["n"], "highlighted_edge_ids": ["e"]}
+        message = c.get("/api/conversations/old").json()["messages"][1]
+        assert message["content"] == "Mira." and "graph" not in message
 
 
-class UnrelatedQuoteModel(FakeModel):
-    def extract(self, prompt):
-        result = super().extract(prompt)
-        result["relations"][0]["quote"] = "Nova owns Vega."
-        return result
+class CorroboratingModel(FakeModel):
+    """Cites only the first passage; the statement check finds the second one too."""
+
+    def answer(self, prompt):
+        return {"answer": "Mira leads Acme.", "citation_ids": ["S1"], "status": "answered"}
+
+    async def generate(self, prompt, schema, max_tokens=None, think=False, model=None):
+        if "statements" in schema.get("properties", {}):
+            return {"statements": [{"n": 1, "sources": ["S1", "S2"]}]}
+        return await super().generate(prompt, schema)
 
 
-def test_quote_must_contain_an_endpoint(tmp_path):
-    with client(tmp_path, UnrelatedQuoteModel()) as c:
-        d = upload(c, "a.txt", "Mira leads Acme. Nova owns Vega.")
-        assert ready(c, d["id"])["warnings"]
-        assert c.get("/api/graph").json()["edges"] == []
+def test_the_statement_check_completes_the_citations(tmp_path):
+    with client(tmp_path, CorroboratingModel()) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        ready(c, upload(c, "b.txt", "Acme is led by Mira.")["id"])
+        reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert {x["document_name"] for x in reply["citations"]} == {"a.txt", "b.txt"}
+        (statement,) = reply["statements"]
+        assert len(statement["sources"]) == 2
+    with client(tmp_path / "off", CorroboratingModel(), verify_citations=False) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        ready(c, upload(c, "b.txt", "Acme is led by Mira.")["id"])
+        reply = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert len(reply["citations"]) == 1 and reply["statements"] == []
 
 
-def test_prompt_carries_compact_history_labelled_sources_and_graph_facts(tmp_path):
+def test_prompt_carries_compact_history_and_labelled_sources(tmp_path):
     model = RecordingModel()
     with client(tmp_path, model) as c:
         d = upload(c, "roster.md", "# Roster\n\nMira leads Acme.")
@@ -280,9 +202,6 @@ def test_prompt_carries_compact_history_labelled_sources_and_graph_facts(tmp_pat
         history = json.loads(prompt.split("HISTORY:\n")[1].split("\n\nQUESTION:")[0])
         assert all(set(m) == {"role", "content"} for m in history)
         assert "CHUNK S1 | roster.md › Roster" in prompt  # sources are attributed by document
-        assert (
-            '- Mira leads Acme [S1] "Mira leads Acme."' in prompt
-        )  # graph facts cite their source
         assert "homepage" not in prompt.casefold() and "niruthi" not in prompt.casefold()
         assert len(prompt.encode()) < 8000
 
@@ -359,46 +278,6 @@ def test_non_ascii_over_budget_question_is_explicit(tmp_path):
             assert response.json()["citations"]
 
 
-class CrowdedModel(RecordingModel):
-    def extract(self, prompt):
-        relations = [
-            {
-                "subject": f"Alpha{i}",
-                "predicate": "uses",
-                "object": f"Beta{i}",
-                "phrase": "uses",
-                "quote": f"Alpha{i} uses Beta{i}.",
-            }
-            for i in range(30)
-        ]
-        relations.append(
-            {
-                "subject": "Mira",
-                "predicate": "leads",
-                "object": "Acme",
-                "phrase": "leads",
-                "quote": "Mira leads Acme.",
-            }
-        )
-        entities = [{"name": f"Alpha{i}", "type": "Organization"} for i in range(30)]
-        entities += [{"name": f"Beta{i}", "type": "Product"} for i in range(30)]
-        return {
-            "entities": entities
-            + [{"name": "Mira", "type": "Person"}, {"name": "Acme", "type": "Organization"}],
-            "relations": relations,
-        }
-
-
-def test_facts_about_the_questions_entities_outrank_unrelated_facts(tmp_path):
-    model = CrowdedModel()
-    text = " ".join(f"Alpha{i} uses Beta{i}." for i in range(30)) + " Mira leads Acme."
-    with client(tmp_path, model) as c:
-        ready(c, upload(c, "a.txt", text)["id"])
-        c.post("/api/chat", json={"question": "Who leads Acme?"})
-        facts = model.answer_prompts()[-1].split("FACTS:\n")[1].split("\n\n")[0].splitlines()
-        assert len(facts) <= 24 and facts[0].startswith("- Mira leads Acme")
-
-
 def test_retrieval_prefers_content_overlap_over_stopword_decoys(tmp_path):
     content = b"Mira leads Acme.\nNiruthi lists Founder Dr. Rama Nemani on the homepage.\n"
     decoy = b"It is at the top of the list, as any policy of the file notes.\n" * 2
@@ -415,8 +294,8 @@ def test_citation_public_urls_come_from_document_headers(tmp_path):
     text = "Source: https://example.org/about\nMira leads Acme.\nSource: https://example.org/team\n"
     with client(tmp_path) as c:
         ready(c, upload(c, "public.txt", text)["id"])
-        evidence = c.get("/api/graph").json()["edges"][0]["evidence"][0]
-        source = c.get("/api/sources/" + evidence["chunk_id"]).json()
+        (hit,) = c.post("/api/search", json={"query": "Mira"}).json()["hits"]
+        source = c.get("/api/sources/" + hit["chunk_id"]).json()
         assert source["source_urls"] == ["https://example.org/about", "https://example.org/team"]
 
 
@@ -458,7 +337,7 @@ class AliasCitationModel(FakeModel):
         assert "CHUNK S1" in prompt
         return {"answer": "Mira leads Acme.", "citation_ids": ["S1", "S9"]}
 
-    async def generate(self, prompt, schema, max_tokens=None):
+    async def generate(self, prompt, schema, max_tokens=None, think=False, model=None):
         if "citation_ids" in schema.get("properties", {}):
             assert schema["properties"]["citation_ids"]["items"]["enum"][0] == "S1"
             assert {"answer", "citation_ids"} <= set(schema["required"])
@@ -538,7 +417,6 @@ def test_excluding_a_label_removes_those_documents_from_retrieval(tmp_path):
             json={"question": "What is the leave policy?", "exclude_labels": ["synthetic"]},
         ).json()
         assert reply["citations"] == [] and "Mira leads Acme." not in reply["answer"]
-        assert reply["graph"]["highlighted_edge_ids"] == []
         included = c.post("/api/chat", json={"question": "What is the leave policy?"}).json()
         assert included["citations"]
 
@@ -585,11 +463,12 @@ def test_document_progress_and_chat_status_stages(tmp_path):
             completed["processed_chunks"] == completed["total_chunks"] == completed["chunk_count"]
         )
         stream = c.post("/api/chat/stream", json={"question": "Who leads Acme?"}).text
-        for stage in ["retrieving", "embedding_query", "generating", "validating", "streaming"]:
+        stages = ["retrieving", "embedding_query", "generating", "validating", "verifying"]
+        for stage in [*stages, "streaming"]:
             assert '"stage": "' + stage + '"' in stream
         assert stream.index('"stage": "validating"') < stream.index("event: token")
         result = json.loads(re.search(r"event: result\ndata: (.*)\n", stream).group(1))
-        assert result["status"] == "answered" and result["plan"]["intent"] == "relationship"
+        assert result["status"] == "answered" and result["trace"]["intent"] == "relationship"
 
 
 def test_follow_up_questions_are_rewritten_for_retrieval(tmp_path):
@@ -602,7 +481,7 @@ def test_follow_up_questions_are_rewritten_for_retrieval(tmp_path):
             json={"question": "And what does she do?", "conversation_id": reply["conversation_id"]},
         ).json()
         assert any("FINAL QUESTION" in p for p in model.prompts)
-        assert follow["plan"]["search_text"]
+        assert follow["trace"]["search_text"]
 
 
 def test_sse_disconnect_cancels_generation(tmp_path):
@@ -618,7 +497,7 @@ def test_sse_disconnect_cancels_generation(tmp_path):
                 self.started = asyncio.Event()
                 self.cancelled = asyncio.Event()
 
-            async def generate(self, prompt, schema, max_tokens=None):
+            async def generate(self, prompt, schema, max_tokens=None, think=False, model=None):
                 if "citation_ids" not in schema.get("properties", {}):
                     return await super().generate(prompt, schema)
                 self.started.set()
@@ -660,32 +539,11 @@ def test_health_reports_models_index_and_openapi_documents_responses(tmp_path):
         ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
         body = c.get("/api/health").json()
         assert body["ollama_available"] is True and body["warnings"] == []
-        assert body["index"] == {
-            "documents": 1,
-            "stale_documents": 0,
-            "chunks": 1,
-            "entities": 2,
-            "relations": 1,
-        }
+        assert body["index"] == {"documents": 1, "stale_documents": 0, "chunks": 1}
         assert c.get("/api/documents/missing/content").json() == {"detail": "Document not found"}
         schemas = c.get("/openapi.json").json()["components"]["schemas"]
-        assert {"ChatResponse", "Document", "KnowledgeGraph", "Health", "EntityDetail"} <= set(
-            schemas
-        )
-
-
-def test_entities_are_browsable_with_aliases_documents_and_evidence(tmp_path):
-    with client(tmp_path) as c:
-        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
-        listed = c.get("/api/entities").json()["entities"]
-        assert {e["name"] for e in listed} == {"Mira", "Acme"} and listed[0]["degree"] == 1
-        assert [e["name"] for e in c.get("/api/entities?query=mir").json()["entities"]] == ["Mira"]
-        assert c.get("/api/entities?type=Organization").json()["entities"][0]["name"] == "Acme"
-        mira = next(e for e in listed if e["name"] == "Mira")
-        detail = c.get("/api/entities/" + mira["id"]).json()
-        assert detail["documents"][0]["name"] == "a.txt"
-        assert detail["relations"][0]["evidence"][0]["quote"] == "Mira leads Acme."
-        assert c.get("/api/entities/nope").status_code == 404
+        assert {"ChatResponse", "AnswerTrace", "Document", "Health", "Preview"} <= set(schemas)
+        assert c.get("/api/graph").status_code == 404 and c.get("/api/entities").status_code == 404
 
 
 def test_search_endpoint_exposes_retrieval_without_generating_an_answer(tmp_path):
@@ -697,7 +555,7 @@ def test_search_endpoint_exposes_retrieval_without_generating_an_answer(tmp_path
         result = c.post("/api/search", json={"query": "Who leads Acme?", "k": 2}).json()
         assert result["hits"][0]["document_name"] == "a.txt"
         assert {"dense", "sparse"} <= set(result["hits"][0]["ranks"])
-        assert result["plan"]["entities"][0]["name"] == "Acme" and "terms" in result["plan"]
+        assert "terms" in result["plan"]
         assert len(model.prompts) == before  # no answer or rewrite call was made
         assert c.post("/api/search", json={"query": ""}).status_code == 422
 
@@ -715,42 +573,15 @@ def test_reindex_requeues_documents_built_by_an_older_pipeline(tmp_path):
 
 
 class ConflictModel(FakeModel):
-    def extract(self, prompt):
-        return {
-            "entities": [
-                {"name": "Mira", "type": "Person"},
-                {"name": "Anil", "type": "Person"},
-                {"name": "Bob", "type": "Person"},
-            ],
-            "relations": [
-                {
-                    "subject": "Mira",
-                    "predicate": "reports_to",
-                    "object": "Anil",
-                    "phrase": "reports to",
-                    "quote": "Mira reports to Anil.",
-                },
-                {
-                    "subject": "Mira",
-                    "predicate": "reports_to",
-                    "object": "Bob",
-                    "phrase": "reports to",
-                    "quote": "Mira reports to Bob.",
-                },
-            ],
-        }
+    def answer(self, prompt):
+        return {**super().answer(prompt), "status": "conflicting_evidence"}
 
 
-def test_conflicting_evidence_is_surfaced_not_resolved_silently(tmp_path):
-    model = ConflictModel()
-    with client(tmp_path, model) as c:
+def test_conflicting_evidence_reported_by_the_model_is_surfaced(tmp_path):
+    with client(tmp_path, ConflictModel()) as c:
         ready(c, upload(c, "a.txt", "Mira reports to Anil.")["id"])
-        ready(c, upload(c, "b.txt", "Mira reports to Bob.")["id"])
         reply = c.post("/api/chat", json={"question": "Who does Mira report to?"}).json()
-        assert reply["status"] == "conflicting_evidence"
-        assert reply["plan"]["conflicts"] == [
-            {"subject": "Mira", "predicate": "reports_to", "objects": ["Anil", "Bob"]}
-        ]
+        assert reply["status"] == "conflicting_evidence" and reply["citations"]
 
 
 def test_startup_does_not_block_when_more_documents_are_queued_than_the_queue_holds(tmp_path):

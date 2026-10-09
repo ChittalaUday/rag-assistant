@@ -25,12 +25,13 @@ class Settings(BaseSettings):
     # models (loopback Ollama only)
     ollama_url: str = "http://127.0.0.1:11434"
     chat_model: str = "qwen3.5:9b"
-    embedding_model: str = "all-minilm:l6-v2"
+    embedding_model: str = "embeddinggemma"
     # Vector size the Ollama embedding model produces. Changing the model or this size replaces
     # the vector column at start-up and re-embeds the documents.
-    embedding_dimensions: int = 384
-    embedding_document_prefix: str = ""  # e.g. "search_document: " for nomic-embed-text
-    embedding_query_prefix: str = ""  # e.g. "search_query: "
+    embedding_dimensions: int = 768
+    # task prefixes the embedding model was trained with (these are embeddinggemma's)
+    embedding_document_prefix: str = "title: none | text: "
+    embedding_query_prefix: str = "task: search result | query: "
     model_timeout: float = 180
     job_timeout: float = 1800
     # ingestion
@@ -38,13 +39,21 @@ class Settings(BaseSettings):
     max_jobs: int = 32
     max_chunks: int = 600
     chunk_chars: int = Field(default=700, ge=100)  # smaller values cannot hold a sentence
-    ontology_path: Path | None = None  # default: the built-in generic ontology
+    # one or two model-written sentences per chunk placing it in its document, searched with it
+    contextual_chunks: bool = True
+    context_model: str = ""  # Ollama model for those sentences; empty: the chat model
     # answering
+    # Qwen3-Reranker model in Ollama that rescores the candidates (empty: feature ranking only)
+    rerank_model: str = "dengcao/Qwen3-Reranker-0.6B:F16"
+    rerank_weight: float = Field(default=0.7, ge=0, le=1)  # its share of the final score
     context_chars: int = 9000  # evidence budget in the answer prompt
     rewrite_followups: bool = True  # resolve "she"/"that" with one small model call
-    # Should the entity graph influence which passages are retrieved? It always feeds facts,
-    # conflicts and highlights. "relationship": only for relationship-type questions.
-    graph_retrieval: Literal["off", "relationship", "always"] = "relationship"
+    # match every answer sentence to the passages that state it (one extra model call): completes
+    # citations and shows which statements no passage supports
+    verify_citations: bool = True
+    answer_thinking: bool = False  # let the answer model reason before answering (slower)
+    # follow names in the best passage to other documents (append-only second retrieval round)
+    second_hop: Literal["off", "relationship", "always"] = "always"
     label_notices: dict[str, str] = {
         "synthetic": "Synthetic test data — not real facts.",
     }

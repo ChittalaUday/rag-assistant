@@ -25,46 +25,39 @@ export interface Citation {
   source_urls?: string[];
   source_url?: string;
 }
-// Where a relation comes from: a pointer to the passage and the verbatim span. The passage text
-// is fetched with api.source(chunk_id), so graphs stay small.
-export type EdgeEvidence = Pick<
-  Citation,
-  "chunk_id" | "document_id" | "document_name" | "quote" | "page" | "heading"
->;
-export interface GraphNode {
-  id: string;
-  label: string;
-  type: string;
-  document_ids: string[];
-  mentions?: number;
+// One sentence of an answer and the passages (chunk ids) that state it; [] = none does.
+export interface Statement {
+  text: string;
+  sources: string[];
 }
-export interface GraphEdge {
-  id: string;
-  source: string;
-  target: string;
-  label: string;
-  predicate?: string | null;
-  confidence?: number | null;
-  evidence_count?: number | null;
-  evidence: EdgeEvidence[];
+export interface TracePassage {
+  chunk_id: string;
+  document_id: string;
+  document: string;
+  heading: string | null;
+  snippet?: string; // the start of the passage, one line
+  score: number;
+  ranks: Record<string, number>; // dense | sparse | hop -> 1-based rank
+  completes?: string | null; // added because it completes a neighbour ("table or list")
 }
-// What an answer rests on; conversation history stores only this.
-export interface Highlights {
-  highlighted_node_ids: string[];
-  highlighted_edge_ids: string[];
+// How an answer was produced: what was searched and which passages the model was shown.
+export interface AnswerTrace {
+  search_text: string;
+  rewritten: boolean;
+  corrections: Record<string, string>;
+  intent: string;
+  counts: { dense: number; sparse: number; candidates: number };
+  reranked: boolean;
+  bridge_terms: string[];
+  passages: TracePassage[];
 }
-export interface EntityRef {
-  id: string;
-  name: string;
-  type: string;
-}
-// What a piece of question text mentions (computed without a model): ids to select on the map.
-export interface Preview extends Highlights {
-  entities: EntityRef[];
-}
-export interface KnowledgeGraph extends Highlights {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
+// Passages a question being typed is likely to draw on (keyword search, no model call).
+export interface SearchPreview {
+  passages: Pick<
+    TracePassage,
+    "chunk_id" | "document_id" | "document" | "heading"
+  >[];
+  corrections: Record<string, string>;
 }
 export type AnswerStatus =
   "answered" | "insufficient_evidence" | "conflicting_evidence";
@@ -73,18 +66,19 @@ export interface ChatResponse {
   answer: string;
   status?: AnswerStatus;
   citations: Citation[];
-  graph: KnowledgeGraph; // only the relations the answer rests on, all highlighted
   warnings: string[];
+  statements: Statement[];
+  trace: AnswerTrace;
   model: string;
-  plan?: Record<string, unknown>;
 }
 export interface Message {
   role: "user" | "assistant";
   content: string;
   citations?: Citation[];
-  graph?: Highlights;
   warnings?: string[];
   status?: AnswerStatus;
+  statements?: Statement[];
+  trace?: AnswerTrace;
 }
 export interface Conversation {
   id: string;
@@ -102,17 +96,8 @@ export interface Health {
     documents: number;
     stale_documents: number;
     chunks: number;
-    entities: number;
-    relations: number;
   };
 }
-export const emptyGraph: KnowledgeGraph = {
-  nodes: [],
-  edges: [],
-  highlighted_node_ids: [],
-  highlighted_edge_ids: [],
-};
-
 export interface DocumentContent {
   document: Document;
   text: string;

@@ -22,7 +22,9 @@ if (!globalThis.PointerEvent) {
       this.isPrimary = options.isPrimary ?? true;
     }
   }
-  Object.defineProperty(globalThis, "PointerEvent", { value: TestPointerEvent });
+  Object.defineProperty(globalThis, "PointerEvent", {
+    value: TestPointerEvent,
+  });
 }
 
 // Dialog scroll restoration is a browser operation with no layout in JSDOM.

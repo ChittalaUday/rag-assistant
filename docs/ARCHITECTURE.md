@@ -1,18 +1,24 @@
 # Architecture
 
-A domain-neutral **knowledge engine**: it reads whatever documents it is given, builds a
-source-backed graph of entities and relations plus a hybrid search index, and answers questions
-from that evidence. Nothing in the engine knows about a particular company, domain or document
-type; domain knowledge lives in an ontology file and in the documents themselves.
+A domain-neutral **knowledge engine**: it reads whatever documents it is given, builds a hybrid
+search index over their passages, and answers questions from those passages with citations and a
+trace of how each answer was produced. Nothing in the engine knows about a particular company,
+domain or document type.
 
 ```text
-documents ─► INDEXING PIPELINE ─► PostgreSQL (chunks · entities · relations · evidence)
+documents ─► INDEXING PIPELINE ─► PostgreSQL (documents · chunks · vectors · full text)
                                               │
-question  ─► QUERY PIPELINE   ◄───────────────┘ ─► grounded answer + citations + graph
+question  ─► QUERY PIPELINE   ◄───────────────┘ ─► answer + citations + statements + trace
 ```
 
-Documents contain information. Entities and relations represent facts. Embeddings capture
-similarity. Retrieval gathers evidence. Reasoning connects it. The LLM only communicates the result.
+Documents contain the information; retrieval gathers the passages that hold it; the model writes
+the answer from those passages only; code checks every citation and maps every sentence back to
+the passages that state it.
+
+An entity/relation graph extracted by the model was part of the engine until 2026-10-09. Measured
+end to end it did not improve answers (0.758 correct with and without it on 124 questions) while
+extraction cost 15–20 s per passage, so it was removed (migration 0005); two-hop questions are
+handled by the second retrieval round below. See the evaluation report.
 
 ## Repository layout
 
@@ -21,26 +27,25 @@ similarity. Retrieval gathers evidence. Reasoning connects it. The LLM only comm
 | `backend/knowledge_engine/` | The engine (Python package) and its HTTP API |
 | `backend/tests/` | Unit and integration tests (PostgreSQL schema per test, fake models) |
 | `frontend/` | Example workspace UI (React + Vite) |
-| `fixtures/` | Sample corpora, question sets, and hand-labelled `gold/relations.json` |
+| `fixtures/` | Sample corpora and question sets |
 | `scripts/` | Dev/check helpers, the live end-to-end evaluator, legacy-data migration |
 | `docs/` | This file, `API.md`, dated `reports/` |
 
 ## Engine modules (`backend/knowledge_engine/`)
 
-Dependencies point downward: `api → pipeline → {ingestion, extraction, retrieval, reasoning,
-generation} → store / llm`.
+Dependencies point downward: `api → pipeline → {ingestion, retrieval, reasoning, generation} →
+store / llm`.
 
 | Module | Stage | Responsibility |
 |---|---|---|
-| `ingestion/` | parse · normalise · chunk | `parser` (TXT/MD/CSV, PDF/DOCX via Docling), `chunker` (heading-aware, exact character offsets, table-header carry-over), `quality` (skip empty templates and near-duplicates), `intake` (uploads, dedup by hash, staged replacement, reader view) |
-| `extraction/` | extract · resolve · validate | `ontology` (+ `ontology.toml`), `extractor` (ontology-constrained LLM call, content-addressed cache), `validator` (deterministic rules), `resolver` (canonical entity IDs across documents) |
-| `store/` | index | One repository per aggregate (`documents`, `chunks`, `graph`, `conversations`, `cache`); all SQL lives here; Alembic migrations |
-| `retrieval/` | understand · retrieve · rerank | `analyzer` (follow-up rewrite, entity linking, intent), `search` (dense + sparse + graph), `graph`, `fusion` (RRF, feature rerank, duplicate-free selection) |
-| `reasoning/` | reason | `evidence` (citable passages, graph facts), `paths` (explicit multi-hop), `contradictions` |
-| `generation/` | generate · validate | `prompt` (source-agnostic, budgeted), `answer` (cite-or-abstain, status, highlights) |
-| `pipeline/` | orchestration | `indexing` (document → published evidence, worker), `querying` (question → answer), `preview` (entities and relations named by text being typed; no model), `graph_view` |
-| `llm/` | models | Loopback-only Ollama client; `gateway` serialises the single local model |
-| `evaluation/` | measurement | Per-stage evaluation (retrieval, extraction) against fixtures and gold labels |
+| `ingestion/` | parse · normalise · chunk · situate | `parser` (TXT/MD/CSV, PDF/DOCX via Docling), `chunker` (heading-aware, exact character offsets, table-header carry-over), `situate` (optional model-written summary placing each passage in its document), `intake` (uploads, dedup by hash, staged replacement, reader view) |
+| `store/` | index | One repository per aggregate (`documents`, `chunks`, `conversations`, `cache`); all SQL lives here; Alembic migrations |
+| `retrieval/` | understand · retrieve · rerank | `analyzer` (follow-up rewrite, spelling, intent), `search` (dense + sparse, optional cross-encoder), `fusion` (RRF, feature rerank, duplicate-free selection), `structure` (whole tables/lists), `hop` (second retrieval round) |
+| `reasoning/` | evidence | `evidence` (citable passages within the context budget, in reading order) |
+| `generation/` | generate · validate · attribute | `prompt` (source-agnostic, budgeted), `answer` (cite-or-abstain, status, notices), `attribution` (each sentence → the passages that state it) |
+| `pipeline/` | orchestration | `indexing` (document → published passages, worker), `querying` (question → answer + trace), `preview` (likely sources for text being typed; no model) |
+| `llm/` | models | Loopback-only Ollama client (chat with JSON schema and optional thinking, embeddings, Qwen3-Reranker relevance via token log-probabilities); `gateway` serialises access to the local model server |
+| `evaluation/` | measurement | Retrieval systems and end-to-end answers on the fixtures, rescoring of saved runs |
 | `api/`, `schemas/` | HTTP | One router per resource; typed response models; OpenAPI at `/docs` |
 
 Entry points: `python -m knowledge_engine {ingest,reindex,export,eval}` (no web app needed) and
@@ -53,115 +58,87 @@ Entry points: `python -m knowledge_engine {ingest,reindex,export,eval}` (no web 
    quote refers to it.
 2. **Chunk** at headings, then sentence/line ends (about 700 characters), keeping the heading path
    and, for split tables, the header row. Each chunk is an exact slice with `char_start/char_end`.
-3. **Embed** `title › heading › text` (context travels with the chunk) into a pgvector column;
-   `title › heading` also feeds a weighted full-text column.
-4. **Extract** per chunk with the ontology: closed enums for entity types and predicates, relations
-   asked for before entities so abstract objects are not skipped. Skipped for form templates and
-   near-duplicate chunks. Raw output is cached by content, so re-indexing after a validator or
-   resolver change costs no model calls.
-5. **Validate** (deterministic; see rules below).
-6. **Resolve** names to canonical entities across documents, record aliases.
-7. **Publish** chunks, mentions, relations and evidence in one transaction. A failure at any
+3. **Situate** (`KE_CONTEXTUAL_CHUNKS`): the model reads the document (or a 12,000-character window
+   around the passage) and writes one or two sentences naming what the passage is about and the
+   subject it leaves implicit ("contextual retrieval"). The document comes first in the prompt so
+   the model server reuses its prompt cache across the passages of one document; outputs are cached
+   by content in `model_cache`. The summary is search text only and never part of the evidence.
+4. **Embed** `title › heading › table header [› summary]` + the passage text (with the model's
+   document task prefix) into a pgvector column; the same context feeds a weighted full-text column.
+5. **Publish** the chunks and refresh the corpus vocabulary in one transaction. A failure at any
    earlier step leaves the previously published version intact.
-
-### Ontology
-
-`extraction/ontology.toml` defines entity types (with an identity `class` and whether they are
-`standalone`) and typed predicates (`domain`, `range`, `symmetric`, `functional`). The default is
-generic (Person, Organization, Role, Location, Product, Project, Process, Policy, Event, Document,
-Concept; 20 predicates). Point `KE_ONTOLOGY_PATH` at another file to describe another domain; the
-schema sent to the model, the validation, identity merging and conflict detection all derive from it.
-
-### Validation rules (precision lives here)
-
-- Entity names must occur in the chunk; named types must look like names (capitalised), so
-  "employees" cannot pose as an organization. Abstract entities survive only if a relation uses them.
-- A relation must use a known predicate, reference two *listed* entities (nothing is "recovered"),
-  satisfy the predicate's subject/object types (a reversed pair is flipped when that makes it valid),
-  and not be a self-loop. `related_to` is only kept between two named entities.
-- Evidence is a verbatim span of the chunk (tolerating markdown emphasis and whitespace) containing
-  both endpoints, stored with offsets. A quote naming neither endpoint is rejected; one naming a single
-  endpoint is widened within its line (bulleted lists state the subject first).
-- Confidence per piece of evidence reflects exact quote, supported phrase, specific predicate and
-  strict types; relation confidence combines corroborating evidence (noisy-OR). It measures
-  extraction, not truth.
-
-### Entity resolution
-
-Names are folded (accents, case, `&`, plurals, honorifics, legal suffixes) into a key. Resolution
-order: same key, recorded alias, then trigram similarity (≥ 0.85, equal numbers, ≥ 6 characters).
-Within a document a short person name joins the unique longer one (`Asha` → `Asha Rao`) and a short
-organization name joins a longer name it prefixes; products and projects never merge this way.
-Ambiguity stays separate. IDs derive from `(class, key)`, so re-indexing recreates, never duplicates.
 
 ## Query pipeline
 
 1. **Understand** (`analyzer`): follow-ups are rewritten into standalone questions with one small
-   model call (lexical fallback if it fails); question n-grams are linked to entities by name, alias
-   and fuzzy match (typos); intent is `lookup`, `relationship` or `overview` and sets retrieval depth.
-2. **Retrieve**: pgvector HNSW (dense), Postgres full-text with OR semantics (sparse), and graph
-   retrieval (chunks mentioning linked entities plus evidence for relations up to two hops away,
-   hubs not expanded). Lists are merged by reciprocal rank fusion. A passage that ends or begins
-   inside a table or list brings the neighbouring chunk(s) along (`retrieval/structure`), so a table
-   cut across chunks reaches the model whole.
-3. **Rerank** with a transparent feature model (fused rank, IDF-weighted term coverage, entity
-   coverage, dense similarity), then take the top k in score order, dropping near-duplicates (an
-   MMR diversity penalty was measured and removed, see the evaluation report).
-4. **Reason**: build citable passages (S1…), the graph facts they contain, conflicts
-   (functional predicates with two objects), and explicit connection paths between linked entities.
-   Paths are shown, never concluded.
-5. **Generate** with a source-agnostic prompt. The model sees which document each passage comes from
-   but is told not to write document names (the sources are shown beside the answer), and code
-   removes any "According to <file>" lead-in that still appears. It returns `answer`, `citation_ids`,
-   `status`; code derives everything else.
-6. **Validate**: unknown aliases are discarded; an uncited answer gets one corrective retry, then is
-   withheld with an explicit message. Highlighted relations are those whose evidence is cited and
-   whose endpoints the answer mentions (or one endpoint plus an entity the question named).
-   `status` is `answered`, `insufficient_evidence` or `conflicting_evidence`. The response graph
-   holds only those relations; a stored message keeps just their ids.
+   model call (lexical fallback if it fails); words found nowhere in the corpus are corrected to the
+   closest corpus word (one edit up to eight letters, transposed letters included); intent
+   (`lookup`, `relationship`, `overview`) sets the retrieval depth.
+2. **Retrieve**: pgvector HNSW (dense, with the model's query task prefix) and PostgreSQL full-text
+   with OR semantics (sparse), merged by reciprocal rank fusion.
+3. **Rerank**: a transparent feature model (fused rank, IDF-weighted term coverage, dense
+   similarity), then optionally a cross-encoder (`KE_RERANK_MODEL`, a Qwen3-Reranker model in
+   Ollama; relevance = P(yes) / (P(yes) + P(no)) of its first token) mixed in by `KE_RERANK_WEIGHT`.
+   The top k are taken in score order, dropping near-duplicates.
+4. **Complete**: a passage that ends or begins inside a table or list brings the neighbouring
+   chunk(s) along (`retrieval/structure`).
+5. **Second hop** (`KE_SECOND_HOP`): the sentence of the first-round passages that shares the most
+   words with the question supplies link words — its names (capitalised words), or its rarest words
+   in scripts without capitals — that also occur in other passages; a full-text search on them adds
+   at most two passages from documents not yet selected. Append-only: it never displaces what the
+   question itself found.
+6. **Generate** with a source-agnostic prompt (passages as S1…Sn in reading order, history for
+   references only). The model returns `answer`, `citation_ids`, `status`; it reports disagreeing
+   passages as `conflicting_evidence`. Code removes any `According to <file>` lead-in. Optional
+   thinking (`KE_ANSWER_THINKING`) lets the model reason first, with a larger output budget.
+7. **Validate**: unknown aliases are discarded; an uncited answer gets one corrective retry, then is
+   withheld with an explicit message.
+8. **Attribute** (`KE_VERIFY_CITATIONS`): the answer is split into sentences (Latin and Indic sentence
+   ends, list lines) and one more model call lists, for each sentence, every passage that states one
+   of its facts. Those passages are added to the citations, and sentences no passage supports are
+   returned with an empty list so the UI can show them.
 
-`POST /api/search` runs steps 1–3 only and `ChatResponse.plan` records what each step decided.
+The response carries the answer, citations, `statements` and a `trace` (searched text, corrections,
+counts per retriever, reranked or not, second-hop link words, and the passages the model was shown
+with how each was found); the trace and statements are stored with the message.
+`POST /api/search` runs steps 1–5 only.
 
 ## Invariants and where they are enforced
 
 | Rule | Enforced by |
 |---|---|
-| Source of truth; evidence preserved | `relation_evidence` rows hold verbatim quote + offsets + chunk; validator |
-| Stable identity | `extraction/resolver` (`ent_<hash of class,key>`), unique `(class, key)` |
-| No invented facts | Validator rejects unlisted endpoints, unsupported quotes, type violations |
-| Typed relationships | `ontology` domain/range checks |
-| Contradictions retained | Both relations stored; `reasoning/contradictions`; `conflicting_evidence` status |
-| Uncertainty ≠ truth | `confidence` is extraction confidence only |
-| Model versioning | `chunks.embedding_model`; `relation_evidence.extractor` = model + ontology hash + prompt version; `/api/health` warns on mismatch/stale |
-| Reproducibility | Deterministic IDs; idempotent re-index; content-addressed extraction cache |
-| Query grounding; failure handling | `generation/answer`: cite or abstain, explicit status |
-| Unknown is not false | Absence of a relation is never turned into a negative statement |
-| Temporal validity | **Not implemented** (see limitations) |
+| Answers rest on passages | Citations must be aliases of passages the model was shown (`generation/answer`); uncited answers are withheld |
+| Unsupported statements are visible | `generation/attribution`: per-sentence passage lists; empty = no passage states it |
+| Evidence is the document text | Passages are exact slices with offsets; summaries and headings are search context only |
+| Model versioning | `chunks.embedding_model`; pipeline version per document; `/api/health` warns on mismatch/stale and on missing configured models |
+| Reproducibility | Idempotent re-index; content-addressed `model_cache` |
+| Query grounding; failure handling | Cite or abstain, explicit status, explicit warnings |
+| Unknown is not false | A missing passage is reported as missing, never turned into a negative statement |
 
 ## Data (PostgreSQL + pgvector)
 
-`documents` · `pending_documents` · `document_text` · `chunks` (text, offsets, heading, `embedding
-vector`, generated `fts tsvector`, HNSW + GIN indexes) · `entities` / `entity_aliases` (trigram
-indexes) · `entity_mentions` · `relations` · `relation_evidence` · `extraction_cache` ·
-`conversations` / `messages` (answer, citations and highlight ids; never graph snapshots, so
-storage does not grow with the corpus). Foreign keys cascade, so deleting a document removes its
-evidence and `graph.gc()` drops entities and relations nothing supports.
+`documents` · `pending_documents` · `document_text` · `chunks` (text, offsets, heading, search
+context, `embedding vector`, generated `fts tsvector`, HNSW + GIN indexes) · `lexicon` (corpus
+vocabulary for spelling) · `model_cache` · `conversations` / `messages` (answer, citations,
+statements and trace per assistant message). Foreign keys cascade, so deleting a document removes
+its chunks.
 
 ## Evaluation
 
-Each stage is measured separately (`make eval-retrieval`, `make eval-extraction`,
-`scripts/evaluate.py` for end to end). See `docs/reports/engine-evaluation.md` for results and method.
+`make eval-retrieval` (retrieval systems) and `make eval-answers` (124 questions end to end, in
+process, with `--set` overrides) run in a scratch schema; `scripts/evaluate.py` runs questions
+against a live API. See `docs/reports/engine-evaluation.md` for results and method.
 
 ## Known limitations
 
-- No temporal validity (`valid_from/valid_to`) or literal-valued attributes (amounts, dates); such facts
-  stay in chunk text and are found by search.
-- No learned reranker or cross-encoder (none ships with the local model set); the feature reranker is
-  a deliberate stand-in behind `retrieval/fusion.rerank`.
-- Entity merges are decided at indexing time; if a later document shows two entities are the same,
-  re-index to unify them.
-- Extraction quality is bounded by the local model; a ~9B model is conservative on dense prose.
-- One synchronous database connection (fine for a single local user).
-- English full-text configuration. The embedding model sets the vector size: a change replaces the
-  column at start-up and re-embeds (chunk text and the graph are kept); Matryoshka models may be
-  shortened with `KE_EMBEDDING_DIMENSIONS`.
+- English full-text configuration and English stop words; the embedding model is multilingual but
+  Indian-language search, answers and evaluation are the next workstream (UDA-94).
+- No temporal validity: dated statements stay in passage text and are found by search.
+- The second hop and the attribution call are heuristics of a local ~9B model: attribution can miss
+  a supporting passage (a supported sentence shown as unsupported) and costs one model call per
+  answer.
+- Contextual summaries cost one model call per passage at indexing (cached afterwards).
+- One synchronous database connection and one model server (fine for a single local user);
+  indexing and answering share the model.
+- The embedding model sets the vector size: a change replaces the column at start-up and re-embeds;
+  Matryoshka models may be shortened with `KE_EMBEDDING_DIMENSIONS`.

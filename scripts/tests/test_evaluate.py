@@ -20,7 +20,7 @@ def test_quote_must_be_in_actual_source():
                 "quote": "Mira owns all budgets.",
             }
         ],
-        "graph": {"nodes": [], "edges": [], "highlighted_edge_ids": []},
+        "statements": [],
     }
     score = module.assess({"expected_keywords": ["Mira"], "source_documents": ["team.md"]}, result)
     assert score["invalid_evidence"]
@@ -38,7 +38,7 @@ def test_cross_document_question_requires_both_expected_sources():
                 "quote": "Mira leads Atlas.",
             }
         ],
-        "graph": {"nodes": [], "edges": [], "highlighted_edge_ids": []},
+        "statements": [],
     }
     score = module.assess(
         {"expected_keywords": ["Mira"], "source_documents": ["team.md", "policy.md"]}, result
@@ -52,7 +52,7 @@ def test_unknown_question_does_not_pass_with_invented_answer():
     result = {
         "answer": "The CEO is Edwin.",
         "citations": [],
-        "graph": {"nodes": [], "edges": [], "highlighted_edge_ids": []},
+        "statements": [],
     }
     assert not module.assess(
         {"type": "unknown", "expected_keywords": [], "source_documents": []}, result
@@ -67,7 +67,7 @@ def test_actual_api_abstention_counts_as_unknown_success():
     result = {
         "answer": "I could not find supporting evidence in the uploaded documents.",
         "citations": [],
-        "graph": {"nodes": [], "edges": [], "highlighted_edge_ids": []},
+        "statements": [],
     }
     assert module.assess(
         {"type": "unknown", "expected_keywords": [], "source_documents": []}, result
@@ -79,12 +79,11 @@ def test_not_established_phrasing_counts_as_abstention():
     # public sources"; the scorer must recognize this synonym so correct
     # unknown-type answers do not get wrongly flagged for review.
     base = {"type": "unknown", "expected_keywords": [], "source_documents": []}
-    graph = {"nodes": [], "edges": [], "highlighted_edge_ids": []}
     for phrase in [
         "Niruthi's current headcount is not established by the reviewed public sources.",
         "The requested figure is not disclosed in the public sources collected here.",
         "No public source in this collection answers the question.",
     ]:
-        assert module.assess(base, {"answer": phrase, "citations": [], "graph": graph})[
+        assert module.assess(base, {"answer": phrase, "citations": [], "statements": []})[
             "smoke_pass"
         ], phrase

@@ -1,11 +1,156 @@
 # Engine evaluation
 
-Each stage is measured on its own, as the architecture recommends, and compared with the previous
-implementation (fixed 650-character chunks, Python cosine + keyword overlap over every chunk, open-ended
+Each stage is measured on its own and end to end. The first section is the current state (2026-10-09).
+The sections after it measured the graph-based engine against the original implementation (fixed 650-character chunks, Python cosine + keyword overlap over every chunk, open-ended
 entity types and free-text relation labels, one monolithic prompt). Numbers come from the real local
 models (`qwen3.5:9b`, `all-minilm:l6-v2`) on 2026-10-08/09 with the shipped configuration; every table can
 be regenerated with the commands shown. They are smoke metrics on small corpora, not a claim of semantic
 correctness.
+
+## 2026-10-09: accuracy work (UDA-82)
+
+What changed, and what each change was worth, on one bigger test set and one scorer. The sections
+after this one describe the earlier, graph-based engine and are kept as the record of how it was
+measured; extraction, the graph and `/graph` no longer exist.
+
+### Method
+
+| Item | Detail |
+|---|---|
+| Corpus | The 17 fixture documents (6 public notes, 5 fictional scenarios, 6 Northstar documents), indexed in a scratch schema of `knowledge_engine_test` |
+| Questions | **124**: the 30 + 12 + 30 existing questions, the 14 multi-hop questions, and 38 new hand-written ones (`fixtures/paraphrase-questions.json`): 31 that avoid the documents' wording (incl. 3 list questions) and 7 near-miss questions with no answer in the documents |
+| Runner | `python -m knowledge_engine.evaluation answers [--set key=value]` (`make eval-answers`): the real `chat` pipeline in process, follow-ups chained, real local models |
+| Scores | `correct`: every expected keyword in the answer and at least one expected document cited (unanswerable: the answer declines). `strict`: also every expected document cited (the old pass rule). Also retrieval recall of the expected documents, latency, and the share of answers with a sentence no passage supports (`flagged`) |
+| Scorer fixes | The stale keyword "FICTIONAL TEST SCENARIO" (the old pipeline quoted labels) was dropped and abstention detection widened ("not explicitly named"); every run below is rescored with the same scorer (`rescore`) |
+
+Keyword scoring rewards the documents' wording: "January 2029" for "2029-01" or "deduplication rework"
+for "dedupe rework" count as misses. Differences of one or two questions (0.01–0.02) are within
+run-to-run variation of the answer model.
+
+### The graph does not help answers
+
+Same questions, same shipped configuration of commit 1f5b910 (all-minilm, graph retrieval gated to
+relationship questions), with and without extraction:
+
+| | correct | strict |
+|---|---|---|
+| graph (extraction on) | 0.758 | 0.694 |
+| no graph | 0.758 | **0.726** |
+
+Three questions were right only with the graph and three only without it. Extraction costs 15–20 s
+per passage at indexing and doubles the code of the engine, so it was removed (migration 0005 drops
+the tables). Two-hop questions are covered by the second retrieval round below.
+
+### Embedding models
+
+Retrieval only (`make eval-retrieval`, 108 answerable questions, k = 8, `work/emb-*.json`). "full" =
+every expected keyword among the retrieved passages.
+
+| Model (task prefixes) | size | dense full | dense, paraphrased questions | dense MRR | full retrieval |
+|---|---|---|---|---|---|
+| all-minilm:l6-v2 (was) | 45 MB, 384-d | 0.843 | 0.786 | 0.685 | 0.898 |
+| nomic-embed-text | 274 MB, 768-d | 0.852 | 0.679 | 0.724 | 0.880 |
+| qwen3-embedding:0.6b, with instruction | 639 MB, 1024-d | 0.741 | 0.429 | 0.614 | 0.889 |
+| qwen3-embedding:0.6b, no prefix | 639 MB, 1024-d | 0.880 | 0.750 | 0.723 | 0.926 |
+| mxbai-embed-large | 670 MB, 1024-d | 0.935 | 0.893 | 0.770 | 0.926 |
+| bge-m3 | 1.2 GB, 1024-d | 0.935 | 0.857 | 0.803 | 0.917 |
+| **embeddinggemma** | 621 MB, 768-d | **0.954** | **0.929** | **0.814** | **0.944** |
+
+embeddinggemma is the new default (it is also multilingual, the starting point for the Indian-language
+work). qwen3-embedding:4b was not tested: 2560-d exceeds pgvector's 2,000-d HNSW limit and conflicts with
+the low-resource goal.
+
+### Retrieval features (on embeddinggemma)
+
+Each feature alone against the full retrieval without it (k = 8):
+
+| Variant | full | MRR | paraphrased: full / MRR |
+|---|---|---|---|
+| features only (was) | 0.944 | 0.795 | 0.893 / 0.598 |
+| + reranker Qwen3-Reranker-0.6B, weight 0.7 | 0.954 | **0.875** | 0.929 / **0.779** |
+| + reranker, weight 1.0 | 0.954 | 0.879 | 0.929 / 0.772 |
+| + second hop on every question | 0.963 | 0.807 | 0.964 / 0.607 |
+| + second hop on relationship questions only | 0.944 | 0.798 | 0.893 / 0.599 |
+| + contextual summaries by qwen3:1.7b | 0.954 | 0.831 | 0.893 / 0.714 |
+| **+ contextual summaries by qwen3.5:9b** | **0.972** | 0.818 | **1.000** / 0.750 |
+
+- **Reranker.** Ollama has no rerank endpoint; the engine scores each candidate with one
+  `/api/generate` call of a Qwen3-Reranker GGUF (raw prompt, one output token, `logprobs`) and takes
+  P(yes)/(P(yes)+P(no)): about 50 ms per passage, ~1.5 s for 30 candidates. It mainly ranks the right
+  passage first more often (MRR 0.795 → 0.875). Weight 0.7 keeps the transparent features in the mix
+  at the same accuracy as 1.0.
+- **Second hop.** Gated to relationship-type questions it never fired usefully (the intent regex rarely
+  matches). On every question it adds at most two passages from documents not yet selected and lifts
+  recall without touching the ranking. The link words were first chosen by rarity alone and picked
+  generic words ("lead", "unavailable"); names (capitalised words) are now preferred.
+- **Contextual summaries** ("contextual retrieval"): one model-written sentence or two per passage,
+  indexed with it. The 9B model's summaries help clearly more than the 1.7B model's; they cost one model
+  call per passage at indexing (the 17-document corpus: 116 s with summaries), cached afterwards.
+
+### End to end
+
+`make eval-answers` with the settings shown, 124 questions, every run rescored with the same scorer
+(`work/acc-*.json`). Latency is per answer on an M5 Pro while other evaluations shared the model, so
+compare it only roughly.
+
+| Configuration | correct | strict | expected sources cited | expected documents retrieved | s / answer |
+|---|---|---|---|---|---|
+| graph, all-minilm (commit 1f5b910) | 0.758 | 0.694 | 0.878 | 0.968 | 16.8 |
+| no graph, all-minilm | 0.758 | 0.726 | 0.887 | 0.976 | 10.1 |
+| embeddinggemma + sentence check | 0.806 | 0.766 | 0.915 | 0.984 | 10.6 |
+| + reranker | 0.815 | 0.782 | 0.938 | 0.989 | 12.8 |
+| + prompt rule and sentence-check fixes | 0.823 | 0.774 | 0.934 | 0.989 | 9.7 |
+| **+ contextual summaries + second hop (shipped)** | **0.831** | **0.790** | **0.953** | **0.996** | 10.6 |
+
+By question type, before and after:
+
+| Type (n) | graph, all-minilm | shipped |
+|---|---|---|
+| single (28) | 0.821 | 0.893 |
+| cross-document (18) | 0.722 | 0.556 |
+| follow-up (11) | 0.727 | 0.818 |
+| conflict (6) | 0.333 | 0.333 |
+| multi-hop (14) | 0.786 | **1.000** |
+| paraphrased (28) | 0.821 | **1.000** |
+| list (3) | 0.333 | 0.667 |
+| unanswerable (16) | 0.812 | 0.812 |
+
+The cross-document drop is answer wording, not retrieval: the expected documents were retrieved for
+17 of 18 questions, and 6 of the 8 misses are keyword-only ("Pvt. Ltd" without its full stop,
+"approves" for "approval", "Platform rotating as secondary" for "Platform secondary"); one is a real
+detail error (the uptime figure given where the passage names the RPO requirement). Indexing the 17
+documents takes 1.6 s without and 100 s with contextual summaries (one 9B call per passage, cached).
+
+**Thinking** (`KE_ANSWER_THINKING`) was not adopted: the first answers took 70–110 s each (about ten
+times longer) and the run was stopped; it stays available as a setting.
+
+### The sentence check
+
+After the answer, one model call lists for each sentence the passages that state it. Measured
+effects:
+
+- **Citations.** Answers cite corroborating passages they used to miss (expected sources cited 0.887 →
+  0.953; `strict` rises with it).
+- **It finds real errors.** In the combined run 9 of 124 answers had a sentence no passage supports.
+  Among them was a hallucinated answer ("Volans Logistics and Bluefin Oil & Gas were onboarded through
+  Delta-V", while the passage names Ironhide Mining and Parallax Grid Co.).
+- **Its own errors, found in a browser check and fixed.** (1) With the instruction "states it", the 9B
+  model refused a sentence combining two facts from two passages; the instruction now accepts each
+  passage that states one of the sentence's facts. (2) That made it over-generous (seven passages,
+  including boilerplate, for one sentence), so a match is kept only if the passage shares at least two
+  content words with the sentence. (3) The splitter cut "Dr." and "Pvt. Ltd." into sentences of their
+  own (5 of the 9 flags); abbreviations and initials no longer end a sentence.
+- It costs one extra model call per answer (about 1–2 s).
+
+### Remaining failures
+
+Most remaining misses are answers that leave out a qualifier the documents give ("$42M", "Munich",
+"retired NASA scientist") or paraphrase an expected keyword; a few answer a nearby question instead of
+declining (sick days answered with annual leave, a European region answered with us-west-2, Niruthi's
+leave policy answered from the fictional scenario). The answer prompt now tells the model to answer the
+question that was asked and to say when the passages only give related information. Conflict questions
+(6) stay at 1–2 of 6: their expected keywords ("supersedes", "canonical", "not updated") are the
+documents' words for the disagreement and the model rarely repeats them.
 
 ## Method
 
@@ -199,9 +344,63 @@ quotable but not on the map. Capturing them would need new entity types and pred
 (and a full re-extraction); that is a decision for the owner.
 
 **Live preview.** While a question is typed, the UI asks `POST /api/preview` (debounced, no embedding and
-no generation) which entities the text names and which relations bear on it, selects them on the map and
-lists them above the input. The same linker runs when the question is sent, so the preview shows what will
-drive retrieval. One request per typing burst in a browser check.
+no generation) which entities the text names and which relations bear on it, and selects them on the map
+(no separate list). The same linker runs when the question is sent, so the preview shows what will drive
+retrieval. It first fixes misspellings the way a sent question is fixed (leaving the word still being
+typed), and links names loosely: a misspelt name ("leela dass", "monsoon lenz"), a first or last name
+alone ("Leela"), a misspelt one-word name ("niruti"), and a transposed verb ("reprot to") all select the
+right nodes and relations; an everyday word that is also part of a name ("policy" for "Policy Board") does
+not. A word links on its own only if exactly one named entity contains it (or one entity is named by
+that word alone) and the corpus uses the word almost only inside that name.
+
+## Capacity and load
+
+Measured on one machine (Apple M5 Pro, 15 cores, 24 GB, chat model `qwen3.5:9b` and `all-minilm` through
+Ollama, PostgreSQL local), against a throwaway copy of the owner's data, before the graph was removed.
+Request mix: real questions from the fixtures. The serialisation, memory and corpus-growth findings still
+hold; the entity-linking and `/graph` rows describe code that no longer exists.
+
+**Memory and disk.** The chat model holds 5.8 GB (4.8–8 GB resident seen from the process during load,
+the difference being context cache); the embedding model 25 MB; the backend process 56–61 MB under load;
+PostgreSQL 34 MB resident for 14 documents. Parsing with Docling peaked at 1.06 GB (a 16-page PDF, 29 s,
+first use) and 0.40 GB (a DOCX, 4 s). Install: 1.3 GB Python environment, 0.5 GB Docling models, 6.6 GB chat
+model on disk.
+
+**Answers are serialised by the model slot.** The same eight questions at each concurrency level
+(`answers per minute` is constant, latency grows with the queue):
+
+| Concurrent users | Wall time for 8 questions | Answers / min | Median | p95 |
+|---|---|---|---|---|
+| 1 | 13.0 s | 37 | 1.6 s | 2.6 s |
+| 2 | 12.1 s | 40 | 3.0 s | 4.0 s |
+| 4 | 12.1 s | 40 | 6.1 s | 7.1 s |
+| 8 | 12.3 s | 39 | 7.3 s | 12.3 s |
+
+These eight are short lookups (about 1.5 s of model time each). The 42-question end-to-end run, with long
+cross-document answers and follow-ups, has a 5.4 s median, i.e. about 10–12 answers per minute in total. No
+errors at any level; the backend stays at ~57 MB and does no work of its own.
+
+**Cheap requests are unaffected by chat load.** With four chats in flight: `/health` 13 ms median (p95
+21 ms), `/preview` 6 ms (9 ms). Alone, one process handles 100–240 requests per
+second; eight concurrent clients do not add throughput (one database connection).
+
+**Indexing blocks answers.** With extraction (removed since), uploading a 5-passage document took 132 s
+(about 26 s per passage, all of it model time) and answers asked meanwhile took a median 42.5 s (max 62 s)
+against 6.7 s idle and 5.9 s afterwards, because extraction and answering share the model slot. Re-embedding is cheap by comparison
+(14 documents in about 25 s).
+
+**Growth of the corpus** (synthetic chunks with real queries):
+
+| Chunks | Database | HNSW index | Answer retrieval, no model | Sparse query |
+|---|---|---|---|---|
+| 1,000 | 16 MB | 2 MB | 28 ms (p95 33) | 2 ms |
+| 10,000 | 70 MB | 20 MB | 52 ms (p95 72) | 17 ms |
+| 50,000 | 294 MB | 98 MB | 178 ms (p95 282) | 132 ms |
+
+Vector search stays at 2–3 ms; the full-text query grows with the corpus (132 ms at 50,000 chunks).
+Indexing speed was 330–530 chunks/s without a model. (Entity linking, which grew linearly with the number
+of entities, and the `/graph` payload were the other two scaling problems found; both went away with the
+graph.)
 
 ## Payloads and scale
 

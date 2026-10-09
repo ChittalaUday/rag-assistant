@@ -7,7 +7,7 @@ describe("local API boundary", () => {
     const pieces = [
       'event: token\ndata: {"te',
       'xt":"Hello"}\n\n',
-      'event: result\ndata: {"answer":"Hello","conversation_id":"c","citations":[],"warnings":[],"model":"local","graph":{"nodes":[],"edges":[],"highlighted_node_ids":[],"highlighted_edge_ids":[]}}\n\n',
+      'event: result\ndata: {"answer":"Hello","conversation_id":"c","citations":[],"warnings":[],"model":"local","statements":[],"trace":{"search_text":"Question","rewritten":false,"corrections":{},"intent":"lookup","counts":{"dense":1,"sparse":1,"candidates":1},"reranked":false,"bridge_terms":[],"passages":[]}}\n\n',
     ];
     vi.stubGlobal(
       "fetch",

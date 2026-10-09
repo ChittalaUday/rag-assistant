@@ -31,6 +31,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.ruff.lint.per-file-ignores]
 # Prompt templates and test fixtures read better unwrapped.
 "backend/knowledge_engine/generation/prompt.py" = ["E501"]
+"backend/knowledge_engine/generation/attribution.py" = ["E501"]
 "backend/knowledge_engine/extraction/extractor.py" = ["E501"]
 "backend/tests/*" = ["E501"]
 [tool.mypy]

@@ -1,5 +1,4 @@
 from knowledge_engine.ingestion.chunker import chunk_document
-from knowledge_engine.ingestion.quality import extractable
 
 
 def covers(text, chunks):
@@ -72,17 +71,3 @@ def test_tiny_tail_is_folded_and_empty_text_yields_nothing():
 def test_chunking_is_deterministic():
     text = "Sentence one is here. " * 100
     assert chunk_document(text) == chunk_document(text)
-
-
-def test_extractable_skips_form_templates_and_near_duplicates():
-    prose = (
-        "Vikram Sen is the engineering manager and approves every leave request that spans "
-        "two or more consecutive working days across both teams."
-    )
-    template_row = "| KPI # 1 | Self-Rating (1-5) | Manager's Rating (1-5) |\n" * 6
-    chunks = chunk_document(prose + "\n\n" + template_row + "\n\n" + template_row)
-    flags = extractable(chunks)
-    assert flags[0] is True
-    assert not any(flags[1:]) or len(flags) == 1
-    again = chunk_document(prose)[0]
-    assert extractable([again, again]) == [True, False]

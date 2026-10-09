@@ -2,8 +2,8 @@
 
 python -m knowledge_engine ingest PATH [PATH ...] [--labels a,b]   index files/folders
 python -m knowledge_engine reindex [--all]                         rebuild derived data
-python -m knowledge_engine export OUT_DIR                          write entities/relations
-python -m knowledge_engine eval ...                                retrieval/graph evaluation
+python -m knowledge_engine export OUT_DIR                          write the passages
+python -m knowledge_engine eval ...                                retrieval/answer evaluation
 """
 
 import argparse
@@ -42,8 +42,7 @@ async def _run(ctx: AppContext, ids: list[str]) -> int:
         if d["status"] != "ready":
             failed += 1
             print(f"        error: {d['error']}")
-    stats = ctx.store.graph.stats()
-    print(f"graph: {stats['entities']} entities, {stats['relations']} relations")
+    print(f"index: {ctx.store.chunks.count()} passages")
     return 1 if failed else 0
 
 
@@ -83,7 +82,7 @@ async def reindex(ctx: AppContext, args: argparse.Namespace) -> int:
 
 
 async def export(ctx: AppContext, args: argparse.Namespace) -> int:
-    """Pipeline outputs as JSON Lines: entities, relations (with evidence) and chunks."""
+    """Pipeline output as JSON Lines: the searchable passages (chunks) of every document."""
     out: Path = args.out
     out.mkdir(parents=True, exist_ok=True)
     store = ctx.store
@@ -95,36 +94,6 @@ async def export(ctx: AppContext, args: argparse.Namespace) -> int:
                 f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
         print(f"wrote {len(rows):5} rows -> {out / name}")
 
-    entities = []
-    for n in store.graph.nodes():
-        detail = store.graph.entity(n["id"]) or {}
-        entities.append(
-            {
-                "id": n["id"],
-                "name": n["label"],
-                "type": n["type"],
-                "aliases": detail.get("aliases", []),
-                "mentions": n["mentions"],
-                "documents": [names.get(d, d) for d in n["document_ids"]],
-            }
-        )
-    write("entities.jsonl", entities)
-    relations = store.graph.relations(None)
-    evidence = {r["id"]: [] for r in relations}  # type: ignore[var-annotated]
-    for ev in store.graph.evidence([r["id"] for r in relations], per_relation=50):
-        evidence[ev["relation_id"]].append(
-            {"chunk_id": ev["chunk_id"], "quote": ev["quote"], "phrase": ev["phrase"],
-             "confidence": ev["confidence"]}
-        )  # fmt: skip
-    write(
-        "relations.jsonl",
-        [
-            {"id": r["id"], "subject": r["subject_name"], "predicate": r["predicate"],
-             "object": r["object_name"], "confidence": round(float(r["confidence"]), 3),
-             "evidence": evidence[r["id"]]}
-            for r in relations
-        ],
-    )  # fmt: skip
     chunks = []
     for doc_id, name in names.items():
         for c in store.chunks.for_document(doc_id):
@@ -141,9 +110,9 @@ def main() -> None:
     p = sub.add_parser("ingest", help="index documents (files or folders)")
     p.add_argument("paths", nargs="+", type=Path)
     p.add_argument("--labels", type=lambda s: [x for x in s.split(",") if x], default=[])
-    p = sub.add_parser("reindex", help="rebuild chunks, entities and relations from stored files")
+    p = sub.add_parser("reindex", help="rebuild the passages and their vectors from stored files")
     p.add_argument("--all", action="store_true", help="every document, not just outdated ones")
-    p = sub.add_parser("export", help="write entities/relations/chunks as JSON Lines")
+    p = sub.add_parser("export", help="write the passages as JSON Lines")
     p.add_argument("out", type=Path)
     sub.add_parser("eval", help="see python -m knowledge_engine.evaluation --help")
     args, _ = parser.parse_known_args()

@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from knowledge_engine.context import Ctx
 from knowledge_engine.retrieval.analyzer import analyze
 from knowledge_engine.retrieval.search import retrieve
-from knowledge_engine.schemas.entities import SearchHit, SearchRequest, SearchResponse
+from knowledge_engine.schemas.sources import Citation, SearchHit, SearchRequest, SearchResponse
 
 router = APIRouter(tags=["search"])
 
@@ -37,7 +37,12 @@ async def search(body: SearchRequest, ctx: Ctx) -> SearchResponse:
             "intent": plan.intent,
             "terms": plan.terms,
             "corrections": plan.corrections,
-            "entities": [{"id": e.id, "name": e.name, "type": e.type} for e in plan.entities],
             "retrieval": {k: v for k, v in retrieval.trace.items() if k != "selected"},
         },
     )
+
+
+@router.get("/sources/{chunk_id}")
+async def source(chunk_id: str, ctx: Ctx) -> Citation:
+    """One passage with its document, heading, page and the document's source URLs."""
+    return Citation.model_validate(ctx.store.chunks.citation(chunk_id))

@@ -6,8 +6,6 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from knowledge_engine.config import Settings
-from knowledge_engine.extraction.extractor import Extractor
-from knowledge_engine.extraction.ontology import Ontology
 from knowledge_engine.llm.gateway import ModelGateway
 from knowledge_engine.store import Store
 
@@ -19,9 +17,7 @@ class AppContext:
     settings: Settings
     model: ModelGateway
     queue: asyncio.Queue[str]
-    ontology: Ontology
     store: Store = field(init=False)  # opened in the app lifespan
-    extractor: Extractor = field(init=False)
 
     def upload_path(self, stored: str) -> Path:
         """Uploads live in data_dir under their hash name. The stored path may be spelled relative

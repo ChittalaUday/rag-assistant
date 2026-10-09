@@ -93,9 +93,9 @@ def main() -> int:
         if actual != expected:
             print(f"Row count mismatch, rolling back: {expected} != {actual}", file=sys.stderr)
             return 1
-    upgrade(args.database_url)  # then convert to the current schema (derived graph is rebuilt)
+    upgrade(args.database_url)  # then convert to the current schema
     print("Migrated:", ", ".join(f"{t}={n}" for t, n in actual.items()))
-    print("Run `make reindex` to rebuild entities and relations with the current pipeline.")
+    print("Run `make reindex` to rebuild the passages with the current pipeline.")
     return 0
 
 

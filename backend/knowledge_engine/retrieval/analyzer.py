@@ -1,16 +1,13 @@
-"""Query understanding: resolve follow-ups, link entities, classify intent, set retrieval depth."""
+"""Query understanding: resolve follow-ups, fix misspellings, classify intent, set depth."""
 
 import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from knowledge_engine.context import AppContext
-from knowledge_engine.extraction.ontology import Ontology
-from knowledge_engine.retrieval.models import LinkedEntity, QueryPlan
+from knowledge_engine.retrieval.models import QueryPlan
 from knowledge_engine.store import Store
-from knowledge_engine.store.chunks import ChunkRepo, edit_distance
-from knowledge_engine.store.graph import GraphRepo
-from knowledge_engine.text import STOPWORDS, ordered_terms, token_forms
+from knowledge_engine.text import STOPWORDS, ordered_terms
 
 Notify = Callable[[str, str], Awaitable[None]]
 
@@ -30,15 +27,13 @@ _RELATION_CUE = re.compile(
     r"related|relationship|connected|between|collaborat\w+|approv\w+|founded|supplier|provid\w+)\b",
     re.IGNORECASE,
 )
-MAX_NGRAM = 5
-FUZZY_MIN_SIMILARITY = 0.7
 
 
-def correct_spelling(graph_store: Store, text: str) -> tuple[str, dict[str, str]]:
+def correct_spelling(store: Store, text: str) -> tuple[str, dict[str, str]]:
     """Fix words that occur nowhere in the corpus but are a typo away from a word that does.
 
-    Capitalised words (names) and words with digits or apostrophes are left alone; entity linking
-    handles misspelt names separately.
+    Capitalised words (names) and words with digits or apostrophes are left alone: a misspelt name
+    is searched as typed, and dense search still finds passages close in meaning.
     """
     pieces = list(re.finditer(r"\S+", text))
     cores: list[tuple[int, int, str, bool]] = []  # (start, end, word, has inner punctuation)
@@ -52,7 +47,7 @@ def correct_spelling(graph_store: Store, text: str) -> tuple[str, dict[str, str]
         start = m.start() + len(lead)
         cores.append((start, start + len(core), bare.casefold(), bare != core))
     words = [word for _, _, word, _ in cores]
-    fixes, known = graph_store.chunks.spelling(words), graph_store.chunks.known_words(words)
+    fixes, known = store.chunks.spelling(words), store.chunks.known_words(words)
     out, last, applied = [], 0, {}
     for start, end, word, dirty in cores:
         replacement = fixes.get(word) or (word if dirty and word in known else None)
@@ -69,93 +64,12 @@ def needs_context(question: str) -> bool:
     return len(question.split()) <= 6 or bool(_REFERENCE.search(question))
 
 
-def classify(question: str, entities: list[LinkedEntity]) -> str:
-    if _OVERVIEW.search(question) and len({e.name.casefold() for e in entities}) < 2:
+def classify(question: str) -> str:
+    if _OVERVIEW.search(question):
         return "overview"
-    distinct = {e.name.casefold() for e in entities}
-    if len(distinct) >= 2 or (entities and _RELATION_CUE.search(question)):
+    if _RELATION_CUE.search(question):
         return "relationship"
     return "lookup"
-
-
-def _word_links(
-    graph: GraphRepo, chunks: ChunkRepo, ontology: Ontology, words: list[str]
-) -> list[LinkedEntity]:
-    """Names given by one word: a first or last name ("Leela" for Leela Das) or a misspelt one-word
-    name ("niruti"). The word must be, or be one typo from, a whole word of exactly one named
-    entity, and be used in the corpus almost only as part of that name (so "policy" never links to
-    "Remote Policy")."""
-    keywords = {k for p in ontology.predicates for k in ontology.keywords(p)}
-    words = [
-        w for w in dict.fromkeys(words) if len(w) >= 4 and w not in STOPWORDS and w not in keywords
-    ]
-    if not words:
-        return []
-    known, df = chunks.known_words(words), chunks.doc_freq(words)
-    out: list[LinkedEntity] = []
-    for word in words:
-        allowed = 0 if word in known else (1 if len(word) <= 8 else 2)
-        if allowed and len(word) < 5:
-            continue
-        best: dict[str, tuple[int, Any]] = {}
-        for r in graph.token_candidates(word):
-            etype = ontology.types.get(r["type"])
-            if etype is None or not etype.standalone or df.get(word, 0) > 2 * r["passages"] + 1:
-                continue
-            distance = min(edit_distance(word, token) for token in r["matched"].split())
-            if distance <= allowed and distance < best.get(r["id"], (99, None))[0]:
-                best[r["id"]] = (distance, r)
-        if best:
-            nearest = min(d for d, _ in best.values())
-            winners = [r for d, r in best.values() if d == nearest]
-            if len(winners) == 1:  # two entities share the word: ambiguous, link neither
-                r = winners[0]
-                out.append(LinkedEntity(r["id"], r["name"], r["type"], word, 0))
-    return out
-
-
-def link_entities(
-    graph: GraphRepo, ontology: Ontology, text: str, chunks: ChunkRepo | None = None
-) -> list[LinkedEntity]:
-    """Match question n-grams against entity names and aliases (longest match wins). With `chunks`,
-    one-word names are also matched loosely (first names, single-word misspellings)."""
-    tokens = token_forms(text)
-    grams = {
-        " ".join(tokens[i : i + n]): n
-        for n in range(1, MAX_NGRAM + 1)
-        for i in range(len(tokens) - n + 1)
-    }
-    rows = graph.link(list(grams))
-    found: dict[str, LinkedEntity] = {}
-    for r in rows:
-        key, etype = r["matched"], ontology.types.get(r["type"])
-        # a lone common word must not link: only distinctive single tokens of named types
-        if " " not in key and (
-            len(key) < 4 or key in STOPWORDS or etype is None or not etype.standalone
-        ):
-            continue
-        found.setdefault(r["id"], LinkedEntity(r["id"], r["name"], r["type"], key, r["degree"]))
-    # typo tolerance for multi-word names ("arun balla" vs "Arun Ballah")
-    linked_text = " ".join(e.matched for e in found.values())
-    fuzzy = [
-        (gram, n)
-        for gram, n in grams.items()
-        if n >= 2 and gram not in linked_text and not any(t in STOPWORDS for t in gram.split())
-    ]
-    for gram, _ in sorted(fuzzy, key=lambda g: g[1])[:12]:  # filter first, then cap, short first
-        for r in graph.fuzzy_link(gram, FUZZY_MIN_SIMILARITY, 1):
-            found.setdefault(r["id"], LinkedEntity(r["id"], r["name"], r["type"], gram, 0))
-    if chunks is not None:
-        covered = {t for e in found.values() for t in e.matched.split()}
-        for e in _word_links(graph, chunks, ontology, [t for t in tokens if t not in covered]):
-            found.setdefault(e.id, e)
-    # drop entities matched only by a fragment of a longer matched name
-    keys = [e.matched for e in found.values()]
-    return [
-        e
-        for e in found.values()
-        if not any(e.matched != k and f" {e.matched} " in f" {k} " for k in keys)
-    ]
 
 
 async def rewrite(ctx: AppContext, question: str, history: list[dict[str, Any]]) -> str | None:
@@ -194,20 +108,13 @@ async def analyze(
         elif previous:
             search_text = f"{previous}\n{question}"  # lexical fallback keeps earlier names in play
     search_text, corrections = correct_spelling(ctx.store, search_text)
-    entities = link_entities(ctx.store.graph, ctx.ontology, search_text, ctx.store.chunks)
-    intent = classify(question, entities)
-    mode = ctx.settings.graph_retrieval
+    intent = classify(question)
     return QueryPlan(
         question=question,
         search_text=search_text,
         rewritten=rewritten,
         terms=ordered_terms(search_text),
-        entities=entities,
         intent=intent,
         final_k={"lookup": 8, "relationship": 10, "overview": 14}[intent],
-        hops=2 if intent == "relationship" else 1,
         corrections=corrections,
-        seeds=entities
-        if mode == "always" or (mode == "relationship" and intent == "relationship")
-        else [],
     )

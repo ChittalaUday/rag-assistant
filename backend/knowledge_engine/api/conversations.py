@@ -12,7 +12,7 @@ async def list_conversations(ctx: Ctx) -> ConversationList:
     return ConversationList.model_validate({"conversations": ctx.store.conversations.all()})
 
 
-# exclude_unset: user messages carry no citations/graph/warnings keys.
+# exclude_unset: user messages carry no citations/warnings/trace keys.
 @router.get("/conversations/{id}", response_model_exclude_unset=True)
 async def conversation(id: str, ctx: Ctx) -> ConversationDetail:
     return ConversationDetail.model_validate(

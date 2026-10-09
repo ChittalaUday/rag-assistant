@@ -24,19 +24,25 @@ class ModelGateway:
                 await on_start()
             return await asyncio.wait_for(self.client.embed(texts), timeout=self.timeout)
 
+    async def relevance(self, model: str, query: str, documents: list[str]) -> list[float]:
+        async with self.lock:
+            return await asyncio.wait_for(
+                self.client.relevance(model, query, documents), timeout=self.timeout
+            )
+
     async def generate(
         self,
         prompt: str,
         schema: dict[str, Any],
         on_start: OnStart | None = None,
         max_tokens: int | None = None,
+        think: bool = False,
+        model: str | None = None,
     ) -> dict[str, Any]:
         async with self.lock:
             if on_start:
                 await on_start()
-            call = (
-                self.client.generate(prompt, schema)
-                if max_tokens is None
-                else self.client.generate(prompt, schema, max_tokens)
+            call = self.client.generate(
+                prompt, schema, max_tokens=max_tokens, think=think, model=model
             )
             return await asyncio.wait_for(call, timeout=self.timeout)

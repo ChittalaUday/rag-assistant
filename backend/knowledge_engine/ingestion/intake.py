@@ -69,8 +69,7 @@ def delete_document(ctx: AppContext, id: str) -> None:
     if ctx.store.documents.get(id)["status"] == "processing":
         raise AppError(409, "Wait for processing to finish before deleting")
     with ctx.store.transaction():
-        ctx.store.documents.delete(id)  # cascades to chunks, mentions and evidence
-        ctx.store.graph.gc()  # ...so entities and relations nothing supports any more go too
+        ctx.store.documents.delete(id)  # cascades to its chunks
         ctx.store.chunks.refresh_lexicon()
     clean_uploads(ctx)
 

@@ -147,16 +147,25 @@ class ChunkRepo:
     def spelling(self, words: list[str]) -> dict[str, str]:
         """Corrections for words that do not occur in the corpus: word -> closest corpus word.
 
-        Candidates come from the trigram index; the winner has the smallest edit distance
-        (typo-sized only), then the most documents. Words that exist are never changed.
+        Candidates come from the trigram index plus every swap of two adjacent letters (trigram
+        similarity misses short transposed words such as "reprot"); the winner has the smallest
+        edit distance (typo-sized only), then the most documents. Words that exist are never
+        changed.
         """
         words = [w for w in dict.fromkeys(words) if len(w) >= 4]
         known = self.known_words(words)
         fixes: dict[str, str] = {}
+        swaps = {
+            w: {w[:i] + w[i + 1] + w[i] + w[i + 2 :] for i in range(len(w) - 1)} for w in words
+        }
+        swapped = self.db.rows(
+            "SELECT word, ndoc FROM lexicon WHERE word = ANY(%s)",
+            (sorted({v for w in words if w not in known for v in swaps[w]}),),
+        )
         for w in words:
             if w in known:
                 continue
-            rows = self.db.rows(
+            rows = [r for r in swapped if r["word"] in swaps[w]] + self.db.rows(
                 "SELECT word, ndoc, similarity(word, %(w)s) AS sim FROM lexicon "
                 "WHERE word %% %(w)s ORDER BY sim DESC, ndoc DESC LIMIT 12",
                 {"w": w},

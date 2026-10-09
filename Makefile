@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: setup env db-create migrate migrate-data dev check test evaluate ingest reindex export eval-retrieval eval-extraction
+.PHONY: setup env db-create migrate migrate-data dev check test evaluate ingest reindex export eval-retrieval eval-answers
 setup: env
 	uv sync --extra documents
 	npm --prefix frontend ci
@@ -42,8 +42,9 @@ reindex:
 	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine reindex $(ARGS)
 export:
 	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine export $(or $(OUT),out)
-# Stage evaluations: retrieval (no LLM except follow-up rewriting) and extraction vs gold labels.
+# Stage evaluations in a scratch schema: retrieval (no LLM except follow-up rewriting) and answers
+# end to end (124 questions through the real pipeline; ARGS="--set key=value" to try a setting).
 eval-retrieval:
 	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation retrieval $(ARGS)
-eval-extraction:
-	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation extraction -v $(ARGS)
+eval-answers:
+	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation answers $(ARGS)

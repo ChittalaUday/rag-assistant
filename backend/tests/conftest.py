@@ -44,6 +44,18 @@ def database(monkeypatch):
     url = f"{TEST_DATABASE_URL}{sep}options={quote(f'-csearch_path={schema},public')}"
     monkeypatch.setenv("KE_DATABASE_URL", url)
     monkeypatch.setitem(Settings.model_config, "env_file", None)  # tests ignore the dev .env
+    # the fake model's embedding (fakes.py): 384 hashed buckets, no task prefixes
+    for key, value in {
+        "KE_EMBEDDING_MODEL": "all-minilm:l6-v2",
+        "KE_EMBEDDING_DIMENSIONS": "384",
+        "KE_EMBEDDING_DOCUMENT_PREFIX": "",
+        "KE_EMBEDDING_QUERY_PREFIX": "",
+        # model-backed features are off unless a test turns them on
+        "KE_RERANK_MODEL": "",
+        "KE_CONTEXTUAL_CHUNKS": "false",
+        "KE_SECOND_HOP": "off",
+    }.items():
+        monkeypatch.setenv(key, value)
     with psycopg.connect(TEST_DATABASE_URL, autocommit=True) as admin:
         admin.execute(f'CREATE SCHEMA "{schema}"')
         yield

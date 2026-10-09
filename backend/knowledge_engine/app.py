@@ -13,8 +13,6 @@ from knowledge_engine.api.router import api_router
 from knowledge_engine.config import Settings
 from knowledge_engine.context import AppContext
 from knowledge_engine.errors import AppError
-from knowledge_engine.extraction.extractor import Extractor
-from knowledge_engine.extraction.ontology import load_ontology
 from knowledge_engine.llm.gateway import ModelGateway
 from knowledge_engine.llm.ollama import ModelClient, Ollama
 from knowledge_engine.pipeline.indexing import worker
@@ -30,7 +28,6 @@ def create_context(settings: Settings, model_client: ModelClient | None = None) 
         settings=settings,
         model=ModelGateway(model_client or Ollama(settings), settings.model_timeout),
         queue=asyncio.Queue(maxsize=settings.max_jobs),
-        ontology=load_ontology(settings.ontology_path),
     )
 
 
@@ -46,7 +43,6 @@ def open_store(ctx: AppContext) -> None:
                 s.embedding_dimensions,
             )
     ctx.store = Store(s.database_url)
-    ctx.extractor = Extractor(ctx.model, ctx.ontology, s.chat_model, ctx.store.cache)
 
 
 def create_app(

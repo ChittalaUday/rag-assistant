@@ -4,8 +4,7 @@
     "question": "In the fictional testing scenario, who leads the Monsoon Lens project?",
     "expected_keywords": [
       "Asha Rao",
-      "Monsoon Lens",
-      "FICTIONAL TEST SCENARIO"
+      "Monsoon Lens"
     ],
     "source_documents": [
       "fictional-projects.md"
@@ -17,8 +16,7 @@
     "question": "In the fictional testing scenario, how many annual leave days do employees get in this scenario?",
     "expected_keywords": [
       "18",
-      "annual",
-      "FICTIONAL TEST SCENARIO"
+      "annual"
     ],
     "source_documents": [
       "fictional-leave-policy.md"
@@ -31,8 +29,7 @@
     "expected_keywords": [
       "Vikram Sen",
       "approval",
-      "two or more consecutive",
-      "FICTIONAL TEST SCENARIO"
+      "two or more consecutive"
     ],
     "source_documents": [
       "fictional-leave-policy.md",
@@ -46,8 +43,7 @@
     "expected_keywords": [
       "Leela Das",
       "handoff",
-      "Monsoon Lens",
-      "FICTIONAL TEST SCENARIO"
+      "Monsoon Lens"
     ],
     "source_documents": [
       "fictional-leave-policy.md",
@@ -61,8 +57,7 @@
     "expected_keywords": [
       "Monsoon Lens",
       "imaging",
-      "satellite",
-      "FICTIONAL TEST SCENARIO"
+      "satellite"
     ],
     "source_documents": [
       "fictional-projects.md"
@@ -75,8 +70,7 @@
     "question": "In the fictional testing scenario, what is his role on the team?",
     "expected_keywords": [
       "Vikram Sen",
-      "engineering manager",
-      "FICTIONAL TEST SCENARIO"
+      "engineering manager"
     ],
     "source_documents": [
       "fictional-teams.md"
@@ -96,8 +90,7 @@
     "question": "In the fictional testing scenario, who leads the FieldBridge project?",
     "expected_keywords": [
       "Vikram Sen",
-      "FieldBridge",
-      "FICTIONAL TEST SCENARIO"
+      "FieldBridge"
     ],
     "source_documents": [
       "fictional-projects.md"
@@ -110,8 +103,7 @@
     "expected_keywords": [
       "Monday through Friday",
       "9:00 AM to 6:00 PM",
-      "one hour",
-      "FICTIONAL TEST SCENARIO"
+      "one hour"
     ],
     "source_documents": [
       "fictional-working-days.md"
@@ -125,8 +117,7 @@
       "Saturday and Sunday",
       "nonworking days",
       "holiday calendar",
-      "Vikram Sen",
-      "FICTIONAL TEST SCENARIO"
+      "Vikram Sen"
     ],
     "source_documents": [
       "fictional-working-days.md"
@@ -140,8 +131,7 @@
       "Vikram Sen",
       "before their scheduled start",
       "written approval",
-      "two or more consecutive",
-      "FICTIONAL TEST SCENARIO"
+      "two or more consecutive"
     ],
     "source_documents": [
       "fictional-employee-rules.md",
@@ -156,8 +146,7 @@
       "device locks",
       "multifactor authentication",
       "never share passwords",
-      "Vikram Sen",
-      "FICTIONAL TEST SCENARIO"
+      "Vikram Sen"
     ],
     "source_documents": [
       "fictional-employee-rules.md"

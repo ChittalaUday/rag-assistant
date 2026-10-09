@@ -16,11 +16,9 @@ from knowledge_engine.config import Settings
 from knowledge_engine.context import AppContext
 from knowledge_engine.evaluation.dataset import Case
 from knowledge_engine.evaluation.metrics import Hit
-from knowledge_engine.extraction.extractor import ExtractionCache, Extractor
 from knowledge_engine.ingestion.chunker import chunk_document
 from knowledge_engine.llm.ollama import Ollama
 from knowledge_engine.pipeline.indexing import process
-from knowledge_engine.retrieval import fusion
 from knowledge_engine.retrieval.analyzer import analyze
 from knowledge_engine.retrieval.fusion import fuse
 from knowledge_engine.retrieval.search import DENSE_K, SPARSE_K, embed_query, retrieve
@@ -67,9 +65,7 @@ def ensure_database(url: str) -> None:
 
 
 @asynccontextmanager
-async def scratch_context(
-    settings: Settings, cache: ExtractionCache | None = None
-) -> AsyncIterator[AppContext]:
+async def scratch_context(settings: Settings) -> AsyncIterator[AppContext]:
     """An app context on a throw-away schema of the evaluation database."""
     base = evaluation_database_url(settings)
     ensure_database(base)
@@ -82,8 +78,6 @@ async def scratch_context(
             ctx = create_context(scoped, None)
             try:
                 open_store(ctx)
-                if cache is not None:
-                    ctx.extractor = Extractor(ctx.model, ctx.ontology, scoped.chat_model, cache)
                 yield ctx
             finally:  # also when opening the store failed: never leave a scratch schema behind
                 if hasattr(ctx, "store"):
@@ -121,7 +115,7 @@ async def live_context(settings: Settings, url: str) -> AsyncIterator[AppContext
             ctx.store.close()
 
 
-async def index_corpus(ctx: AppContext, corpus: dict[str, str], extract: bool) -> None:
+async def index_corpus(ctx: AppContext, corpus: dict[str, str]) -> None:
     for name, text in corpus.items():
         data = text.encode()
         digest = hashlib.sha256(data).hexdigest()
@@ -129,14 +123,13 @@ async def index_corpus(ctx: AppContext, corpus: dict[str, str], extract: bool) -
         path.write_bytes(data)
         id = str(uuid.uuid4())
         ctx.store.documents.add(id, name, digest, str(path), [])
-        await process(ctx, id, extract)
+        await process(ctx, id)
         if ctx.store.documents.get(id)["status"] != "ready":
             raise RuntimeError(f"{name}: {ctx.store.documents.get(id)['error']}")
 
 
 class PipelineSystem:
-    """dense | sparse | hybrid (rank fusion only) | rerank (full retrieval, no graph extracted) |
-    graph (full retrieval with the entity graph) | nograph (same index, graph signals off)."""
+    """dense | sparse | hybrid (rank fusion only) | rerank (the full retrieval the answers use)."""
 
     def __init__(self, ctx: AppContext, mode: str):
         self.ctx, self.mode = ctx, mode
@@ -154,21 +147,8 @@ class PipelineSystem:
         ctx = self.ctx
         plan = await self._plan(case)
         plan.final_k = k
-        if self.mode == "nograph":
-            plan.seeds = []  # same ranking, graph signals switched off
-        elif self.mode in {"graph", "graphlist", "entityfeature"}:
-            plan.seeds = plan.entities  # graph signals always on
-        if self.mode in {"rerank", "graph", "nograph", "graphlist", "entityfeature"}:
-            # ablations: only the fused graph list, or only the entity-coverage rerank feature
-            weights = (fusion.WEIGHTS["graph"], fusion.FEATURE_WEIGHTS["entity"])
-            if self.mode == "graphlist":
-                fusion.FEATURE_WEIGHTS["entity"] = 0.0
-            if self.mode == "entityfeature":
-                fusion.WEIGHTS["graph"] = 0.0
-            try:
-                result = await retrieve(ctx, plan, [], _quiet)
-            finally:
-                fusion.WEIGHTS["graph"], fusion.FEATURE_WEIGHTS["entity"] = weights
+        if self.mode == "rerank":
+            result = await retrieve(ctx, plan, [], _quiet)
             ids = [c.chunk_id for c in result.selected]
         else:
             vector = await embed_query(ctx, plan.search_text, _quiet)

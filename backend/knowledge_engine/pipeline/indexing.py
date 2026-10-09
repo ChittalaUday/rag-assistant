@@ -1,33 +1,27 @@
-"""Indexing pipeline: documents in, searchable chunks + entity/relation graph out.
+"""Indexing pipeline: documents in, searchable passages out.
 
-    parse -> normalise -> chunk -> embed -> extract -> validate      (slow, no database writes)
-          -> resolve entities -> write chunks/entities/relations     (one atomic transaction)
+    parse -> normalise -> chunk -> situate (optional) -> embed     (slow, no database writes)
+          -> write chunks and refresh the vocabulary               (one atomic transaction)
 
 A failure anywhere before the transaction leaves the previously published version untouched.
-Domain knowledge lives in the ontology file, never here.
 """
 
 import asyncio
-import logging
 import math
 import re
 import uuid
-from collections import Counter
 from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from knowledge_engine.context import AppContext
-from knowledge_engine.extraction.resolver import resolve, scan_mentions
-from knowledge_engine.extraction.validator import ChunkExtraction, Mention, validate_extraction
 from knowledge_engine.ingestion.chunker import Chunk, chunk_document
 from knowledge_engine.ingestion.parser import parse
-from knowledge_engine.ingestion.quality import extractable
+from knowledge_engine.ingestion.situate import situate
 from knowledge_engine.store import ChunkRow
-from knowledge_engine.text import name_key, normalize_text
+from knowledge_engine.text import normalize_text
 
-log = logging.getLogger(__name__)
-PIPELINE_VERSION = 3  # 3: section headings count as evidence for a relation's endpoints
+PIPELINE_VERSION = 5  # 4: no entity graph; 5: contextual summaries on by default
 EMBED_BATCH = 16
 
 
@@ -47,11 +41,10 @@ class Built:
     chunks: list[Chunk]
     contexts: list[str]
     vectors: list[list[float]]
-    extractions: list[ChunkExtraction | None]
     warnings: list[str] = field(default_factory=list)
 
 
-async def build(ctx: AppContext, id: str, name: str, path: Path, extract: bool = True) -> Built:
+async def build(ctx: AppContext, id: str, name: str, path: Path) -> Built:
     s, store = ctx.settings, ctx.store
     store.documents.progress(id, "parsing", "Reading and parsing the document")
     text = normalize_text(await parse(path))
@@ -62,6 +55,25 @@ async def build(ctx: AppContext, id: str, name: str, path: Path, extract: bool =
         raise ValueError(f"Document exceeds {s.max_chunks} chunks; split it into smaller files")
     title = document_title(name)
     contexts = [chunk_context(title, c) for c in chunks]
+    warnings: list[str] = []
+    if s.contextual_chunks:
+        stage = "Summarising where each passage sits in the document"
+        store.documents.progress(id, "situating", stage, 0, len(chunks))
+        failed = 0
+        for n, chunk in enumerate(chunks):
+            try:
+                summary = await situate(
+                    ctx.model, store.cache, s.context_model or s.chat_model, title, text, chunk
+                )
+            except ValueError:  # malformed model output: the passage keeps its plain context
+                summary, failed = "", failed + 1
+            if summary:
+                contexts[n] = f"{contexts[n]}\n{summary}"
+            store.documents.progress(id, "situating", stage, n + 1, len(chunks))
+        if failed:
+            warnings.append(
+                f"{failed} passage(s) could not be summarised; they stay searchable by their text"
+            )
 
     store.documents.progress(id, "embedding", "Embedding source chunks", 0, len(chunks))
     inputs = [
@@ -83,61 +95,12 @@ async def build(ctx: AppContext, id: str, name: str, path: Path, extract: bool =
             "Embedding model returned invalid vectors "
             f"(expected {s.embedding_dimensions} dimensions)"
         )
-
-    stage = "Extracting source-backed entities and relationships"
-    store.documents.progress(id, "extracting", stage, 0, len(chunks))
-    flags = extractable(chunks) if extract else [False] * len(chunks)  # retrieval-only indexing
-    extractions: list[ChunkExtraction | None] = []
-    skipped = failed = 0
-    for n, (chunk, ok) in enumerate(zip(chunks, flags, strict=True), 1):
-        if not ok:
-            skipped += extract  # only a quality-gate skip counts, not extraction being disabled
-            extractions.append(None)
-        else:
-            try:
-                raw = await ctx.extractor.extract(title, chunk)
-                extractions.append(validate_extraction(raw, chunk.text, ctx.ontology))
-            except (
-                ValueError
-            ):  # malformed model output for this passage; infrastructure errors raise
-                failed += 1
-                extractions.append(None)
-        store.documents.progress(id, "extracting", stage, n, len(chunks))
-
-    counts: Counter[str] = Counter()
-    for e in extractions:
-        if e:
-            counts.update(e.warnings)
-    for message, n in sorted(counts.items()):
-        log.info("%s: %s (x%d)", name, message, n)
-    entities = sum(n for m, n in counts.items() if not m.startswith("Rejected relationship"))
-    relations = sum(n for m, n in counts.items() if m.startswith("Rejected relationship"))
-    warnings = []
-    if entities or relations:
-        warnings.append(
-            f"Validation discarded {entities} unsupported entities and {relations} unsupported "
-            "relationships (not found in the text, wrong type, or without verbatim evidence)"
-        )
-    if extract and flags and not any(e and (e.entities or e.relations) for e in extractions):
-        warnings.append(
-            "No entities or relationships were found: forms, questionnaires and checklists state "
-            "few facts. The text is still searchable and answers can quote it"
-        )
-    if skipped:
-        warnings.append(
-            f"{skipped} repetitive or empty passage(s), such as form templates, are searchable "
-            "but were not analysed for entities and relations"
-        )
-    if failed:
-        warnings.append(
-            f"Model output could not be parsed for {failed} passage(s); they were skipped"
-        )
-    return Built(text, chunks, contexts, vectors, extractions, warnings)
+    return Built(text, chunks, contexts, vectors, warnings)
 
 
 def publish(ctx: AppContext, id: str, built: Built) -> int:
-    """Atomically replace the document's chunks, entities, mentions and relations."""
-    store, ontology = ctx.store, ctx.ontology
+    """Atomically replace the document's chunks."""
+    store = ctx.store
     rows = [
         ChunkRow(
             id=str(uuid.uuid4()),
@@ -155,47 +118,9 @@ def publish(ctx: AppContext, id: str, built: Built) -> int:
     with store.transaction():
         store.documents.save_text(id, built.text)
         store.chunks.replace(id, rows)
-        mentions: list[Mention] = [m for e in built.extractions if e for m in e.entities]
-        resolution = resolve(store.graph, ontology, mentions)
-        store.graph.add_mentions(scan_mentions([(r.id, r.text) for r in rows], resolution.surfaces))
-
-        def entity_of(name: str, type_: str) -> str:
-            return resolution.ids[(ontology.types[type_].cls, name_key(name))]
-
-        evidence: list[tuple[str, str, str | None, str, int, int, float, str]] = []
-        seen: set[tuple[str, int, int]] = set()  # chunk overlap repeats a sentence in two chunks
-        for row, extraction in zip(rows, built.extractions, strict=True):
-            for r in extraction.relations if extraction else []:
-                subject, obj = (
-                    entity_of(r.subject, r.subject_type),
-                    entity_of(r.object, r.object_type),
-                )
-                if subject == obj:
-                    continue  # two spellings of one entity: not a relation
-                if ontology.predicates[r.predicate].symmetric and subject > obj:
-                    subject, obj = obj, subject
-                rid = relation_id(subject, r.predicate, obj)
-                origin = row.char_start or 0
-                span = (rid, origin + r.quote_start, origin + r.quote_end)
-                if span in seen:
-                    continue  # the same words of the document: one piece of evidence, not two
-                seen.add(span)
-                store.graph.add_relation(rid, subject, r.predicate, obj)
-                evidence.append(
-                    (rid, row.id, r.phrase, r.quote, r.quote_start, r.quote_end, r.confidence,
-                     ctx.extractor.version)
-                )  # fmt: skip
-        store.graph.add_evidence(evidence)
-        store.graph.gc()
         store.chunks.refresh_lexicon()
         store.documents.mark_ready(id, len(rows), built.warnings, PIPELINE_VERSION)
     return len(rows)
-
-
-def relation_id(subject: str, predicate: str, obj: str) -> str:
-    import hashlib
-
-    return "rel_" + hashlib.sha1(f"{subject}|{predicate}|{obj}".encode()).hexdigest()[:20]
 
 
 def clean_uploads(ctx: AppContext) -> None:
@@ -212,7 +137,7 @@ def clean_uploads(ctx: AppContext) -> None:
                 path.unlink(missing_ok=True)
 
 
-async def process(ctx: AppContext, id: str, extract: bool = True) -> None:
+async def process(ctx: AppContext, id: str) -> None:
     docs = ctx.store.documents
     record = docs.record(id)
     if not record:
@@ -222,11 +147,11 @@ async def process(ctx: AppContext, id: str, extract: bool = True) -> None:
     path = ctx.upload_path(staged["path"] if staged else record["path"])
     docs.set_status(id, "processing")
     try:
-        built = await build(ctx, id, name, path, extract)
+        built = await build(ctx, id, name, path)
         docs.progress(
             id,
             "publishing",
-            "Publishing validated source evidence",
+            "Publishing the searchable passages",
             len(built.chunks),
             len(built.chunks),
         )

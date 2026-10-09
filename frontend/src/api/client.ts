@@ -5,9 +5,8 @@ import type {
   Document,
   DocumentContent,
   Health,
-  KnowledgeGraph,
   Message,
-  Preview,
+  SearchPreview,
 } from "./types";
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -34,12 +33,11 @@ export const api = {
   documents: () => request<{ documents: Document[] }>("/documents"),
   documentContent: (id: string) =>
     request<DocumentContent>(`/documents/${encodeURIComponent(id)}/content`),
-  graph: () => request<KnowledgeGraph>("/graph"),
-  preview: (text: string, signal?: AbortSignal) =>
-    request<Preview>("/preview", {
+  preview: (text: string, signal?: AbortSignal, excludeLabels: string[] = []) =>
+    request<SearchPreview>("/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, exclude_labels: excludeLabels }),
       signal,
     }),
   source: (id: string) =>
@@ -120,7 +118,9 @@ export async function streamChat(
         typeof value.answer !== "string" ||
         typeof value.conversation_id !== "string" ||
         !Array.isArray(value.citations) ||
-        !value.graph
+        !Array.isArray(value.statements) ||
+        typeof value.trace !== "object" ||
+        value.trace === null
       )
         throw new Error("Received malformed final answer");
       result = payload as ChatResponse;

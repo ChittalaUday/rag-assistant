@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from knowledge_engine.schemas.graph import Citation
+from knowledge_engine.schemas.sources import Citation
 
 DocumentStatus = Literal["queued", "processing", "ready", "failed"]
 

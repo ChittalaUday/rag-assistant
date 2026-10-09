@@ -1,7 +1,7 @@
 """Combine retrievers: reciprocal rank fusion, feature reranking and duplicate-free selection.
 
-The reranker is deliberately a transparent feature model, not a learned one: no cross-encoder is
-available locally. Each feature is stored on the candidate so a ranking can be explained.
+The feature reranker is a transparent model: each feature is stored on the candidate so a ranking
+can be explained. A cross-encoder (settings.rerank_model) can rescore on top of it (search.py).
 """
 
 import math
@@ -13,8 +13,8 @@ from knowledge_engine.retrieval.models import Candidate, QueryPlan
 from knowledge_engine.text import token_forms
 
 RRF_K = 60
-WEIGHTS = {"dense": 1.0, "sparse": 1.0, "graph": 0.8}
-FEATURE_WEIGHTS = {"rrf": 0.45, "coverage": 0.25, "entity": 0.20, "dense": 0.10}
+WEIGHTS = {"dense": 1.0, "sparse": 1.0}
+FEATURE_WEIGHTS = {"rrf": 0.5625, "coverage": 0.3125, "dense": 0.125}
 DUPLICATE_SIMILARITY = 0.97
 
 
@@ -39,9 +39,8 @@ def rerank(
     plan: QueryPlan,
     doc_freq: dict[str, int],
     total_chunks: int,
-    mentions: dict[str, set[str]],
 ) -> list[Candidate]:
-    """Score candidates on fused rank, IDF-weighted term coverage, entity coverage, similarity."""
+    """Score candidates on fused rank, IDF-weighted term coverage and similarity."""
     if not candidates:
         return []
     # a term found in no chunk (or a database stop word) can match nothing: weighting it would
@@ -52,7 +51,6 @@ def rerank(
     top_rrf = max(c.rrf for c in candidates) or 1.0
     dense = [c.scores["dense"] for c in candidates if "dense" in c.scores]
     lo, hi = (min(dense), max(dense)) if dense else (0.0, 0.0)
-    wanted = {e.id for e in plan.seeds}
     for c in candidates:
         row = chunks[c.chunk_id]
         present = set(token_forms(f"{row['context']} {row['text']}"))
@@ -60,9 +58,6 @@ def rerank(
         c.features = {
             "rrf": c.rrf / top_rrf,
             "coverage": covered / total_weight,
-            "entity": len(wanted & mentions.get(c.chunk_id, set())) / len(wanted)
-            if wanted
-            else 0.0,
             "dense": (c.scores["dense"] - lo) / (hi - lo)
             if "dense" in c.scores and hi > lo
             else 0.0,

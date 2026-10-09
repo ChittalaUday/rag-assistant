@@ -1,8 +1,8 @@
 """Answer generation and validation: cite or abstain.
 
-The model proposes an answer and the passages that support it; everything else is derived from
-those citations by code: which graph relations to highlight, whether the evidence conflicts, what
-provenance notices apply. An answer without a valid citation is never published silently.
+The model proposes an answer and the passages that support it; a second, narrower call maps each
+sentence to the passages that state it (completing the citations), and code derives the provenance
+notices. An answer without a valid citation is never published silently.
 """
 
 import re
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from knowledge_engine.context import AppContext
+from knowledge_engine.generation.attribution import attribute, split_statements
 from knowledge_engine.generation.prompt import build_prompt
 from knowledge_engine.reasoning.evidence import Evidence
 from knowledge_engine.retrieval.models import QueryPlan
@@ -61,8 +62,9 @@ class Generated:
     text: str = NO_EVIDENCE
     status: str = "insufficient_evidence"  # answered | insufficient_evidence | conflicting_evidence
     citations: list[dict[str, Any]] = field(default_factory=list)
-    relation_ids: set[str] = field(default_factory=set)
     warnings: list[str] = field(default_factory=list)
+    # each sentence of the answer and the chunk ids of the passages that state it
+    statements: list[dict[str, Any]] = field(default_factory=list)
 
 
 async def _ask(
@@ -73,14 +75,14 @@ async def _ask(
     notify: Notify,
     extra: str,
 ) -> dict[str, Any]:
-    prompt, schema = build_prompt(plan, history, ev, extra)
+    prompt, schema = build_prompt(plan, history, ev, extra, ctx.settings.answer_thinking)
     if ctx.model.lock.locked():
         await notify("waiting_for_model", "Waiting for the local answer model")
 
     async def started() -> None:
         await notify("generating", "Generating an answer from the selected source passages")
 
-    raw = await ctx.model.generate(prompt, schema, started)
+    raw = await ctx.model.generate(prompt, schema, started, think=ctx.settings.answer_thinking)
     if "citation_ids" not in raw:
         raise ValueError("Model omitted required citation_ids; answer was not published")
     return raw
@@ -101,7 +103,7 @@ async def generate_answer(
     if not valid_ids(raw) and not abstained:
         raw = await _ask(ctx, plan, history, ev, notify, RETRY_NOTE)  # one corrective retry
         abstained = raw.get("status") == "insufficient_evidence"
-    await notify("validating", "Checking citations and relationship evidence")
+    await notify("validating", "Checking the citations")
     out = Generated()
     cited = valid_ids(raw)
     if set(raw.get("citation_ids", [])) - set(by_alias):
@@ -128,6 +130,19 @@ async def generate_answer(
         out.warnings.append("The model returned an empty answer; try rephrasing the question")
         out.text = "The local model returned an empty answer for this question."
         return out
+    if ctx.settings.verify_citations and not abstained:
+        await notify("verifying", "Matching each statement to the passages that state it")
+        statements = split_statements(text)
+        try:
+            support = await attribute(ctx, statements, ev.sources)
+        except ValueError:  # malformed or oversized verification: keep the model's citations
+            support = []
+            out.warnings.append("Statements could not be checked against the passages")
+        cited = list(dict.fromkeys([*cited, *(a for found in support for a in found)]))
+        out.statements = [
+            {"text": t, "sources": [by_alias[a].chunk_id for a in found]}
+            for t, found in zip(statements, support, strict=False)
+        ]
     out.citations = ctx.store.chunks.citations([(by_alias[a].chunk_id, None) for a in cited])
     notices = [
         ctx.settings.label_notices[label]
@@ -135,24 +150,11 @@ async def generate_answer(
         if any(label in by_alias[a].labels for a in cited)
     ]
     out.text = "\n\n".join([*notices, text]) if notices else text
-    out.status = "insufficient_evidence" if abstained else "answered"
-    answer_l = text.casefold()
-    linked = {e.id for e in plan.entities}
-
-    def mentioned(name: str) -> bool:  # whole words: "Al" is not in "also"
-        return re.search(rf"(?<!\w){re.escape(name.casefold())}(?!\w)", answer_l) is not None
-
-    out.relation_ids = {
-        f.relation_id
-        for f in ev.facts
-        if set(f.aliases) & set(cited)
-        and (
-            (mentioned(f.subject) and mentioned(f.object))
-            or (mentioned(f.subject) and f.object_id in linked)
-            or (mentioned(f.object) and f.subject_id in linked)
-        )
-    }
-    cited_relations = {f.relation_id for f in ev.facts if set(f.aliases) & set(cited)}
-    if any(set(c.relation_ids) & cited_relations for c in ev.conflicts) and not abstained:
-        out.status = "conflicting_evidence"
+    out.status = (
+        "insufficient_evidence"
+        if abstained
+        else "conflicting_evidence"
+        if raw.get("status") == "conflicting_evidence"
+        else "answered"
+    )
     return out

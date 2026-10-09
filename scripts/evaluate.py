@@ -13,14 +13,8 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def assess(
-    case: dict[str, Any], result: dict[str, Any], source_text: dict[str, str] | None = None
-) -> dict[str, Any]:
-    """Conservative smoke metrics; captured answers still need semantic review.
-
-    source_text maps chunk id -> passage text for the evidence of highlighted graph edges (graph
-    evidence carries a reference and a quote, not the passage)."""
-    source_text = source_text or {}
+def assess(case: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    """Conservative smoke metrics; captured answers still need semantic review."""
     answer = str(result.get("answer", ""))
     expected = case.get("expected_keywords", [])
     found = [word for word in expected if str(word).casefold() in answer.casefold()]
@@ -35,21 +29,11 @@ def assess(
     for citation in citations:
         if citation.get("quote") and citation["quote"] not in citation["text"]:
             invalid.append(f"Citation {citation['chunk_id']} quote is absent from passage")
-    graph = result.get("graph", {})
-    selected = set(graph.get("highlighted_edge_ids", []))
     cited_chunks = {c["chunk_id"] for c in citations}
-    for edge in graph.get("edges", []):
-        if edge["id"] not in selected:
-            continue
-        evidence = edge.get("evidence", [])
-        if not evidence:
-            invalid.append(f"Highlighted edge {edge['id']} has no evidence")
-        if not any(c["chunk_id"] in cited_chunks for c in evidence):
-            invalid.append(f"Highlighted edge {edge['id']} has no answer citation")
-        for citation in evidence:
-            passage = source_text.get(citation["chunk_id"], "")
-            if not citation.get("quote") or citation["quote"] not in passage:
-                invalid.append(f"Edge {edge['id']} quote is absent from passage")
+    for statement in result.get("statements", []):
+        for chunk_id in statement.get("sources", []):
+            if chunk_id not in cited_chunks:
+                invalid.append(f"Statement source {chunk_id} is not among the citations")
     unknown = case.get("type") in {"unknown", "unanswerable", "abstention"}
     abstained = bool(
         re.search(
@@ -73,22 +57,7 @@ def assess(
         "missing_sources": sorted(expected_sources - actual_sources),
         "invalid_evidence": invalid,
         "abstained": abstained,
-        "highlighted_edges": len(selected),
     }
-
-
-async def highlighted_sources(client: httpx.AsyncClient, result: dict[str, Any]) -> dict[str, str]:
-    """Passage text for the evidence of the highlighted edges, fetched from /sources."""
-    graph = result.get("graph", {})
-    selected = set(graph.get("highlighted_edge_ids", []))
-    chunk_ids = {
-        c["chunk_id"] for e in graph.get("edges", []) if e["id"] in selected for c in e["evidence"]
-    }
-    texts: dict[str, str] = {}
-    for chunk_id in sorted(chunk_ids):
-        response = await client.get(f"/api/sources/{chunk_id}")
-        texts[chunk_id] = "" if response.is_error else response.json()["text"]
-    return texts
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -132,12 +101,12 @@ async def run(args: argparse.Namespace) -> int:
             else:
                 result = response.json()
                 conversation_ids[case["id"]] = result["conversation_id"]
-                record.update(assess(case, result, await highlighted_sources(client, result)))
+                record.update(assess(case, result))
                 record.update(
                     answer=result["answer"],
                     warnings=result.get("warnings", []),
                     citations=result.get("citations", []),
-                    highlighted_edge_ids=result.get("graph", {}).get("highlighted_edge_ids", []),
+                    statements=result.get("statements", []),
                 )
             results.append(record)
             label = "PASS" if record["smoke_pass"] else "REVIEW"

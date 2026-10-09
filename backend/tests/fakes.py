@@ -22,7 +22,7 @@ def hash_embedding(text: str) -> list[float]:
 
 
 class FakeModel:
-    """Extracts 'Mira leads Acme.' and answers by citing the first passage."""
+    """Answers by citing the first passage."""
 
     async def health(self):
         return ["qwen3.5:9b", "all-minilm:l6-v2"]
@@ -30,32 +30,17 @@ class FakeModel:
     async def embed(self, texts):
         return [hash_embedding(t) for t in texts]
 
-    async def generate(self, prompt, schema, max_tokens=None):
+    async def generate(self, prompt, schema, max_tokens=None, think=False, model=None):
         props = schema.get("properties", {})
-        if "relations" in props:
-            return self.extract(prompt)
         if "citation_ids" in props:
             return self.answer(prompt)
         if "question" in props:
             return {"question": prompt.rsplit("FINAL QUESTION:", 1)[1].strip()}
+        if "statements" in props:  # attribution: every statement rests on the first passage
+            count = props["statements"]["maxItems"]
+            first = re.findall(r"^(S\d+):$", prompt, re.M)[:1]
+            return {"statements": [{"n": n, "sources": first} for n in range(1, count + 1)]}
         raise AssertionError(f"unexpected schema {list(props)}")
-
-    def extract(self, prompt):
-        return {
-            "entities": [
-                {"name": "Acme", "type": "Organization"},
-                {"name": "Mira", "type": "Person"},
-            ],
-            "relations": [
-                {
-                    "subject": "Mira",
-                    "predicate": "leads",
-                    "object": "Acme",
-                    "phrase": "leads",
-                    "quote": "Mira leads Acme.",
-                }
-            ],
-        }
 
     def answer(self, prompt):
         ids = re.findall(r"CHUNK (S\d+)", prompt)

@@ -7,11 +7,10 @@ multi-step writes with ``store.transaction()``.
 from contextlib import AbstractContextManager
 
 from knowledge_engine.store.base import Db, Row, vector_literal
-from knowledge_engine.store.cache import ExtractionCacheRepo
+from knowledge_engine.store.cache import ModelCacheRepo
 from knowledge_engine.store.chunks import ChunkRepo, ChunkRow
 from knowledge_engine.store.conversations import ConversationRepo
 from knowledge_engine.store.documents import DocumentRepo
-from knowledge_engine.store.graph import GraphRepo
 
 __all__ = ["ChunkRow", "Row", "Store", "vector_literal"]
 
@@ -21,9 +20,8 @@ class Store:
         self.db = Db(url)
         self.documents = DocumentRepo(self.db)
         self.chunks = ChunkRepo(self.db)
-        self.graph = GraphRepo(self.db)
         self.conversations = ConversationRepo(self.db)
-        self.cache = ExtractionCacheRepo(self.db)
+        self.cache = ModelCacheRepo(self.db)
 
     def transaction(self) -> AbstractContextManager[None]:
         return self.db.transaction()

@@ -3,7 +3,7 @@
 Chunks are exact slices of the normalised document text, so every chunk has verifiable character
 offsets (evidence spans). Boundaries prefer, in order: a markdown heading, a sentence/line end, a
 word boundary. Each chunk also records the heading path it sits under and, when a markdown table
-was split, that table's header row, so retrieval and extraction keep their context.
+was split, that table's header row, so retrieval keeps their context.
 """
 
 import re

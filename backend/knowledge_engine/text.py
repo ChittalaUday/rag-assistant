@@ -1,7 +1,7 @@
-"""Pure text helpers: document normalisation, tokenising and entity-name keys.
+"""Pure text helpers: document normalisation and tokenising.
 
-Nothing here knows about any domain; it is shared by ingestion, extraction and retrieval so the same
-normalisation is applied when entities are stored and when questions are linked to them.
+Nothing here knows about any domain; it is shared by ingestion and retrieval so documents and
+questions are normalised the same way.
 """
 
 import html
@@ -25,12 +25,6 @@ STOPWORDS = frozenset([
     "wouldn", "mustn", "mightn", "needn",
 ])
 # fmt: on
-
-_HONORIFICS = frozenset({"dr", "mr", "mrs", "ms", "prof", "shri", "smt", "sir"})
-_LEGAL_SUFFIXES = frozenset(
-    {"pvt", "ltd", "inc", "llc", "corp", "co", "limited", "private", "plc", "gmbh", "p"}
-)
-_ARTICLES = frozenset({"the", "a", "an"})
 
 
 def _strip_comments(text: str) -> str:
@@ -105,7 +99,7 @@ def _singular(token: str) -> str:
 def token_forms(text: str) -> list[str]:
     """Matching tokens: accent-folded, casefolded, '&' as 'and', plural-folded.
 
-    Used on both sides of every entity comparison; the forms are keys, never shown to users.
+    Used on both sides of a term comparison; the forms are keys, never shown to users.
     """
     text = unicodedata.normalize("NFKD", html.unescape(text))
     text = "".join(c for c in text if not unicodedata.combining(c)).casefold()
@@ -113,32 +107,7 @@ def token_forms(text: str) -> list[str]:
     return [_singular(t) for t in re.findall(r"\w+", text)]
 
 
-def name_key(name: str) -> str:
-    """Identity key for an entity name ("Dr. Rama Nemani" and "Rama Nemani" share a key)."""
-    tokens = token_forms(name)
-    while tokens and (tokens[0] in _ARTICLES or tokens[0] in _HONORIFICS):
-        tokens.pop(0)
-    while tokens and tokens[-1] in _LEGAL_SUFFIXES:
-        tokens.pop()
-    return " ".join(tokens)
-
-
-def has_legal_suffix(name: str) -> bool:
-    """True for a complete legal name ("Apple Inc."), not an abbreviation of a longer name."""
-    tokens = token_forms(name)
-    return bool(tokens) and tokens[-1] in _LEGAL_SUFFIXES
-
-
 def clean_labels(labels: list[str] | None) -> list[str]:
     """Document labels as stored: lower-case [a-z0-9_-], at most 30 characters, distinct, sorted."""
     cleaned = {re.sub(r"[^a-z0-9_-]", "", x.strip().casefold())[:30] for x in labels or []}
     return sorted(c for c in cleaned if c)
-
-
-def name_matches(a: str, b: str) -> bool:
-    """Loose name equality for evaluation: equal keys, or one name's tokens inside the other's."""
-    ka, kb = name_key(a), name_key(b)
-    if not ka or not kb:
-        return False
-    ta, tb = set(ka.split()), set(kb.split())
-    return ka == kb or ta <= tb or tb <= ta

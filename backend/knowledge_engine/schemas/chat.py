@@ -1,8 +1,8 @@
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from knowledge_engine.schemas.graph import Citation, Highlights, KnowledgeGraph
+from knowledge_engine.schemas.sources import Citation
 
 AnswerStatus = Literal["answered", "insufficient_evidence", "conflicting_evidence"]
 
@@ -26,24 +26,60 @@ class Question(BaseModel):
         return value
 
 
+class Statement(BaseModel):
+    text: str  # one sentence of the answer
+    sources: list[str]  # chunk ids of the passages that state it; empty: none does
+
+
+class TracePassage(BaseModel):
+    chunk_id: str
+    document_id: str
+    document: str
+    heading: str | None = None
+    snippet: str = ""  # the start of the passage, one line
+    score: float
+    ranks: dict[str, int]  # how it was found: dense / sparse / hop, 1 = best
+    completes: str | None = None  # added because it completes a neighbour ("table or list")
+
+
+class SearchCounts(BaseModel):
+    dense: int = 0  # passages found by meaning
+    sparse: int = 0  # passages found by keywords
+    candidates: int = 0  # distinct passages ranked
+
+
+class AnswerTrace(BaseModel):
+    """How an answer was produced: what was searched and which passages the model was given."""
+
+    search_text: str
+    rewritten: bool = False
+    corrections: dict[str, str] = {}
+    intent: str = "lookup"
+    counts: SearchCounts = SearchCounts()
+    reranked: bool = False
+    bridge_terms: list[str] = []
+    passages: list[TracePassage] = []
+
+
 class ChatResponse(BaseModel):
     conversation_id: str
     answer: str
     status: AnswerStatus = "answered"
     citations: list[Citation]
-    graph: KnowledgeGraph  # only the relations the answer rests on, all highlighted
     warnings: list[str]
+    statements: list[Statement] = []
+    trace: AnswerTrace
     model: str
-    plan: dict[str, Any] = {}  # how the question was understood and what was retrieved
 
 
 class Message(BaseModel):
     role: Literal["user", "assistant"]
     content: str
     citations: list[Citation] | None = None
-    graph: Highlights | None = None  # ids only; the graph itself is GET /graph
     warnings: list[str] | None = None
     status: AnswerStatus | None = None
+    statements: list[Statement] | None = None
+    trace: AnswerTrace | None = None
 
 
 class ConversationSummary(BaseModel):

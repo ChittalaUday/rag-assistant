@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import {
   Dialog,
@@ -34,40 +34,23 @@ import {
   Leaf,
   ShieldCheck,
   ArrowUpRight,
-  Network,
+  Users,
+  Route,
 } from "lucide-react";
 import { api, streamChat } from "@/api/client";
 import { DocumentProgress } from "@/features/documents/Progress";
 import { DocumentReader } from "@/features/documents/DocumentReader";
-import { GraphMap } from "@/features/graph/GraphMap";
-import { emptyGraph } from "@/api/types";
+import { AnswerTrace } from "@/features/trace/AnswerTrace";
 import type {
   Citation,
   Conversation,
   Document,
-  EdgeEvidence,
   Health,
-  KnowledgeGraph,
   Message,
-  Preview,
+  SearchPreview,
 } from "@/api/types";
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : "An unexpected error occurred";
-// An answer carries only the relations it rests on: keep the whole graph on screen and
-// highlight those (adding any the polled graph has not caught up with yet).
-function withAnswer(
-  graph: KnowledgeGraph,
-  answer: KnowledgeGraph,
-): KnowledgeGraph {
-  const nodes = new Set(graph.nodes.map((n) => n.id));
-  const edges = new Set(graph.edges.map((e) => e.id));
-  return {
-    nodes: [...graph.nodes, ...answer.nodes.filter((n) => !nodes.has(n.id))],
-    edges: [...graph.edges, ...answer.edges.filter((e) => !edges.has(e.id))],
-    highlighted_node_ids: answer.highlighted_node_ids,
-    highlighted_edge_ids: answer.highlighted_edge_ids,
-  };
-}
 function safeHttpUrl(input: string | null | undefined): string | null {
   if (!input) return null;
   try {
@@ -98,13 +81,14 @@ function sourceWebsites(citation: Citation | null): string[] {
 export default function App() {
   const reducedMotion = useReducedMotion();
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [graph, setGraph] = useState<KnowledgeGraph>(emptyGraph);
   const [health, setHealth] = useState<Health | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [preview, setPreview] = useState<SearchPreview | null>(null);
+  // index of the assistant message whose trace is shown; null: the latest answer
+  const [traced, setTraced] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -127,27 +111,14 @@ export default function App() {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const refresh = useCallback(async () => {
-    const [docs, map, model, history] = await Promise.all([
+    const [docs, model, history] = await Promise.all([
       api.documents(),
-      api.graph(),
       api.health(),
       api.conversations(),
     ]);
     setDocuments(docs.documents);
     setHealth(model);
     setConversations(history.conversations);
-    setGraph((current) => {
-      const next = {
-        ...map,
-        highlighted_node_ids: current.highlighted_node_ids.filter((id) =>
-          map.nodes.some((n) => n.id === id),
-        ),
-        highlighted_edge_ids: current.highlighted_edge_ids.filter((id) =>
-          map.edges.some((e) => e.id === id),
-        ),
-      };
-      return JSON.stringify(current) === JSON.stringify(next) ? current : next;
-    });
   }, []);
   useEffect(() => {
     void refresh().catch((e) =>
@@ -168,7 +139,7 @@ export default function App() {
       behavior: reducedMotion ? "auto" : "smooth",
     });
   }, [messages, status, reducedMotion]);
-  // While a question is typed, infer the entities and relations it mentions (no model call).
+  // While a question is typed, show the passages it is likely to draw on (no model call).
   useEffect(() => {
     const text = question.trim();
     if (text.length < 3) {
@@ -178,7 +149,7 @@ export default function App() {
     const controller = new AbortController();
     const timer = setTimeout(() => {
       api
-        .preview(text, controller.signal)
+        .preview(text, controller.signal, includeSynthetic ? [] : ["synthetic"])
         .then(setPreview)
         .catch(() => undefined);
     }, 250);
@@ -186,33 +157,15 @@ export default function App() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [question]);
-  const mentions = preview?.entities.length ? preview : null;
-  const shownGraph = useMemo(
-    () =>
-      mentions
-        ? {
-            ...graph,
-            highlighted_node_ids: mentions.highlighted_node_ids,
-            highlighted_edge_ids: mentions.highlighted_edge_ids,
-          }
-        : graph,
-    [graph, mentions],
-  );
-  const selectEvidence = useCallback((citation: EdgeEvidence) => {
+  }, [question, includeSynthetic]);
+  const selectEvidence = useCallback((chunkId: string) => {
     const requestId = ++sourceRequest.current;
     setError("");
     void api
-      .source(citation.chunk_id)
+      .source(chunkId)
       .then((source) => {
         if (requestId !== sourceRequest.current) return;
-        setEvidence({
-          ...source,
-          quote:
-            citation.quote && source.text.includes(citation.quote)
-              ? citation.quote
-              : source.quote,
-        });
+        setEvidence(source);
       })
       .catch((e) => {
         if (requestId !== sourceRequest.current) return;
@@ -246,6 +199,7 @@ export default function App() {
       { role: "user", content: text },
       { role: "assistant", content: "" },
     ]);
+    setTraced(null);
     abort.current = new AbortController();
     try {
       const result = await streamChat(
@@ -273,12 +227,12 @@ export default function App() {
           role: "assistant",
           content: result.answer,
           citations: result.citations,
-          graph: result.graph,
           warnings: result.warnings,
           status: result.status,
+          statements: result.statements,
+          trace: result.trace,
         },
       ]);
-      setGraph((current) => withAnswer(current, result.graph));
       setConversations((await api.conversations()).conversations);
     } catch (e) {
       setMessages([...original, { role: "user", content: text }]);
@@ -298,22 +252,9 @@ export default function App() {
     try {
       const conversation = await api.conversation(id);
       if (requestId !== historyRequest.current) return;
-      const latest = [...conversation.messages]
-        .reverse()
-        .find((m) => m.graph)?.graph;
-      const live = await api.graph();
-      if (requestId !== historyRequest.current) return;
       setConversationId(id);
       setMessages(conversation.messages);
-      setGraph({
-        ...live,
-        highlighted_node_ids: (latest?.highlighted_node_ids ?? []).filter(
-          (id) => live.nodes.some((n) => n.id === id),
-        ),
-        highlighted_edge_ids: (latest?.highlighted_edge_ids ?? []).filter(
-          (id) => live.edges.some((e) => e.id === id),
-        ),
-      });
+      setTraced(null);
       setSidebarTab("chat");
       setSidebar(false);
     } catch (e) {
@@ -328,11 +269,7 @@ export default function App() {
     setConversationId(null);
     setMessages([]);
     setQuestion("");
-    setGraph((current) => ({
-      ...current,
-      highlighted_node_ids: [],
-      highlighted_edge_ids: [],
-    }));
+    setTraced(null);
     setSidebarTab("chat");
     setSidebar(false);
   }
@@ -351,6 +288,17 @@ export default function App() {
         readerDocument.error,
       ])
     : "";
+  const answers = messages.flatMap((m, i) =>
+    m.role === "assistant" && m.content ? [i] : [],
+  );
+  const shownIndex =
+    traced !== null && messages[traced] ? traced : (answers.at(-1) ?? null);
+  const shownAnswer = shownIndex !== null ? messages[shownIndex] : null;
+  const shownQuestion =
+    shownIndex !== null && messages[shownIndex - 1]?.role === "user"
+      ? messages[shownIndex - 1].content
+      : null;
+  const typing = question.trim().length >= 3 ? preview : null;
   const pending = documents.filter(
     (d) => d.status === "queued" || d.status === "processing",
   ).length;
@@ -632,7 +580,7 @@ export default function App() {
         <Tabs className="panels" value={mobileTab} onValueChange={setMobileTab}>
           <TabsList className="mobile-tabs" aria-label="Workspace panels">
             <TabsTrigger value="chat">Conversation</TabsTrigger>
-            <TabsTrigger value="map">Knowledge map</TabsTrigger>
+            <TabsTrigger value="trace">Answer trace</TabsTrigger>
           </TabsList>
           <TabsContent value="chat" forceMount className="chat-panel">
             <header className="panel-header">
@@ -672,10 +620,10 @@ export default function App() {
                           "What services does Niruthi describe in the public notes?",
                       },
                       {
-                        icon: Network,
-                        title: "Connect people and projects",
+                        icon: Users,
+                        title: "Find who is responsible",
                         question:
-                          "Which people and projects are connected in the uploaded documents?",
+                          "Who approves leave requests in the fictional test documents?",
                       },
                       {
                         icon: FileText,
@@ -707,7 +655,10 @@ export default function App() {
                 </div>
               )}
               {messages.map((message, index) => (
-                <article className={`message ${message.role}`} key={index}>
+                <article
+                  className={`message ${message.role} ${index === shownIndex ? "traced" : ""}`}
+                  key={index}
+                >
                   <div className="message-author">
                     {message.role === "user" ? "YOU" : "NIRUTHI ASSISTANT"}
                   </div>
@@ -753,7 +704,7 @@ export default function App() {
                         <Button
                           variant="ghost"
                           key={`${citation.chunk_id}-${i}`}
-                          onClick={() => selectEvidence(citation)}
+                          onClick={() => selectEvidence(citation.chunk_id)}
                         >
                           <span>{i + 1}</span>
                           <FileText size={13} />
@@ -774,6 +725,20 @@ export default function App() {
                       {w}
                     </p>
                   ))}
+                  {message.role === "assistant" && message.trace && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="trace-toggle"
+                      aria-pressed={index === shownIndex}
+                      onClick={() => {
+                        setTraced(index);
+                        setMobileTab("trace");
+                      }}
+                    >
+                      <Route size={13} /> How this was answered
+                    </Button>
+                  )}
                 </article>
               ))}
               <div ref={end} />
@@ -830,11 +795,12 @@ export default function App() {
               receive no answer.
             </p>
           </TabsContent>
-          <TabsContent value="map" forceMount className="map-tab">
-            <GraphMap
-              graph={shownGraph}
-              onEvidence={selectEvidence}
-              previewing={Boolean(mentions)}
+          <TabsContent value="trace" forceMount className="map-tab">
+            <AnswerTrace
+              message={shownAnswer}
+              question={shownQuestion}
+              preview={typing}
+              onSource={selectEvidence}
             />
           </TabsContent>
         </Tabs>

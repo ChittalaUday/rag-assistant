@@ -1,4 +1,5 @@
 import type {
+  AnswerTrace,
   ChatResponse,
   Citation,
   Conversation,
@@ -6,6 +7,7 @@ import type {
   DocumentContent,
   Health,
   Message,
+  PreviewGraph,
   SearchPreview,
 } from "./types";
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
@@ -40,6 +42,13 @@ export const api = {
       body: JSON.stringify({ text, exclude_labels: excludeLabels }),
       signal,
     }),
+  languages: () => request<{ languages: string[] }>("/languages"),
+  graph: (excludeLabels: string[] = []) =>
+    request<PreviewGraph>("/graph", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exclude_labels: excludeLabels }),
+    }),
   source: (id: string) =>
     request<Citation>(`/sources/${encodeURIComponent(id)}`),
   conversations: () =>
@@ -72,6 +81,9 @@ export async function streamChat(
   onStatus: (message: string) => void,
   signal?: AbortSignal,
   excludeLabels: string[] = [],
+  onTrace?: (trace: AnswerTrace) => void,
+  onDraft?: (text: string) => void,
+  answerLanguage: string | null = null, // null: answer in the question's language
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE}/chat/stream`, {
     method: "POST",
@@ -80,6 +92,7 @@ export async function streamChat(
       question,
       conversation_id,
       exclude_labels: excludeLabels,
+      ...(answerLanguage ? { answer_language: answerLanguage } : {}),
     }),
     signal,
   });
@@ -111,8 +124,12 @@ export async function streamChat(
       throw new Error(String(value.message || "Model request failed"));
     if (event === "token" && typeof value.text === "string")
       onToken(value.text);
+    if (event === "draft" && typeof value.text === "string")
+      onDraft?.(value.text);
     if (event === "status" && typeof value.message === "string")
       onStatus(value.message);
+    if (event === "trace" && typeof value.search_text === "string")
+      onTrace?.(payload as AnswerTrace);
     if (event === "result") {
       if (
         typeof value.answer !== "string" ||

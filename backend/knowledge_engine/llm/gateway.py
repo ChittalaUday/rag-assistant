@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from knowledge_engine.llm.ollama import ModelClient
+from knowledge_engine.llm.ollama import ModelClient, OnText
 
 OnStart = Callable[[], Awaitable[None]]
 
@@ -24,6 +24,13 @@ class ModelGateway:
                 await on_start()
             return await asyncio.wait_for(self.client.embed(texts), timeout=self.timeout)
 
+    async def count_tokens(self, text: str) -> int:
+        async with self.lock:
+            return await asyncio.wait_for(self.client.count_tokens(text), timeout=self.timeout)
+
+    async def embedding_context(self) -> int:
+        return await asyncio.wait_for(self.client.embedding_context(), timeout=self.timeout)
+
     async def relevance(self, model: str, query: str, documents: list[str]) -> list[float]:
         async with self.lock:
             return await asyncio.wait_for(
@@ -38,11 +45,13 @@ class ModelGateway:
         max_tokens: int | None = None,
         think: bool = False,
         model: str | None = None,
+        on_text: OnText | None = None,
     ) -> dict[str, Any]:
         async with self.lock:
             if on_start:
                 await on_start()
+            streaming = {"on_text": on_text} if on_text else {}
             call = self.client.generate(
-                prompt, schema, max_tokens=max_tokens, think=think, model=model
+                prompt, schema, max_tokens=max_tokens, think=think, model=model, **streaming
             )
             return await asyncio.wait_for(call, timeout=self.timeout)

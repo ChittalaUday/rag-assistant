@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: setup env db-create migrate migrate-data dev check test evaluate ingest reindex export eval-retrieval eval-answers
+.PHONY: setup env db-create migrate migrate-data dev check test evaluate ingest reindex export eval-retrieval eval-answers eval-multilingual
 setup: env
 	uv sync --extra documents
 	npm --prefix frontend ci
@@ -48,3 +48,7 @@ eval-retrieval:
 	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation retrieval $(ARGS)
 eval-answers:
 	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation answers $(ARGS)
+# 46 questions in 12 Indian languages (same-language, English, romanised) over the fixtures plus
+# fixtures/multilingual (one fictional document per language).
+eval-multilingual:
+	PYTHONPATH=backend uv run --no-sync python -m knowledge_engine.evaluation answers --corpus fixtures/documents fixtures/testing fixtures/archive/northstar fixtures/multilingual --questions fixtures/multilingual-questions.json $(ARGS)

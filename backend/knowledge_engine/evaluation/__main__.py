@@ -109,10 +109,29 @@ def main() -> None:
     a.add_argument("--set", nargs="*", default=[], help="setting overrides KEY=VALUE")
     a.add_argument("--limit", type=int)
     a.add_argument("--out", type=Path)
+    ch = sub.add_parser("chunking", help="compare chunkers (engine and Chonkie) on retrieval")
+    ch.add_argument("--long-docs", type=Path, default=Path("work/chunk-bench/docs"))
+    ch.add_argument(
+        "--kinds",
+        nargs="+",
+        default=["structure", "hybrid", "chonkie-recursive", "chonkie-semantic"],
+        choices=["structure", "hybrid", "chonkie-recursive", "chonkie-semantic"],
+    )
+    ch.add_argument("--k", type=int, default=5)
+    ch.add_argument("--out", type=Path, default=Path("work/chunk-bench/results.json"))
     rs = sub.add_parser("rescore", help="score saved answers again with the current questions")
     rs.add_argument("results", nargs="+", type=Path, help="JSON files written by `answers`")
     rs.add_argument("--questions", nargs="+", default=[str(p) for p in ANSWER_QUESTIONS])
     args = parser.parse_args()
+    if args.stage == "chunking":
+        from knowledge_engine.evaluation.chunking import benchmark
+
+        dirs = [*DEFAULT_CORPUS, FIXTURES / "multilingual"]
+        results = asyncio.run(
+            benchmark(Settings(), dirs, args.long_docs, args.kinds, args.k, args.long_docs.parent)
+        )
+        args.out.write_text(json.dumps(results, ensure_ascii=False, indent=1))
+        return
     if args.stage == "rescore":
         cases = load_cases([Path(p) for p in args.questions])
         for path in args.results:

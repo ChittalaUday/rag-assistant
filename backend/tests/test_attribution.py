@@ -69,3 +69,9 @@ async def test_matches_without_shared_content_words_are_dropped():
     assert found == [["S1"]]
     assert shares_content("Acme.", "acme builds things")  # a one-word statement needs one match
     assert not shares_content("Mira leads Acme.", "Acme builds things")
+
+
+def test_an_answer_in_another_language_is_not_held_to_shared_words():
+    passage = "Headcount at the end of Q3 2026 was 148."
+    assert shares_content("नॉर्थस्टार में 148 कर्मचारी थे।", passage)
+    assert not shares_content("Mira leads Acme.", passage)  # same script, nothing shared

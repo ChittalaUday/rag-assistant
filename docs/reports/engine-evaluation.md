@@ -7,6 +7,76 @@ models (`qwen3.5:9b`, `all-minilm:l6-v2`) on 2026-10-08/09 with the shipped conf
 be regenerated with the commands shown. They are smoke metrics on small corpora, not a claim of semantic
 correctness.
 
+## 2026-10-09: Indian languages and chunking (UDA-94 phase 1, UDA-100)
+
+### Indian languages
+
+`make eval-multilingual`: 46 questions over the fixture corpus plus 12 fictional documents, one per
+language (Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Odia, Punjabi, Urdu,
+Assamese; `fixtures/multilingual/`): 24 asked in the document's language, 12 in English about an
+Indian-language document, 3 romanised (Hindi, Bengali, Tamil), 5 in Indian languages about English
+documents, 2 unanswerable. Keywords are numbers or native-script names; the scorer treats any script's
+digits and digit grouping alike (२१५ = 215, 2,00,000 = 200000).
+
+| Configuration | correct | native | English about Indic | romanised | Indic about English | flagged |
+|---|---|---|---|---|---|---|
+| before (commit e169724) | 0.761 | 0.625 | 0.917 | 0.667 | 1.000 | 0.652 |
+| fixes below, qwen3.5:9b | 0.848 | 0.750 | 1.000 | 0.667 | 1.000 | 0.022 |
+| same, gemma4:12b as answer model | **0.978** | **1.000** | 0.917 | **1.000** | 1.000 | 0.022 |
+
+Retrieval already found the right document for every question before the fixes (dense search is
+multilingual), but the text layer was broken for Indian scripts: Python's `\w` excludes combining
+marks, so every Indic word was cut at its vowel signs and viramas ("हिन्दी" → "ह", "नद") and accent
+folding deleted the marks. Keyword search, term coverage, the second hop and the sentence check saw
+nothing in those scripts. Fixed with one shared word pattern (letters, digits, every Unicode combining
+mark, ZWJ/ZWNJ) and accent folding for Latin letters only; spelling correction leaves non-Latin words
+alone (an inflected form is one edit from its stem). The answer prompt asks for the question's
+language; the sentence check no longer requires shared words across scripts (that alone flagged 65%
+of answers). With qwen3.5:9b six questions about people in Telugu, Gujarati, Kannada, Odia, Punjabi
+and Urdu were still answered in English; the prompt now names the question's script and a wrong-script
+answer gets one retry (unit-tested; its effect on the real models was not measured before the owner
+stopped the test runs). English is unchanged by these changes: 0.831 correct on the 124 questions
+before and after.
+
+**Answer model.** gemma4:12b (8.0 GB) answered 45 of 46 against 37 for qwen3.5:9b (6.6 GB), at about
+26 s against 16 s per answer in that run. Its English score was not measured (the run was stopped), so
+qwen3.5:9b remains the default and `KE_CHAT_MODEL=gemma4:12b` is the documented choice for
+Indian-language use; switching the default waits for the English comparison.
+
+**Embeddings.** embeddinggemma, qwen3-embedding:0.6b and bge-m3 all found the right document for every
+question (dense recall 1.000; MRR 0.951–0.977); with one document per language the set is too easy to
+separate them, so embeddinggemma (best on English) stays.
+
+### Chunking: structure, hybrid and Chonkie
+
+`python -m knowledge_engine.evaluation chunking`: 65 documents (the 29 fixtures plus 36 Wikipedia
+articles about Indian institutions and schemes in English, Hindi, Tamil and Bengali, up to 15,000
+characters each, fetched by `scripts/fetch_chunking_corpus.py` into `work/`), 144 questions generated
+from adjacent sentence pairs and kept only when both answer keywords occur verbatim in their sentences.
+Same embedding model, 700-character limit and hybrid search (no reranker, summaries or second hop) for
+every chunker; Chonkie (1.7.0) gets the engine's embedding model and Indian sentence delimiters.
+
+| Chunker | recall@5 | both facts in one retrieved chunk | both facts in one chunk (index) | chunks | avg chars | ingestion |
+|---|---|---|---|---|---|---|
+| **engine, structure (default)** | **1.000** | **1.000** | **1.000** | 1,014 | 536 | **47 s** |
+| engine, hybrid (`KE_CHUNKER=hybrid`) | 1.000 | 1.000 | 1.000 | 1,122 | 494 | 136 s |
+| Chonkie RecursiveChunker | 0.986 | 0.833 | 0.840 | 989 | 490 | 46 s |
+| Chonkie SemanticChunker | 0.958 | 0.639 | 0.646 | 1,783 | 272 | 213 s |
+
+Semantic chunking was not more accurate: Chonkie's semantic chunker split a third of the linked
+sentence pairs and made 75% more, smaller chunks at the highest ingestion cost. The engine's chunkers
+keep the last sentence of a chunk at the start of the next (overlap), which is most of why adjacent
+facts stay together. Structure and hybrid tie on this set (adjacent pairs are too easy for overlapping
+chunkers), so the cheaper structure chunker stays the default and hybrid remains a setting.
+
+Chunker fixes found while building the tests (each reproduced first): the danda and the Urdu full stop
+were not sentence ends, so Indian-language text was cut mid-sentence; a tiny tail could be folded into
+a chunk beyond the size limit (752 > 700 characters); a short final section was swallowed into the
+previous section's chunk under the wrong heading. Passages now also respect a hard token limit: the
+embedding model's window (2,048 tokens for embeddinggemma) minus 384 reserved for the context, counted
+with the model's own tokenizer for any passage longer than the budget in UTF-8 bytes and split at
+sentence ends when over.
+
 ## 2026-10-09: accuracy work (UDA-82)
 
 What changed, and what each change was worth, on one bigger test set and one scorer. The sections

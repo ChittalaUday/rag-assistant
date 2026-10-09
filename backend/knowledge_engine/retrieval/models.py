@@ -12,6 +12,7 @@ class QueryPlan:
     intent: str  # lookup | relationship | overview
     final_k: int
     corrections: dict[str, str] = field(default_factory=dict)  # misspelling -> corpus word
+    answer_language: str = ""  # a key of ANSWER_LANGUAGES; empty: the question's language
 
 
 @dataclass

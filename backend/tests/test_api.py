@@ -467,6 +467,10 @@ def test_document_progress_and_chat_status_stages(tmp_path):
         for stage in [*stages, "streaming"]:
             assert '"stage": "' + stage + '"' in stream
         assert stream.index('"stage": "validating"') < stream.index("event: token")
+        # the model's answer streams as drafts while it is generated, before it is validated
+        drafts = [json.loads(d)["text"] for d in re.findall(r"event: draft\ndata: (.*)\n", stream)]
+        assert drafts and drafts[-1] == "Mira leads Acme."
+        assert stream.index("event: draft") < stream.index('"stage": "validating"')
         result = json.loads(re.search(r"event: result\ndata: (.*)\n", stream).group(1))
         assert result["status"] == "answered" and result["trace"]["intent"] == "relationship"
 
@@ -497,7 +501,9 @@ def test_sse_disconnect_cancels_generation(tmp_path):
                 self.started = asyncio.Event()
                 self.cancelled = asyncio.Event()
 
-            async def generate(self, prompt, schema, max_tokens=None, think=False, model=None):
+            async def generate(
+                self, prompt, schema, max_tokens=None, think=False, model=None, on_text=None
+            ):
                 if "citation_ids" not in schema.get("properties", {}):
                     return await super().generate(prompt, schema)
                 self.started.set()
@@ -543,7 +549,7 @@ def test_health_reports_models_index_and_openapi_documents_responses(tmp_path):
         assert c.get("/api/documents/missing/content").json() == {"detail": "Document not found"}
         schemas = c.get("/openapi.json").json()["components"]["schemas"]
         assert {"ChatResponse", "AnswerTrace", "Document", "Health", "Preview"} <= set(schemas)
-        assert c.get("/api/graph").status_code == 404 and c.get("/api/entities").status_code == 404
+        assert c.get("/api/entities").status_code == 404
 
 
 def test_search_endpoint_exposes_retrieval_without_generating_an_answer(tmp_path):
@@ -600,3 +606,70 @@ def test_startup_does_not_block_when_more_documents_are_queued_than_the_queue_ho
     with TestClient(create_app(settings, FakeModel())) as c:  # restart: 5 queued > queue size 2
         for i in range(5):
             assert ready(c, f"q{i}")["status"] == "ready"
+
+
+class EnglishFirstModel(RecordingModel):
+    """Answers a Hindi question in English first, in Hindi when reminded."""
+
+    def answer(self, prompt):
+        hindi = "REMINDER: your previous answer was not in the language" in prompt
+        text = "मीरा एक्मे का नेतृत्व करती हैं।" if hindi else "Mira leads Acme."
+        return {"answer": text, "citation_ids": ["S1"], "status": "answered"}
+
+
+def test_a_question_in_an_indian_script_is_answered_in_it(tmp_path):
+    model = EnglishFirstModel()
+    with client(tmp_path, model) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        reply = c.post("/api/chat", json={"question": "एक्मे का नेतृत्व कौन करता है?"}).json()
+        assert reply["answer"] == "मीरा एक्मे का नेतृत्व करती हैं।"
+        assert "LANGUAGE: the QUESTION is written in Devanagari script" in model.answer_prompts()[0]
+        english = c.post("/api/chat", json={"question": "Who leads Acme?"}).json()
+        assert english["answer"] == "Mira leads Acme."  # Latin-script questions: no retry
+        assert "LANGUAGE:" not in model.answer_prompts()[-1]
+
+
+class TeluguWhenToldModel(RecordingModel):
+    """Answers in the question's language until reminded of the chosen one."""
+
+    def answer(self, prompt):
+        telugu = "REMINDER: your previous answer was not in Telugu" in prompt
+        text = "మీరా ఆక్మేకు నాయకత్వం వహిస్తారు." if telugu else "Mira leads Acme."
+        return {"answer": text, "citation_ids": ["S1"], "status": "answered"}
+
+
+def test_a_chosen_answer_language_overrides_the_question_language(tmp_path):
+    model = TeluguWhenToldModel()
+    with client(tmp_path, model) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        assert "Telugu" in c.get("/api/languages").json()["languages"]
+        body = {"question": "Who leads Acme?", "answer_language": "Telugu"}
+        reply = c.post("/api/chat", json=body).json()
+        assert reply["answer"] == "మీరా ఆక్మేకు నాయకత్వం వహిస్తారు."  # English reply retried
+        assert "write the whole answer in Telugu, in Telugu script" in model.answer_prompts()[0]
+        # a chosen language is enforced even when it is English and the question is not
+        model.prompts.clear()
+        english = c.post(
+            "/api/chat",
+            json={"question": "एक्मे का नेतृत्व कौन करता है?", "answer_language": "English"},
+        ).json()
+        assert english["answer"] == "Mira leads Acme."
+        assert "write the whole answer in English" in model.answer_prompts()[0]
+        assert len(model.answer_prompts()) == 1  # already English: no retry
+        bad = c.post("/api/chat", json={"question": "Who?", "answer_language": "Klingon"})
+        assert bad.status_code == 422
+
+
+def test_the_stream_sends_the_growing_trace_and_the_final_timings(tmp_path):
+    with client(tmp_path) as c:
+        ready(c, upload(c, "a.txt", "Mira leads Acme.")["id"])
+        stream = c.post("/api/chat/stream", json={"question": "Who leads Acme?"}).text
+        traces = [json.loads(m) for m in re.findall(r"event: trace\ndata: (.*)\n", stream)]
+        assert [len(t["passages"]) for t in traces] == [0, 1]  # understood, then retrieved
+        assert traces[0]["search_text"] == "Who leads Acme?" and "timings" not in traces[0]
+        assert stream.index("event: trace") < stream.index("event: token")
+        result = json.loads(re.search(r"event: result\ndata: (.*)\n", stream).group(1))
+        timings = result["trace"]["timings"]
+        stages = ("understand_ms", "retrieve_ms", "answer_ms", "check_ms")
+        assert set(timings) == {*stages, "total_ms"} and all(v >= 0 for v in timings.values())
+        assert sum(timings[k] for k in stages) <= timings["total_ms"] + 4  # rounding

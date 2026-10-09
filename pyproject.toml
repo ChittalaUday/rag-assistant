@@ -15,7 +15,10 @@ dependencies = [
 ]
 [project.optional-dependencies]
 documents = ["docling>=2.50,<3"]
-evaluation = ["lightrag-hku>=1.4,<2"]
+evaluation = [
+    "chonkie>=1.7.0",
+    "lightrag-hku>=1.4,<2",
+]
 [dependency-groups]
 dev = ["pytest>=8,<9", "pytest-asyncio>=0.25,<2", "ruff>=0.11,<1", "mypy>=1.15,<2", "pytest-cov>=6,<8"]
 [tool.pytest.ini_options]
@@ -32,6 +35,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # Prompt templates and test fixtures read better unwrapped.
 "backend/knowledge_engine/generation/prompt.py" = ["E501"]
 "backend/knowledge_engine/generation/attribution.py" = ["E501"]
+"backend/knowledge_engine/evaluation/chunking.py" = ["E501"]
 "backend/knowledge_engine/extraction/extractor.py" = ["E501"]
 "backend/tests/*" = ["E501"]
 [tool.mypy]

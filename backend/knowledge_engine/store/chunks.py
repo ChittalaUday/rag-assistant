@@ -1,12 +1,12 @@
 """Chunk storage and search: pgvector (dense) and full-text (sparse) retrieval, plus citations."""
 
-import re
 from dataclasses import dataclass
 from typing import Any
 
 from knowledge_engine.errors import AppError
 from knowledge_engine.provenance import source_urls
 from knowledge_engine.store.base import Db, Row, vector_literal
+from knowledge_engine.text import is_word
 
 
 @dataclass
@@ -63,6 +63,15 @@ class ChunkRepo:
             (document_id,),
         )
 
+    def all_texts(self, exclude_labels: list[str]) -> list[Row]:
+        """Every chunk's text with its document name, in document order."""
+        return self.db.rows(
+            "SELECT c.id, c.text, d.name AS document_name FROM chunks c "
+            "JOIN documents d ON d.id=c.document_id WHERE NOT (d.labels && %s::text[]) "
+            "ORDER BY d.name, c.position",
+            (exclude_labels,),
+        )
+
     def ids(self, document_id: str) -> list[str]:
         return [r["id"] for r in self.for_document(document_id)]
 
@@ -97,7 +106,7 @@ class ChunkRepo:
         self, terms: list[str], k: int, exclude_labels: list[str]
     ) -> list[tuple[str, float]]:
         """Chunks matching ANY query term, ranked by cover density (GIN full-text index)."""
-        words = [t for t in terms if re.fullmatch(r"\w+", t)]
+        words = [t for t in terms if is_word(t)]
         if not words:
             return []
         rows = self.db.rows(
@@ -112,7 +121,7 @@ class ChunkRepo:
 
     def doc_freq(self, terms: list[str]) -> dict[str, int]:
         """Number of chunks each term occurs in (for IDF weighting)."""
-        words = [t for t in terms if re.fullmatch(r"\w+", t)]
+        words = [t for t in terms if is_word(t)]
         if not words:
             return {}
         rows = self.db.rows(

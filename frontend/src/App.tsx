@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { Tabs as RadixTabs } from "radix-ui";
+import { Streamdown } from "streamdown";
+import "streamdown/styles.css";
 import {
   Dialog,
   DialogContent,
@@ -36,19 +39,24 @@ import {
   ArrowUpRight,
   Users,
   Route,
+  Tag,
 } from "lucide-react";
 import { api, streamChat } from "@/api/client";
 import { DocumentProgress } from "@/features/documents/Progress";
 import { DocumentReader } from "@/features/documents/DocumentReader";
 import { AnswerTrace } from "@/features/trace/AnswerTrace";
+import { KnowledgeGraph } from "@/features/graph/KnowledgeGraph";
 import type {
   Citation,
   Conversation,
   Document,
   Health,
   Message,
+  PreviewGraph,
   SearchPreview,
 } from "@/api/types";
+// complete response time: send to final answer in this browser, else the server's total
+const answeredIn = (m: Message) => m.response_ms ?? m.trace?.timings?.total_ms;
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : "An unexpected error occurred";
 function safeHttpUrl(input: string | null | undefined): string | null {
@@ -87,6 +95,16 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [preview, setPreview] = useState<SearchPreview | null>(null);
+  // every name and relation in the documents, shown before anything is typed
+  const [fullGraph, setFullGraph] = useState<PreviewGraph | null>(null);
+  // the graph of the last text previewed; kept after the question is sent
+  const [graph, setGraph] = useState<{
+    text: string;
+    graph: PreviewGraph;
+  } | null>(null);
+  // when the question being answered was sent, and a clock that ticks while it is answered
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   // index of the assistant message whose trace is shown; null: the latest answer
   const [traced, setTraced] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,6 +114,30 @@ export default function App() {
   const [evidence, setEvidence] = useState<Citation | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"chat" | "documents">("chat");
   const [mobileTab, setMobileTab] = useState("chat");
+  const [rightTab, setRightTab] = useState("trace");
+  // languages an answer can be asked for; "" (Auto): the question's language
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [answerLanguage, setAnswerLanguage] = useState(() => {
+    try {
+      return localStorage.getItem("answer-language") ?? "";
+    } catch {
+      return "";
+    }
+  });
+  useEffect(() => {
+    api
+      .languages()
+      .then((found) => setLanguages(found.languages))
+      .catch(() => undefined);
+  }, []);
+  const chooseLanguage = (language: string) => {
+    setAnswerLanguage(language);
+    try {
+      localStorage.setItem("answer-language", language);
+    } catch {
+      /* the choice still holds for this visit */
+    }
+  };
   const [includeSynthetic, setIncludeSynthetic] = useState(true);
   const [sidebar, setSidebar] = useState(false);
   const [reader, setReader] = useState<{ id: string; name: string } | null>(
@@ -150,7 +192,10 @@ export default function App() {
     const timer = setTimeout(() => {
       api
         .preview(text, controller.signal, includeSynthetic ? [] : ["synthetic"])
-        .then(setPreview)
+        .then((found) => {
+          setPreview(found);
+          if (found.graph) setGraph({ text, graph: found.graph });
+        })
         .catch(() => undefined);
     }, 250);
     return () => {
@@ -158,6 +203,30 @@ export default function App() {
       controller.abort();
     };
   }, [question, includeSynthetic]);
+  // rebuild the full graph when the set of processed documents changes
+  const readyDocs = documents
+    .filter((d) => d.status === "ready")
+    .map((d) => `${d.id}:${d.chunk_count}`)
+    .join(",");
+  useEffect(() => {
+    let current = true;
+    api
+      .graph(includeSynthetic ? [] : ["synthetic"])
+      .then((found) => current && setFullGraph(found))
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [readyDocs, includeSynthetic]);
+  useEffect(() => {
+    if (startedAt === null) return;
+    const timer = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(timer);
+  }, [startedAt]);
+  const elapsed =
+    startedAt === null
+      ? ""
+      : `${(Math.max(0, now - startedAt) / 1000).toFixed(1)} s`;
   const selectEvidence = useCallback((chunkId: string) => {
     const requestId = ++sourceRequest.current;
     setError("");
@@ -173,6 +242,99 @@ export default function App() {
         setError(`This source is no longer available. ${errorText(e)}`);
       });
   }, []);
+  const handleRelativeLink = useCallback(
+    (href: string, text: string) => {
+      if (!href) return;
+      const cleanHref = href
+        .replace(/^#doc-/, "")
+        .replace(/^#/, "")
+        .replace(/^doc:/, "")
+        .replace(/^\/documents\//, "")
+        .trim()
+        .toLowerCase();
+      const cleanText = text.trim().toLowerCase();
+
+      const targetDoc = documents.find((doc) => {
+        const nameLower = doc.name.toLowerCase();
+        const stem = nameLower.replace(/\.[^.]+$/, "");
+        return (
+          doc.id === href ||
+          nameLower === cleanHref ||
+          stem === cleanHref ||
+          nameLower === cleanText ||
+          stem === cleanText ||
+          nameLower.includes(cleanHref) ||
+          stem.includes(cleanHref)
+        );
+      });
+
+      if (targetDoc) {
+        setReader({ id: targetDoc.id, name: targetDoc.name });
+        return;
+      }
+
+      if (href.startsWith("#")) {
+        const targetId = href.slice(1);
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          targetEl.scrollIntoView({
+            behavior: reducedMotion ? "auto" : "smooth",
+          });
+        }
+      }
+    },
+    [documents, reducedMotion],
+  );
+  const streamdownComponents = useMemo(
+    () => ({
+      a: ({
+        href,
+        children,
+        ...props
+      }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        const isExternal =
+          Boolean(href) &&
+          (href!.startsWith("http://") || href!.startsWith("https://"));
+        const text = typeof children === "string" ? children : "";
+
+        if (!isExternal) {
+          return (
+            <a
+              href={href || "#"}
+              onClick={(e) => {
+                e.preventDefault();
+                handleRelativeLink(href || "", text);
+              }}
+              className="relative-tag-pill"
+              title={`View ${text || href}`}
+              {...props}
+            >
+              <Tag size={11} className="tag-icon" aria-hidden="true" />
+              <span>{children}</span>
+            </a>
+          );
+        }
+
+        return (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+            {...props}
+          >
+            <span>{children}</span>
+            <ArrowUpRight
+              size={11}
+              className="inline ml-0.5 opacity-70"
+              aria-hidden="true"
+            />
+          </a>
+        );
+      },
+    }),
+    [handleRelativeLink],
+  );
   async function action(work: () => Promise<unknown>) {
     setError("");
     setUploading(true);
@@ -192,6 +354,9 @@ export default function App() {
     setQuestion("");
     setError("");
     setBusy(true);
+    const sentAt = Date.now();
+    setStartedAt(sentAt);
+    setNow(Date.now());
     setStatus("Sending your question to the local API…");
     const original = messagesRef.current;
     setMessages([
@@ -207,10 +372,15 @@ export default function App() {
         conversationId,
         (token) => {
           setStatus("Displaying validated answer segments…");
+          // the validated answer replaces the streamed draft
           setMessages((current) =>
             current.map((m, i) =>
               i === current.length - 1
-                ? { ...m, content: m.content + token }
+                ? {
+                    ...m,
+                    content: m.drafting ? token : m.content + token,
+                    drafting: false,
+                  }
                 : m,
             ),
           );
@@ -218,6 +388,21 @@ export default function App() {
         setStatus,
         abort.current.signal,
         includeSynthetic ? [] : ["synthetic"],
+        (trace) =>
+          setMessages((current) =>
+            current.map((m, i) =>
+              i === current.length - 1 ? { ...m, trace } : m,
+            ),
+          ),
+        (draft) =>
+          setMessages((current) =>
+            current.map((m, i) =>
+              i === current.length - 1
+                ? { ...m, content: draft, drafting: true }
+                : m,
+            ),
+          ),
+        languages.includes(answerLanguage) ? answerLanguage : null,
       );
       setConversationId(result.conversation_id);
       setMessages([
@@ -231,6 +416,7 @@ export default function App() {
           status: result.status,
           statements: result.statements,
           trace: result.trace,
+          response_ms: Date.now() - sentAt,
         },
       ]);
       setConversations((await api.conversations()).conversations);
@@ -240,6 +426,7 @@ export default function App() {
       setError(errorText(e));
     } finally {
       setBusy(false);
+      setStartedAt(null);
       setStatus("");
     }
   }
@@ -289,7 +476,7 @@ export default function App() {
       ])
     : "";
   const answers = messages.flatMap((m, i) =>
-    m.role === "assistant" && m.content ? [i] : [],
+    m.role === "assistant" && (m.content || m.trace) ? [i] : [],
   );
   const shownIndex =
     traced !== null && messages[traced] ? traced : (answers.at(-1) ?? null);
@@ -580,7 +767,7 @@ export default function App() {
         <Tabs className="panels" value={mobileTab} onValueChange={setMobileTab}>
           <TabsList className="mobile-tabs" aria-label="Workspace panels">
             <TabsTrigger value="chat">Conversation</TabsTrigger>
-            <TabsTrigger value="trace">Answer trace</TabsTrigger>
+            <TabsTrigger value="trace">Trace & graph</TabsTrigger>
           </TabsList>
           <TabsContent value="chat" forceMount className="chat-panel">
             <header className="panel-header">
@@ -664,24 +851,38 @@ export default function App() {
                   </div>
                   <div className="answer-text">
                     {message.content ? (
-                      <>
-                        <span>{message.content}</span>
-                        {busy && index === messages.length - 1 && (
-                          <>
-                            <span
-                              className="streaming-cursor"
-                              aria-hidden="true"
-                            />
-                            <span
-                              className="sr-only"
-                              role="status"
-                              aria-label="Conversation progress"
-                            >
-                              {status}
-                            </span>
-                          </>
-                        )}
-                      </>
+                      message.role === "assistant" ? (
+                        <>
+                          {message.drafting && (
+                            <div className="draft-note" role="status">
+                              Writing… not yet checked against the sources
+                            </div>
+                          )}
+                          <Streamdown
+                            components={streamdownComponents}
+                            isAnimating={busy && index === messages.length - 1}
+                          >
+                            {message.content}
+                          </Streamdown>
+                          {busy && index === messages.length - 1 && (
+                            <>
+                              <span
+                                className="streaming-cursor"
+                                aria-hidden="true"
+                              />
+                              <span
+                                className="sr-only"
+                                role="status"
+                                aria-label="Conversation progress"
+                              >
+                                {status}
+                              </span>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <span dir="auto">{message.content}</span>
+                      )
                     ) : busy && index === messages.length - 1 ? (
                       <div
                         className="shimmer-loading"
@@ -691,6 +892,7 @@ export default function App() {
                         <span className="shimmer-pulse" />
                         <span className="shimmer-text">
                           {status || "Connecting sources and generating…"}
+                          {elapsed ? ` (${elapsed})` : ""}
                         </span>
                       </div>
                     ) : (
@@ -725,6 +927,12 @@ export default function App() {
                       {w}
                     </p>
                   ))}
+                  {message.role === "assistant" &&
+                    answeredIn(message) !== undefined && (
+                      <p className="response-time">
+                        Answered in {(answeredIn(message)! / 1000).toFixed(1)} s
+                      </p>
+                    )}
                   {message.role === "assistant" && message.trace && (
                     <Button
                       variant="ghost"
@@ -754,6 +962,7 @@ export default function App() {
                 Ask a question
               </label>
               <textarea
+                dir="auto"
                 id="question"
                 rows={2}
                 placeholder="Ask a question about your documents…"
@@ -771,6 +980,24 @@ export default function App() {
                 <span>
                   {busy ? status : "Grounded in your documents · Enter to send"}
                 </span>
+                {languages.length > 0 && (
+                  <select
+                    className="answer-language"
+                    aria-label="Answer language"
+                    value={
+                      languages.includes(answerLanguage) ? answerLanguage : ""
+                    }
+                    onChange={(e) => chooseLanguage(e.target.value)}
+                    disabled={busy}
+                  >
+                    <option value="">Auto · question&apos;s language</option>
+                    {languages.map((language) => (
+                      <option key={language} value={language}>
+                        {language}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -796,12 +1023,48 @@ export default function App() {
             </p>
           </TabsContent>
           <TabsContent value="trace" forceMount className="map-tab">
-            <AnswerTrace
-              message={shownAnswer}
-              question={shownQuestion}
-              preview={typing}
-              onSource={selectEvidence}
-            />
+            <RadixTabs.Root
+              className="right-tabs"
+              value={rightTab}
+              onValueChange={setRightTab}
+            >
+              <RadixTabs.List
+                className="right-tab-list"
+                aria-label="Insight panels"
+              >
+                {[
+                  ["trace", "Answer trace"],
+                  ["graph", "Knowledge graph"],
+                ].map(([value, label]) => (
+                  <RadixTabs.Trigger key={value} value={value}>
+                    {label}
+                    {rightTab === value && (
+                      <motion.span
+                        layoutId="right-tab-line"
+                        className="right-tab-line"
+                        transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                      />
+                    )}
+                  </RadixTabs.Trigger>
+                ))}
+              </RadixTabs.List>
+              <RadixTabs.Content value="trace" className="right-tab">
+                <AnswerTrace
+                  message={shownAnswer}
+                  question={shownQuestion}
+                  preview={typing}
+                  onSource={selectEvidence}
+                />
+              </RadixTabs.Content>
+              <RadixTabs.Content value="graph" className="right-tab">
+                <KnowledgeGraph
+                  full={fullGraph}
+                  live={graph?.graph ?? null}
+                  text={graph?.text ?? null}
+                  onSource={selectEvidence}
+                />
+              </RadixTabs.Content>
+            </RadixTabs.Root>
           </TabsContent>
         </Tabs>
       </main>
@@ -847,7 +1110,7 @@ export default function App() {
           {evidence?.quote && (
             <>
               <h3>Exact supporting passage</h3>
-              <blockquote>{evidence.quote}</blockquote>
+              <blockquote dir="auto">{evidence.quote}</blockquote>
             </>
           )}
           {evidence && (
@@ -867,7 +1130,7 @@ export default function App() {
             </Button>
           )}
           <h3>Source context</h3>
-          <pre>{evidence?.text}</pre>
+          <pre dir="auto">{evidence?.text}</pre>
         </DialogContent>
       </Dialog>
       <DocumentReader

@@ -6,6 +6,7 @@ questions are normalised the same way.
 
 import html
 import re
+import sys
 import unicodedata
 
 # Closed-class English words. Lexical overlap on these inflates irrelevant chunks
@@ -74,15 +75,80 @@ def _compact_table_row(line: str) -> str:
     return "| " + " | ".join(cells) + " |"
 
 
+def _mark_ranges() -> str:
+    """Every combining mark (Unicode category M*) as a regex character class body."""
+    marks = [c for c in range(0x300, sys.maxunicode + 1) if unicodedata.category(chr(c))[0] == "M"]
+    ranges: list[str] = []
+    start = prev = marks[0]
+    for c in [*marks[1:], -1]:
+        if c != prev + 1:
+            ranges.append(
+                re.escape(chr(start)) + ("-" + re.escape(chr(prev)) if prev > start else "")
+            )
+            start = c
+        prev = c
+    return "".join(ranges)
+
+
+# A word: letters, digits and the combining marks inside them (Indic vowel signs, viramas, nukta;
+# Arabic harakat) plus the zero-width (non-)joiners that shape Indic conjuncts. Python's \w alone
+# would cut "हिन्दी" into "ह" and "नद".
+_MARKS = _mark_ranges()
+WORD = re.compile(rf"[\w{_MARKS}\u200c\u200d]+")
+_LATIN = re.compile(r"[A-Za-z\u00c0-\u024f\u1e00-\u1eff]")
+
+
+def words(text: str) -> list[str]:
+    return WORD.findall(text)
+
+
+def is_word(text: str) -> bool:
+    return WORD.fullmatch(text) is not None
+
+
+def is_latin(word: str) -> bool:
+    return _LATIN.match(word) is not None
+
+
+# Languages an answer can be asked for, with the script each is written in (used to check the
+# answer came back in it). With none chosen, answers follow the language of the question.
+ANSWER_LANGUAGES = {
+    "English": "LATIN",
+    "Hindi": "DEVANAGARI",
+    "Marathi": "DEVANAGARI",
+    "Bengali": "BENGALI",
+    "Assamese": "BENGALI",
+    "Odia": "ORIYA",
+    "Punjabi": "GURMUKHI",
+    "Gujarati": "GUJARATI",
+    "Tamil": "TAMIL",
+    "Telugu": "TELUGU",
+    "Kannada": "KANNADA",
+    "Malayalam": "MALAYALAM",
+    "Urdu": "ARABIC",
+}
+
+
+def script_of(text: str) -> str:
+    """The script most letters of the text are written in ("LATIN", "DEVANAGARI", "TAMIL", ...)."""
+    counts: dict[str, int] = {}
+    for c in text:
+        if c.isalpha():
+            name = unicodedata.name(c, "")
+            script = name.split(" ", 1)[0] if name else ""
+            counts[script] = counts.get(script, 0) + 1
+    return max(counts, key=lambda k: counts[k]) if counts else ""
+
+
 def content_terms(text: str) -> set[str]:
     """Lower-cased word tokens with stopwords and single characters dropped."""
-    return {t for t in re.findall(r"\w+", text.casefold()) if t not in STOPWORDS and len(t) > 1}
+    return {t for t in words(text.casefold()) if t not in STOPWORDS and len(t) > 1}
 
 
 def ordered_terms(text: str) -> list[str]:
     """Distinct content terms in first-seen order (stable queries and traces)."""
     seen: dict[str, None] = {}
-    for t in re.findall(r"\w+", text.casefold()):
+    for t in words(text.casefold()):
         if t not in STOPWORDS and len(t) > 1:
             seen.setdefault(t)
     return list(seen)
@@ -97,14 +163,23 @@ def _singular(token: str) -> str:
 
 
 def token_forms(text: str) -> list[str]:
-    """Matching tokens: accent-folded, casefolded, '&' as 'and', plural-folded.
+    """Matching tokens: casefolded, '&' as 'and', plural-folded, and accent-folded for Latin letters
+    only ("Cafés" -> "cafe"); the marks of other scripts are part of their letters and stay.
 
     Used on both sides of a term comparison; the forms are keys, never shown to users.
     """
-    text = unicodedata.normalize("NFKD", html.unescape(text))
-    text = "".join(c for c in text if not unicodedata.combining(c)).casefold()
-    text = text.replace("&", " and ")
-    return [_singular(t) for t in re.findall(r"\w+", text)]
+    decomposed = unicodedata.normalize("NFKD", html.unescape(text))
+    kept: list[str] = []
+    base = ""
+    for c in decomposed:
+        if unicodedata.combining(c):
+            if not _LATIN.match(base):
+                kept.append(c)
+        else:
+            base = c
+            kept.append(c)
+    text = unicodedata.normalize("NFC", "".join(kept)).casefold().replace("&", " and ")
+    return [_singular(t) for t in words(text)]
 
 
 def clean_labels(labels: list[str] | None) -> list[str]:

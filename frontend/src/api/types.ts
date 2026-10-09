@@ -50,14 +50,42 @@ export interface AnswerTrace {
   reranked: boolean;
   bridge_terms: string[];
   passages: TracePassage[];
+  // milliseconds per stage; absent while the answer is still being produced
+  timings?: {
+    understand_ms: number;
+    retrieve_ms: number;
+    answer_ms: number;
+    check_ms: number;
+    total_ms: number;
+  };
 }
 // Passages a question being typed is likely to draw on (keyword search, no model call).
+export interface GraphEntity {
+  id: string;
+  name: string;
+  typed: boolean;
+  found: boolean;
+}
+export interface GraphRelation {
+  source: string;
+  target: string;
+  label: string;
+  chunk_id: string;
+  document: string;
+  quote: string;
+  script?: string; // script most of its document is written in ("LATIN", "TELUGU", ...)
+}
+export interface PreviewGraph {
+  entities: GraphEntity[];
+  relations: GraphRelation[];
+}
 export interface SearchPreview {
   passages: Pick<
     TracePassage,
     "chunk_id" | "document_id" | "document" | "heading"
   >[];
   corrections: Record<string, string>;
+  graph?: PreviewGraph;
 }
 export type AnswerStatus =
   "answered" | "insufficient_evidence" | "conflicting_evidence";
@@ -79,6 +107,11 @@ export interface Message {
   status?: AnswerStatus;
   statements?: Statement[];
   trace?: AnswerTrace;
+  // UI only: the model's unvalidated text, streamed while it is generated
+  drafting?: boolean;
+  // UI only: send to final answer as this browser saw it (answers from history fall back to
+  // the server's trace.timings.total_ms)
+  response_ms?: number;
 }
 export interface Conversation {
   id: string;

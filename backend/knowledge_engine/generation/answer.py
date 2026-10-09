@@ -5,6 +5,7 @@ sentence to the passages that state it (completing the citations), and code deri
 notices. An answer without a valid citation is never published silently.
 """
 
+import json
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -16,13 +17,38 @@ from knowledge_engine.generation.attribution import attribute, split_statements
 from knowledge_engine.generation.prompt import build_prompt
 from knowledge_engine.reasoning.evidence import Evidence
 from knowledge_engine.retrieval.models import QueryPlan
+from knowledge_engine.text import ANSWER_LANGUAGES, script_of
 
 Notify = Callable[[str, str], Awaitable[None]]
+Draft = Callable[[str], Awaitable[None]]  # the answer text so far, before any validation
+_ANSWER_KEY = re.compile(r'"answer"\s*:\s*"')
 NO_EVIDENCE = "I could not find supporting evidence in the uploaded documents."
 RETRY_NOTE = (
     "REMINDER: your previous reply cited no valid passage. Cite the SOURCE aliases (S1, S2, ...) "
     "that support each statement, or set status to insufficient_evidence if nothing supports it."
 )
+
+
+def language_reminder(language: str) -> str:
+    """Retry note after an answer came back in the wrong language."""
+    if language:
+        return (
+            f"REMINDER: your previous answer was not in {language}. Write the whole answer in "
+            f"{language}; keep names and numbers as in the passages."
+        )
+    return (
+        "REMINDER: your previous answer was not in the language of the QUESTION. Write the whole "
+        "answer in the question's language and script; keep names and numbers as in the passages."
+    )
+
+
+def wrong_language(question: str, answer: str, language: str = "") -> bool:
+    """The answer is not in the script of the language asked for or, with none asked for, a
+    question in a non-Latin script was answered in another script (usually English)."""
+    expected = ANSWER_LANGUAGES[language] if language else script_of(question)
+    if not language and expected == "LATIN":
+        return False
+    return bool(answer) and bool(expected) and script_of(answer) != expected
 
 
 _LEAD_IN = r"(?:according to|as stated in|as described in|as per|per|based on|from|in)"
@@ -51,7 +77,7 @@ def strip_document_names(text: str, names: list[str]) -> str:
                 "\x00",
                 text,
             )
-        text = re.sub(rf"(?i)\s*[(\[]\s*{full}\s*[)\]]", "", text)
+        text = re.sub(rf"(?i)\s*[(\[]\s*{full}\s*[)\]](?!\()", "", text)
     # a removed lead-in that opened a sentence leaves the next word to be capitalised
     text = re.sub(r"(^|(?<=[.!?]\s)|(?<=\n))\x00(\w)", lambda m: m[1] + m[2].upper(), text)
     return text.replace("\x00", "").strip()
@@ -67,6 +93,21 @@ class Generated:
     statements: list[dict[str, Any]] = field(default_factory=list)
 
 
+def draft_answer(raw: str) -> str:
+    """The "answer" string of a JSON object still being generated, as far as it has come."""
+    key = _ANSWER_KEY.search(raw)
+    if not key:
+        return ""
+    end = key.end()
+    while end < len(raw) and raw[end] != '"':
+        end += 2 if raw[end] == "\\" else 1
+    body = re.sub(r"\\(u[0-9a-fA-F]{0,3})?$", "", raw[key.end() : end])  # escape cut mid-way
+    try:
+        return str(json.loads(f'"{body}"', strict=False))
+    except ValueError:
+        return ""
+
+
 async def _ask(
     ctx: AppContext,
     plan: QueryPlan,
@@ -74,6 +115,7 @@ async def _ask(
     ev: Evidence,
     notify: Notify,
     extra: str,
+    draft: Draft | None = None,
 ) -> dict[str, Any]:
     prompt, schema = build_prompt(plan, history, ev, extra, ctx.settings.answer_thinking)
     if ctx.model.lock.locked():
@@ -82,18 +124,39 @@ async def _ask(
     async def started() -> None:
         await notify("generating", "Generating an answer from the selected source passages")
 
-    raw = await ctx.model.generate(prompt, schema, started, think=ctx.settings.answer_thinking)
+    shown = ""
+
+    async def on_text(output: str) -> None:
+        nonlocal shown
+        text = draft_answer(output)
+        if draft and text != shown:
+            shown = text
+            await draft(text)
+
+    raw = await ctx.model.generate(
+        prompt,
+        schema,
+        started,
+        think=ctx.settings.answer_thinking,
+        on_text=on_text if draft else None,
+    )
     if "citation_ids" not in raw:
         raise ValueError("Model omitted required citation_ids; answer was not published")
     return raw
 
 
 async def generate_answer(
-    ctx: AppContext, plan: QueryPlan, history: list[dict[str, Any]], ev: Evidence, notify: Notify
+    ctx: AppContext,
+    plan: QueryPlan,
+    history: list[dict[str, Any]],
+    ev: Evidence,
+    notify: Notify,
+    draft: Draft | None = None,
 ) -> Generated:
+    """`draft` receives the first attempt's answer text as it is generated (unvalidated)."""
     if not ev.sources:
         return Generated()
-    raw = await _ask(ctx, plan, history, ev, notify, "")
+    raw = await _ask(ctx, plan, history, ev, notify, "", draft)
     by_alias = {s.alias: s for s in ev.sources}
 
     def valid_ids(r: dict[str, Any]) -> list[str]:
@@ -103,6 +166,14 @@ async def generate_answer(
     if not valid_ids(raw) and not abstained:
         raw = await _ask(ctx, plan, history, ev, notify, RETRY_NOTE)  # one corrective retry
         abstained = raw.get("status") == "insufficient_evidence"
+    elif wrong_language(plan.question, str(raw.get("answer", "")), plan.answer_language):
+        retry = await _ask(
+            ctx, plan, history, ev, notify, language_reminder(plan.answer_language)
+        )  # one retry, kept if valid
+        if valid_ids(retry) and not wrong_language(
+            plan.question, str(retry.get("answer", "")), plan.answer_language
+        ):
+            raw, abstained = retry, retry.get("status") == "insufficient_evidence"
     await notify("validating", "Checking the citations")
     out = Generated()
     cited = valid_ids(raw)

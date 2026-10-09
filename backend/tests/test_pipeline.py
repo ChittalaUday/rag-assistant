@@ -104,3 +104,30 @@ async def test_wrong_embedding_size_fails_the_document_clearly(tmp_path):
     d = ctx.store.documents.get(id)
     assert d["status"] == "failed" and "384 dimensions" in d["error"]
     ctx.store.close()
+
+
+async def test_passages_over_the_embedding_token_limit_are_split_at_sentence_ends(tmp_path):
+    class Counting(Situating):
+        def __init__(self):
+            super().__init__()
+            self.counted = []
+
+        async def count_tokens(self, text):
+            self.counted.append(text)
+            return await super().count_tokens(text)  # bytes // 3: one token per Indic letter
+
+    model = Counting()
+    # window 500 - 384 reserved = 116 tokens per passage
+    ctx = make_ctx(tmp_path, model, embedding_max_tokens=500)
+    hindi = "समिति के 340 सदस्य हैं। " * 30
+    id = await index_text(ctx, "hi.md", hindi)
+    rows = ctx.store.chunks.for_document(id)
+    assert len(rows) > 1
+    for row in rows:
+        assert len(row["text"].encode()) // 3 <= 116  # every passage fits
+        assert row["text"].rstrip().endswith("।")  # cut at a sentence end
+    assert any("split to fit" in w for w in ctx.store.documents.get(id)["warnings"])
+    model.counted.clear()
+    await index_text(ctx, "en.md", "Mira leads Acme. " * 5)  # 85 bytes: cannot exceed 116 tokens
+    assert model.counted == []
+    ctx.store.close()

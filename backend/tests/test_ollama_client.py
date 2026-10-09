@@ -1,3 +1,5 @@
+import json as json_module
+
 import httpx
 import pytest
 from knowledge_engine.config import Settings
@@ -24,6 +26,22 @@ class FakeClient:
         FakeClient.calls.append({"url": url, **json})
         status, body = FakeClient.script.pop(0)
         return httpx.Response(status, json=body, request=httpx.Request("POST", url))
+
+    def stream(self, method, url, json):
+        """Streams the scripted body as newline-delimited JSON, the way Ollama streams."""
+        FakeClient.calls.append({"url": url, **json})
+        status, parts = FakeClient.script.pop(0)
+        lines = "\n".join(json_module.dumps(p) for p in parts).encode()
+        response = httpx.Response(status, content=lines, request=httpx.Request(method, url))
+
+        class Streamed:
+            async def __aenter__(self):
+                return response
+
+            async def __aexit__(self, *exc):
+                return None
+
+        return Streamed()
 
 
 @pytest.fixture(autouse=True)
@@ -62,3 +80,36 @@ async def test_generation_budget_scales_with_the_requested_output_size():
 def test_ollama_must_be_on_loopback():
     with pytest.raises(ValueError, match="loopback"):
         Ollama(Settings(ollama_url="http://example.com:11434"))
+
+
+async def test_generation_streams_the_text_so_far_when_asked_and_skips_thinking():
+    FakeClient.script = [
+        (
+            200,
+            [
+                {"message": {"thinking": "hmm", "content": ""}},
+                {"message": {"content": '{"answer": "Mi'}},
+                {"message": {"content": 'ra"}'}},
+                {"done": True},
+            ],
+        )
+    ]
+    seen: list[str] = []
+
+    async def on_text(text: str) -> None:
+        seen.append(text)
+
+    value = await Ollama(Settings()).generate("q", {"type": "object"}, on_text=on_text)
+    assert value == {"answer": "Mira"}
+    assert seen == ['{"answer": "Mi', '{"answer": "Mira"}']
+    assert FakeClient.calls[0]["stream"] is True
+
+
+async def test_a_model_error_mid_stream_fails_loudly():
+    FakeClient.script = [(200, [{"message": {"content": "{"}}, {"error": "out of memory"}])]
+
+    async def on_text(text: str) -> None:
+        pass
+
+    with pytest.raises(ValueError, match="out of memory"):
+        await Ollama(Settings()).generate("q", {"type": "object"}, on_text=on_text)

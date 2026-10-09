@@ -11,10 +11,10 @@ from typing import Any
 
 from knowledge_engine.context import AppContext
 from knowledge_engine.reasoning.evidence import Source
-from knowledge_engine.text import STOPWORDS, token_forms
+from knowledge_engine.text import STOPWORDS, script_of, token_forms
 
 INSTRUCTION = """For each numbered STATEMENT, list every SOURCE passage that supports it.
-- A passage supports a statement when it states at least one of the facts the statement contains, with the same meaning (the wording may differ). A statement that combines facts from several passages lists all of them.
+- A passage supports a statement when it states at least one of the facts the statement contains, with the same meaning (the wording and the language may differ). A statement that combines facts from several passages lists all of them.
 - A passage that only mentions the same name or topic without stating any of its facts does not count.
 - A statement with no factual claim of its own (for example "The passages disagree." or an introduction to a list) gets an empty list.
 - Judge only from the passage text; never use outside knowledge.
@@ -86,7 +86,10 @@ def split_statements(text: str) -> list[str]:
 def shares_content(statement: str, passage: str) -> bool:
     """A cheap guard on the model's matches: the passage must contain at least two of the
     statement's content words (one, if the statement has only one). It drops matches such as a
-    boilerplate passage that states none of the statement's facts."""
+    boilerplate passage that states none of the statement's facts. A statement in another script
+    than the passage (an answer in the question's language) cannot be checked this way."""
+    if script_of(statement) != script_of(passage):
+        return True  # an answer in another language than the passage shares no words to check
     terms = {t for t in token_forms(statement) if len(t) > 2 and t not in STOPWORDS}
     found = terms & set(token_forms(passage))
     return len(found) >= min(2, len(terms))

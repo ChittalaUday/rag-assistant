@@ -7,6 +7,7 @@ paraphrase; they are smoke metrics for comparing configurations, not a measure o
 
 import re
 import time
+import unicodedata
 from collections import defaultdict
 from typing import Any
 
@@ -27,6 +28,16 @@ _ABSTAINED = re.compile(
 )
 
 
+def comparable(text: str) -> str:
+    """For keyword matching across scripts: NFC, case-folded, any script's digits as 0-9, digit
+    grouping removed ("২১৫" == "215", "25000" == "25,000" == "2,00,000"-style lakh grouping)."""
+    text = unicodedata.normalize("NFC", text).casefold()
+    text = "".join(
+        str(unicodedata.decimal(c)) if c.isdecimal() and not c.isascii() else c for c in text
+    )
+    return re.sub(r"(?<=\d)[,\u066c](?=\d)", "", text)
+
+
 def abstained(answer: str, status: str) -> bool:
     return status == "insufficient_evidence" or bool(_ABSTAINED.search(answer))
 
@@ -36,8 +47,8 @@ def score(
 ) -> dict[str, Any]:
     """correct: an unanswerable question is declined; otherwise every expected keyword is in the
     answer and at least one expected document is cited. strict: also every expected document."""
-    text = answer.casefold()
-    missing = [k for k in case.keywords if k.casefold() not in text]
+    text = comparable(answer)
+    missing = [k for k in case.keywords if comparable(k) not in text]
     declined = abstained(answer, status)
     if case.type in UNANSWERABLE:
         correct = strict = declined

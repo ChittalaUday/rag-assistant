@@ -260,3 +260,18 @@ async def test_a_failing_reranker_falls_back_to_feature_ranking(tmp_path):
     assert doc_of(ctx, result.selected[0].chunk_id) == "roster.md"
     assert result.trace["reranked"] is False
     ctx.store.close()
+
+
+async def test_indian_language_text_is_searched_by_whole_words_and_never_spell_corrected(tmp_path):
+    ctx = make_ctx(tmp_path)
+    await index_text(ctx, "hi.md", "# जल समिति\n\nसमिति के 340 सदस्य हैं और अध्यक्ष सुनीता वर्मा हैं।\n")
+    await index_text(ctx, "en.md", "# Holidays\n\nThe holiday calendar lists public holidays.\n")
+    found = ctx.store.chunks.sparse(["सदस्य", "अध्यक्ष"], 5, [])
+    assert [doc_of(ctx, chunk_id) for chunk_id, _ in found] == ["hi.md"]
+    question = "समीति के कितने सदस्य हैं?"  # misspelt (ी for ि): searched as typed, not "corrected"
+    assert correct_spelling(ctx.store, question) == (question, {})
+    plan = await analyze(ctx, "समिति के कितने सदस्य हैं?", [], quiet)
+    assert plan.terms == ["समिति", "के", "कितने", "सदस्य", "हैं"]
+    result = await retrieve(ctx, plan, [], quiet)
+    assert doc_of(ctx, result.selected[0].chunk_id) == "hi.md"
+    ctx.store.close()

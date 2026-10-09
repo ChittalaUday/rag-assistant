@@ -37,6 +37,8 @@ vi.mock("@/api/client", () => ({
     documents: vi.fn(),
     documentContent: vi.fn(),
     preview: vi.fn(),
+    graph: vi.fn(),
+    languages: vi.fn(),
     conversations: vi.fn(),
     source: vi.fn(),
     upload: vi.fn(),
@@ -60,6 +62,10 @@ beforeEach(() => {
   vi.mocked(api.documents).mockResolvedValue({ documents: [] });
   vi.mocked(api.conversations).mockResolvedValue({ conversations: [] });
   vi.mocked(api.preview).mockResolvedValue({ passages: [], corrections: {} });
+  vi.mocked(api.graph).mockResolvedValue({ entities: [], relations: [] });
+  vi.mocked(api.languages).mockResolvedValue({
+    languages: ["English", "Telugu"],
+  });
 });
 const TRACE: import("@/api/types").AnswerTrace = {
   search_text: "q",
@@ -441,6 +447,38 @@ it("shows backend conversation stages before displaying validated answer segment
   ).not.toBeInTheDocument();
 });
 
+it("streams the model's draft, marked unchecked, until the validated answer replaces it", async () => {
+  const pending = deferred<import("@/api/types").ChatResponse>();
+  let emitDraft!: (text: string) => void;
+  let emitToken!: (text: string) => void;
+  vi.mocked(streamChat).mockImplementation(
+    (_q, _id, onToken, _onStatus, _signal, _labels, _onTrace, onDraft) => {
+      emitDraft = onDraft!;
+      emitToken = onToken;
+      return pending.promise;
+    },
+  );
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  await userEvent.type(screen.getByLabelText("Ask a question"), "Who?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  act(() => emitDraft("Mira le"));
+  act(() => emitDraft("Mira leads Acme"));
+  expect(
+    screen.getByText(/not yet checked against the sources/),
+  ).toBeInTheDocument();
+  // the conversation bubble (the mocked trace panel echoes the text too)
+  expect(document.querySelector(".message.assistant")).toHaveTextContent(
+    "Mira leads Acme",
+  );
+  act(() => emitToken("Validated."));
+  expect(screen.queryByText(/not yet checked/)).not.toBeInTheDocument();
+  expect(document.querySelector(".message.assistant")).toHaveTextContent(
+    /^NIRUTHI ASSISTANT\s*Validated\./,
+  );
+  await act(async () => pending.resolve(reply("Validated.")));
+});
+
 it("suggested prompts populate the composer without fabricating an answer", async () => {
   render(<App />);
   await screen.findByText(/Ollama is unavailable/);
@@ -589,4 +627,127 @@ it("lists the likely sources while a question is typed", async () => {
   await waitFor(() =>
     expect(screen.getByText("likely: none")).toBeInTheDocument(),
   );
+});
+
+it("renders assistant markdown with headings, tables, lists, and relative tags using Streamdown", async () => {
+  const markdownAnswer = `### Policy Summary
+
+Here is the table:
+
+| Parameter | Value |
+| --- | --- |
+| Max Leave | 18 days |
+
+- First item
+- Second item
+
+See [Keka PMS](#keka-pms) for details.`;
+
+  vi.mocked(api.conversations).mockResolvedValue({
+    conversations: [
+      {
+        id: "c-md",
+        title: "Markdown Test",
+        created_at: new Date().toISOString(),
+      },
+    ],
+  });
+  vi.mocked(api.conversation).mockResolvedValue({
+    id: "c-md",
+    messages: [
+      { role: "user", content: "Format test" },
+      {
+        role: "assistant",
+        content: markdownAnswer,
+        citations: [],
+        warnings: [],
+        status: "answered",
+        statements: [],
+      },
+    ],
+  });
+
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+
+  const convButton = await screen.findByRole("button", {
+    name: "Markdown Test",
+  });
+  await userEvent.click(convButton);
+
+  expect(
+    await screen.findByRole("heading", { name: "Policy Summary" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("table")).toBeInTheDocument();
+  expect(screen.getByText("Max Leave")).toBeInTheDocument();
+  expect(screen.getByText("First item")).toBeInTheDocument();
+  const tagLink = screen.getByTitle("View Keka PMS");
+  expect(tagLink).toBeInTheDocument();
+  expect(tagLink).toHaveClass("relative-tag-pill");
+});
+
+it("shows the complete response time under each answer", async () => {
+  const pending = deferred<import("@/api/types").ChatResponse>();
+  vi.mocked(streamChat).mockReturnValue(pending.promise);
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  await userEvent.type(screen.getByLabelText("Ask a question"), "Who?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  expect(screen.queryByText(/Answered in/)).not.toBeInTheDocument();
+  await act(async () => pending.resolve(reply("Mira leads Acme.")));
+  // measured in the browser, from send to the final answer
+  expect(screen.getByText(/^Answered in \d+\.\d s$/)).toBeInTheDocument();
+});
+
+it("shows the server's total time for answers loaded from history", async () => {
+  historyFixture();
+  vi.mocked(api.conversation).mockResolvedValue({
+    id: "a",
+    messages: [
+      {
+        role: "assistant",
+        content: "Old answer",
+        trace: {
+          ...TRACE,
+          timings: {
+            understand_ms: 1,
+            retrieve_ms: 1,
+            answer_ms: 1,
+            check_ms: 1,
+            total_ms: 12345,
+          },
+        },
+      },
+    ],
+  });
+  render(<App />);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "History A" }),
+  );
+  expect(await screen.findByText("Answered in 12.3 s")).toBeInTheDocument();
+});
+
+it("answers in the question's language unless an answer language is chosen", async () => {
+  try {
+    localStorage.removeItem("answer-language");
+  } catch {
+    /* no storage in this environment */
+  }
+  vi.mocked(streamChat).mockResolvedValue(reply("Answer"));
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  const picker = await screen.findByRole("combobox", {
+    name: "Answer language",
+  });
+  expect(picker).toHaveValue(""); // Auto
+  const input = screen.getByLabelText("Ask a question");
+  await userEvent.type(input, "Who?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await screen.findByText("Answer");
+  expect(vi.mocked(streamChat).mock.calls[0][8]).toBeNull();
+  await userEvent.selectOptions(picker, "Telugu");
+  await userEvent.type(input, "Who again?");
+  await userEvent.click(screen.getByRole("button", { name: "Send question" }));
+  await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(streamChat).mock.calls[1][8]).toBe("Telugu");
 });

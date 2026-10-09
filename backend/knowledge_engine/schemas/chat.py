@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from knowledge_engine.schemas.sources import Citation
+from knowledge_engine.text import ANSWER_LANGUAGES
 
 AnswerStatus = Literal["answered", "insufficient_evidence", "conflicting_evidence"]
 
@@ -12,6 +13,15 @@ class Question(BaseModel):
     conversation_id: str | None = None
     # documents carrying any of these labels are left out of retrieval (e.g. ["synthetic"])
     exclude_labels: list[str] = Field(default_factory=list, max_length=20)
+    # answer in this language (a name from GET /languages); None: in the question's language
+    answer_language: str | None = None
+
+    @field_validator("answer_language")
+    @classmethod
+    def known_language(cls, value: str | None) -> str | None:
+        if value is not None and value not in ANSWER_LANGUAGES:
+            raise ValueError(f"must be one of {', '.join(ANSWER_LANGUAGES)}")
+        return value
 
     @field_validator("question")
     @classmethod
@@ -59,6 +69,8 @@ class AnswerTrace(BaseModel):
     reranked: bool = False
     bridge_terms: list[str] = []
     passages: list[TracePassage] = []
+    # milliseconds per stage: understand, retrieve, answer, check, total (absent while streaming)
+    timings: dict[str, int] = {}
 
 
 class ChatResponse(BaseModel):

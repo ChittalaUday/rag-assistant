@@ -10,8 +10,19 @@ import re
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 
-_SENTENCE_END = re.compile(r"[.!?](?:\s+|$)|\n")
+# sentence ends in Latin and Indian scripts: . ! ? the danda (। ॥) and the Urdu full stop and
+# question mark (۔ ؟); a line break also ends a unit (lists, table rows)
+_SENTENCE_END = re.compile(r"[.!?\u0964\u0965\u06d4\u061f](?:\s+|$)|\n")
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(\S.*)$")  # closing hashes and spaces are trimmed in code
+# a sentence that opens with one of these refers back to the one before it: keep them together.
+# English and a few frequent Indian-language pronouns/demonstratives; similarity covers the rest.
+_REFERS_BACK = re.compile(
+    r"^\W*(he|she|it|its|they|them|their|his|her|this|that|these|those|such|both|the former|"
+    r"the latter|वह|यह|वे|ये|उन्होंने|उसने|इसके|उसके|इसकी|उसकी|इसे|उसे|তিনি|এটি|সেটি|তারা|"
+    r"এই|সেই|அவர்|இது|அது|இவை|அவை|ఆయన|ఆమె|ఇది|అది|ಅವರು|ಇದು|ಅದು|അദ്ദേഹം|ഇത്|അത്)\b",
+    re.IGNORECASE,
+)
+LENGTH_WEIGHT = 0.3  # how much a later cut is preferred when topic changes are alike
 
 
 @dataclass(frozen=True)
@@ -68,9 +79,35 @@ def _table_header(text: str, start: int, firsts: dict[int, int] | None = None) -
     return text[first : text.find("\n", first)].strip() or None
 
 
+def sentence_spans(text: str) -> list[tuple[int, int]]:
+    """(start, end) of every sentence or line, in order; the boundaries the chunker may cut at."""
+    spans, start = [], 0
+    for m in _SENTENCE_END.finditer(text):
+        if text[start : m.end()].strip():
+            spans.append((start, m.end()))
+        start = m.end()
+    if text[start:].strip():
+        spans.append((start, len(text)))
+    return spans
+
+
+def refers_back(sentence: str) -> bool:
+    return _REFERS_BACK.match(sentence) is not None
+
+
 def chunk_document(
-    text: str, max_chars: int = 700, min_chars: int = 200, overlap_chars: int = 180
+    text: str,
+    max_chars: int = 700,
+    min_chars: int = 200,
+    overlap_chars: int = 180,
+    break_scores: dict[int, float] | None = None,
 ) -> list[Chunk]:
+    """Cut `text` into exact slices of at most `max_chars`.
+
+    break_scores (hybrid chunking) maps a sentence end offset to how good a cut it is: about
+    1 - similarity of the sentences on either side (a topic change), negative where the next
+    sentence refers back. Among the sentence ends that fit, the best score wins, with a mild
+    preference for longer chunks; without scores the last sentence end that fits is taken."""
     if max_chars < 1:
         raise ValueError("max_chars must be at least 1")  # a zero-width chunk never advances
     n = len(text)
@@ -82,19 +119,26 @@ def chunk_document(
     while start < n:
         limit = min(start + max_chars, n)
         end, at_heading = limit, False
-        if limit < n:
-            lo = bisect_left(h_starts, start + min_chars)
-            hi = bisect_right(h_starts, limit)
-            if lo < hi:  # keep a section together: cut right before the next heading
-                end, at_heading = h_starts[lo], True
+        lo = bisect_left(h_starts, start + min_chars)
+        hi = bisect_right(h_starts, limit)
+        if lo < hi:  # keep sections apart, also in the document's last window
+            end, at_heading = h_starts[lo], True
+        elif limit < n:
+            i, j = bisect_left(ends, start + min_chars), bisect_right(ends, limit)
+            if i < j and break_scores:
+                end = max(
+                    ends[i:j],
+                    key=lambda x: (
+                        break_scores.get(x, 0.0) + LENGTH_WEIGHT * (x - start) / max_chars,
+                        x,
+                    ),
+                )
+            elif i < j:
+                end = ends[j - 1]
             else:
-                i, j = bisect_left(ends, start + min_chars), bisect_right(ends, limit)
-                if i < j:
-                    end = ends[j - 1]
-                else:
-                    space = text.rfind(" ", start + min_chars, limit)
-                    if space > start:
-                        end = space + 1
+                space = text.rfind(" ", start + min_chars, limit)
+                if space > start:
+                    end = space + 1
             # never end on a heading line whose body would start the next chunk
             k = bisect_right(h_starts, end - 1) - 1
             if k >= 0 and h_starts[k] >= start and end <= h_ends[k] and h_starts[k] > start:
@@ -111,10 +155,17 @@ def chunk_document(
         else:
             space = text.find(" ", max(start + 1, end - 90), end)
             start = space + 1 if space >= 0 else end
-    # a tiny tail is folded into the previous chunk rather than becoming an orphan
-    if len(pieces) > 1 and pieces[-1][1] - pieces[-1][0] < min_chars // 2:
-        pieces[-2] = (pieces[-2][0], pieces[-1][1])
-        pieces.pop()
+    # a tiny tail is folded into the previous chunk rather than becoming an orphan, unless that
+    # would exceed the size limit or the tail is a section of its own (it starts at a heading)
+    if len(pieces) > 1:
+        (prev_start, _), (tail_start, tail_end) = pieces[-2], pieces[-1]
+        if (
+            tail_end - tail_start < min_chars // 2
+            and tail_end - prev_start <= max_chars
+            and tail_start not in h_starts
+        ):
+            pieces[-2] = (prev_start, tail_end)
+            pieces.pop()
     chunks: list[Chunk] = []
     for s, e in pieces:
         body = text[s:e]
@@ -136,3 +187,30 @@ def chunk_document(
             )
         )
     return chunks
+
+
+def split_chunk(text: str, chunk: Chunk, parts: int) -> list[Chunk]:
+    """Split a chunk into about `parts` pieces of similar length, cutting at sentence ends (or word
+    boundaries when a sentence is longer than a piece). Pieces are exact slices of `text` with the
+    chunk's heading and table header; positions are renumbered by the caller."""
+    if parts < 2 or chunk.char_end - chunk.char_start < 2:
+        return [chunk]
+    s, e = chunk.char_start, chunk.char_end
+    ends = [s + m.end() for m in _SENTENCE_END.finditer(text[s:e]) if s + m.end() < e]
+    target = (e - s) / parts
+    cuts: list[int] = []
+    for k in range(1, parts):
+        goal = s + round(k * target)
+        candidates = [x for x in ends if cuts[-1:] == [] or x > cuts[-1]] if ends else []
+        near = min(candidates, key=lambda x: abs(x - goal), default=None)
+        if near is None or abs(near - goal) > target / 2:  # no sentence end nearby: a word boundary
+            space = text.rfind(" ", (cuts[-1] if cuts else s) + 1, goal)
+            near = space + 1 if space > s else goal
+        if near > (cuts[-1] if cuts else s) and near < e:
+            cuts.append(near)
+    bounds = [s, *cuts, e]
+    return [
+        Chunk(chunk.position, text[a:b], a, b, chunk.heading, chunk.table_header)
+        for a, b in zip(bounds, bounds[1:], strict=False)
+        if text[a:b].strip()
+    ]

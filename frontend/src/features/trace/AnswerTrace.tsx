@@ -77,7 +77,7 @@ export function AnswerTrace({
     <section className="trace-panel" aria-label="How the answer was built">
       <header className="trace-header">
         <div className="eyebrow">HOW THIS ANSWER WAS BUILT</div>
-        <h2>{question ?? "Ask a question to see its trail"}</h2>
+        <h2 dir="auto">{question ?? "Ask a question to see its trail"}</h2>
       </header>
 
       {preview && preview.passages.length > 0 && (
@@ -177,7 +177,9 @@ export function AnswerTrace({
                   >
                     <span className="trace-num">{number.get(p.chunk_id)}</span>
                     <span className="trace-passage-body">
-                      <span>{p.snippet || p.heading || "Passage"}</span>
+                      <span dir="auto">
+                        {p.snippet || p.heading || "Passage"}
+                      </span>
                       <small>
                         {[p.snippet ? p.heading : null, ...viaLabels(p)]
                           .filter(Boolean)
@@ -215,7 +217,7 @@ export function AnswerTrace({
                     }
                     onMouseLeave={() => setFocus(null)}
                   >
-                    <span>{s.text}</span>
+                    <span dir="auto">{s.text}</span>
                     <span className="trace-refs">
                       {s.sources.length ? (
                         s.sources.map((id) => (

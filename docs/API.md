@@ -31,7 +31,12 @@ text, quote|null, page|null, heading|null, source_urls[]}`.
 
 ## Questions
 
-`POST /chat` and `POST /chat/stream` take `{question, conversation_id?, exclude_labels?: string[]}`.
+`POST /chat` and `POST /chat/stream` take `{question, conversation_id?, exclude_labels?: string[],
+answer_language?}`. Without `answer_language` the answer is written in the question's language
+(retried once if a question in a non-Latin script comes back in another script). With one of the
+names from `GET /languages` (`{languages: string[]}`: English, Hindi, Telugu, ...) the answer is
+written in that language whatever the question's, retried once if it comes back in another script;
+an unknown name is a `422`.
 
 `ChatResponse`: `{conversation_id, answer, status: "answered"|"insufficient_evidence"|
 "conflicting_evidence", citations: Citation[], warnings[], statements: Statement[], trace:
@@ -60,7 +65,17 @@ answer generation.
 [{chunk_id, document_id, document, heading}], corrections: {typed: corpus word}}`: at most five
 passages, one per document section, that the text is likely to draw on. It calls no model (spelling
 correction from the corpus vocabulary, leaving the word still being typed, then full-text search), so
-the UI calls it while a question is typed.
+the UI calls it while a question is typed. `graph: {entities: [{id, name, typed, found}], relations:
+[{source, target, label, chunk_id, document, quote, script}]}` is read off the matched passages' text, not
+extracted by a model: names are runs of capitalised words (cased scripts only), a lone name folds
+into the one longer name containing it, and two neighbouring names in a sentence that shares a typed
+term are related by the words between them (`appears with` when none or more than six). Each relation
+quotes its sentence. `typed` marks names in the typed text; `found: false` marks a typed name that no
+matched passage contains. `script` is the script most of the relation's document is written in
+(`LATIN`, `TELUGU`, ...), so a client can show one language at a time.
+
+`POST /graph` takes `{exclude_labels?}` and returns the same `{entities, relations}` for every
+indexed passage (at most 400 relations, no model call): the graph shown before anything is typed.
 
 `GET /conversations`, `GET /conversations/{id}` (`{id, messages: [{role, content, citations?,
 warnings?, status?, statements?, trace?}]}`), `DELETE /conversations/{id}`. Messages saved by

@@ -15,7 +15,7 @@ import re
 
 from knowledge_engine.retrieval.models import Candidate, QueryPlan
 from knowledge_engine.store.chunks import ChunkRepo
-from knowledge_engine.text import STOPWORDS, ordered_terms
+from knowledge_engine.text import STOPWORDS, ordered_terms, words
 
 MAX_BRIDGE_TERMS = 3
 MAX_EXTRA = 2
@@ -36,8 +36,8 @@ def best_sentence(question_terms: set[str], texts: list[str]) -> str:
 
 def names_in(sentence: str) -> set[str]:
     """Words capitalised inside the sentence (not as its first word): names, in cased scripts."""
-    words = re.findall(r"\w+", sentence)
-    return {w.casefold() for w in words[1:] if w[:1].isupper()}
+    tokens = words(sentence)
+    return {w.casefold() for w in tokens[1:] if w[:1].isupper()}
 
 
 def bridge_terms(question_terms: set[str], sentence: str, doc_freq: dict[str, int]) -> list[str]:

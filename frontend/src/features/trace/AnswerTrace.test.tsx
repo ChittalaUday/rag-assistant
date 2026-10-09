@@ -193,3 +193,13 @@ it("shows the start of each passage, with its section underneath", () => {
     within(first).getByText("Roster · meaning · keywords"),
   ).toBeInTheDocument();
 });
+
+it("lets right-to-left and Indian-script text set its own direction", () => {
+  show({
+    ...answer,
+    statements: [
+      { text: "حیدرآباد اردو کتب خانہ جمعہ کو بند رہتا ہے۔", sources: ["c1"] },
+    ],
+  });
+  expect(screen.getByText(/حیدرآباد/)).toHaveAttribute("dir", "auto");
+});

@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     max_jobs: int = 32
     max_chunks: int = 600
     chunk_chars: int = Field(default=700, ge=100)  # smaller values cannot hold a sentence
+    # "structure": cut at headings, then the last sentence end that fits; "hybrid": among the
+    # sentence ends that fit, cut at the biggest topic change (sentence embeddings) and never
+    # right before a sentence that refers back
+    chunker: Literal["structure", "hybrid"] = "structure"
+    # hard limit on a passage's embedding tokens; 0: the embedding model's own input window
+    embedding_max_tokens: int = Field(default=0, ge=0)
     # one or two model-written sentences per chunk placing it in its document, searched with it
     contextual_chunks: bool = True
     context_model: str = ""  # Ollama model for those sentences; empty: the chat model

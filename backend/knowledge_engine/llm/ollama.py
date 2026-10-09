@@ -2,12 +2,14 @@ import asyncio
 import json
 import math
 import re
+from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
 import httpx
 
 from knowledge_engine.config import Settings
 
+OnText = Callable[[str], Awaitable[None]]  # receives the output so far, as it is generated
 NUM_CTX = 16384
 NUM_PREDICT = 2048
 THINKING_NUM_PREDICT = 6144  # reasoning tokens come out of the same output budget
@@ -47,6 +49,8 @@ class ModelClient(Protocol):
     async def health(self) -> list[str]: ...
     async def embed(self, texts: list[str]) -> list[list[float]]: ...
     async def relevance(self, model: str, query: str, documents: list[str]) -> list[float]: ...
+    async def count_tokens(self, text: str) -> int: ...
+    async def embedding_context(self) -> int: ...
     async def generate(
         self,
         prompt: str,
@@ -54,6 +58,7 @@ class ModelClient(Protocol):
         max_tokens: int | None = None,
         think: bool = False,
         model: str | None = None,
+        on_text: OnText | None = None,
     ) -> dict[str, Any]: ...
 
 
@@ -87,6 +92,29 @@ class Ollama:
                 return result
         raise AssertionError("unreachable")  # pragma: no cover
 
+    async def count_tokens(self, text: str) -> int:
+        """Tokens the embedding model reads for `text` (its own tokenizer, via the embed call)."""
+        async with httpx.AsyncClient(timeout=self.s.model_timeout) as c:
+            r = await c.post(
+                self.s.ollama_url + "/api/embed",
+                json={"model": self.s.embedding_model, "input": [text], "truncate": False},
+            )
+            if r.status_code == 400:  # longer than the model's input window
+                return 1 << 20
+            r.raise_for_status()
+            return int(r.json().get("prompt_eval_count", 0))
+
+    async def embedding_context(self) -> int:
+        """The embedding model's input window in tokens, as the model reports it."""
+        async with httpx.AsyncClient(timeout=self.s.model_timeout) as c:
+            r = await c.post(
+                self.s.ollama_url + "/api/show", json={"model": self.s.embedding_model}
+            )
+            r.raise_for_status()
+            info = r.json().get("model_info", {})
+            sizes = [int(v) for k, v in info.items() if k.endswith(".context_length")]
+            return min(sizes) if sizes else 512
+
     async def relevance(self, model: str, query: str, documents: list[str]) -> list[float]:
         """Score each document's relevance to the query with a Qwen3-Reranker model (0..1)."""
         limit = asyncio.Semaphore(RERANK_PARALLEL)
@@ -119,22 +147,39 @@ class Ollama:
         max_tokens: int | None = None,
         think: bool = False,
         model: str | None = None,
+        on_text: OnText | None = None,
     ) -> dict[str, Any]:
+        """Structured output for the prompt. With `on_text`, the output is streamed and the text
+        so far is passed on as it grows (thinking tokens are not)."""
         num_predict = max_tokens or (THINKING_NUM_PREDICT if think else NUM_PREDICT)
         if len(prompt.encode()) > prompt_budget_bytes(schema, num_predict):
             raise ValueError("Prompt exceeds the conservative model context budget")
+        body = {
+            "model": model or self.s.chat_model,
+            "stream": on_text is not None,
+            "think": think,
+            "format": schema,
+            "options": {"temperature": 0, "num_ctx": NUM_CTX, "num_predict": num_predict},
+            "messages": [{"role": "user", "content": prompt}],
+        }
         async with httpx.AsyncClient(timeout=self.s.model_timeout) as c:
-            r = await c.post(
-                self.s.ollama_url + "/api/chat",
-                json={
-                    "model": model or self.s.chat_model,
-                    "stream": False,
-                    "think": think,
-                    "format": schema,
-                    "options": {"temperature": 0, "num_ctx": NUM_CTX, "num_predict": num_predict},
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-            )
-            r.raise_for_status()
-            value: dict[str, Any] = json.loads(r.json()["message"]["content"])
+            if on_text is None:
+                r = await c.post(self.s.ollama_url + "/api/chat", json=body)
+                r.raise_for_status()
+                content = r.json()["message"]["content"]
+            else:
+                content = ""
+                async with c.stream("POST", self.s.ollama_url + "/api/chat", json=body) as r:
+                    r.raise_for_status()
+                    async for line in r.aiter_lines():
+                        if not line.strip():
+                            continue
+                        part = json.loads(line)
+                        if part.get("error"):
+                            raise ValueError(f"Model error: {part['error']}")
+                        piece = part.get("message", {}).get("content", "")
+                        if piece:
+                            content += piece
+                            await on_text(content)
+            value: dict[str, Any] = json.loads(content)
             return value

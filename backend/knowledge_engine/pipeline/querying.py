@@ -1,13 +1,14 @@
 """Query pipeline: understand -> retrieve -> reason -> generate -> validate -> persist."""
 
 import re
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from knowledge_engine.context import AppContext
 from knowledge_engine.errors import AppError
-from knowledge_engine.generation.answer import generate_answer
+from knowledge_engine.generation.answer import Draft, generate_answer
 from knowledge_engine.reasoning.evidence import build_evidence
 from knowledge_engine.retrieval.analyzer import analyze
 from knowledge_engine.retrieval.models import QueryPlan
@@ -15,11 +16,29 @@ from knowledge_engine.retrieval.search import Retrieval, retrieve
 from knowledge_engine.schemas.chat import Question
 
 Progress = Callable[[str, str], Awaitable[None]]
+TraceSink = Callable[[dict[str, Any]], Awaitable[None]]
 HISTORY_MESSAGES = 6
 
 
-async def chat(ctx: AppContext, q: Question, progress: Progress | None = None) -> dict[str, Any]:
+def _ms(seconds: float) -> int:
+    return round(seconds * 1000)
+
+
+async def chat(
+    ctx: AppContext,
+    q: Question,
+    progress: Progress | None = None,
+    on_trace: TraceSink | None = None,
+    on_draft: Draft | None = None,
+) -> dict[str, Any]:
+    """Answer a question. `progress` receives each stage as it starts; `on_trace` receives the
+    trace as it grows (after understanding, after retrieval) so a client can show it live;
+    `on_draft` receives the model's answer text as it is generated, before it is validated."""
+    started = time.perf_counter()
+    marks: dict[str, float] = {}
+
     async def notify(stage: str, message: str) -> None:
+        marks.setdefault(stage, time.perf_counter())
         if progress:
             await progress(stage, message)
 
@@ -31,14 +50,31 @@ async def chat(ctx: AppContext, q: Question, progress: Progress | None = None) -
     ]
     try:
         plan = await analyze(ctx, q.question, history, notify)
+        plan.answer_language = q.answer_language or ""
+        understood = time.perf_counter()
+        if on_trace:
+            await on_trace(build_trace(plan, Retrieval(), set()))
         retrieval = await retrieve(ctx, plan, q.exclude_labels, notify)
         evidence = build_evidence(ctx, retrieval)
-        result = await generate_answer(ctx, plan, history, evidence, notify)
+        shown = {s.chunk_id for s in evidence.sources}
+        found = time.perf_counter()
+        if on_trace:
+            await on_trace(build_trace(plan, retrieval, shown))
+        result = await generate_answer(ctx, plan, history, evidence, notify, on_draft)
     except AppError:
         raise
     except Exception as exc:
         raise AppError(503, f"Local model failed: {exc}") from exc
-    trace = build_trace(plan, retrieval, {s.chunk_id for s in evidence.sources})
+    done = time.perf_counter()
+    checked = marks.get("verifying", done)
+    trace = build_trace(plan, retrieval, shown)
+    trace["timings"] = {
+        "understand_ms": _ms(understood - started),
+        "retrieve_ms": _ms(found - understood),
+        "answer_ms": _ms(checked - found),
+        "check_ms": _ms(done - checked),
+        "total_ms": _ms(done - started),
+    }
     ctx.store.conversations.save_exchange(
         cid,
         new=not q.conversation_id,

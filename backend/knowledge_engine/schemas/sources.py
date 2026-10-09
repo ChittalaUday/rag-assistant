@@ -21,11 +21,34 @@ class PreviewPassage(BaseModel):
     heading: str | None = None
 
 
+class GraphEntity(BaseModel):
+    id: str
+    name: str
+    typed: bool  # named in the typed text
+    found: bool  # named in a passage (False: typed only)
+
+
+class GraphRelation(BaseModel):
+    source: str
+    target: str
+    label: str  # the words between the two names in the quoted sentence
+    chunk_id: str
+    document: str
+    quote: str
+    script: str = ""  # script most of its document is written in ("LATIN", "TELUGU", ...)
+
+
+class PreviewGraph(BaseModel):
+    entities: list[GraphEntity] = []
+    relations: list[GraphRelation] = []
+
+
 class Preview(BaseModel):
     """Passages a piece of question text is likely to draw on, found while it is typed."""
 
     passages: list[PreviewPassage]
     corrections: dict[str, str]  # typed word -> corpus word
+    graph: PreviewGraph = PreviewGraph()
 
 
 class SearchRequest(BaseModel):

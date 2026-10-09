@@ -1,3 +1,5 @@
+import json
+
 from knowledge_engine.generation.prompt import build_prompt
 from knowledge_engine.reasoning.evidence import Evidence, Source
 from knowledge_engine.retrieval.models import QueryPlan
@@ -45,3 +47,15 @@ def test_question_is_never_cut_and_oversized_questions_are_refused():
     with pytest.raises(AppError) as err:
         build_prompt(plan("x" * 30000), [], Evidence(sources=[source(1, "t", 1)]))
     assert err.value.status_code == 413
+
+
+def test_the_answer_being_generated_is_read_from_the_partial_json():
+    from knowledge_engine.generation.answer import draft_answer  # noqa: PLC0415
+
+    full = json.dumps({"answer": 'Mira "leads"\nAcme — 🙂', "citation_ids": ["S1"]})
+    assert draft_answer(full) == 'Mira "leads"\nAcme — 🙂'
+    assert draft_answer("") == draft_answer('{"answ') == draft_answer('{"answer": ') == ""
+    assert draft_answer('{"answer": "Mira le') == "Mira le"
+    assert draft_answer('{"answer": "Mira \\') == "Mira "  # escape cut off
+    assert draft_answer('{"answer": "caf\\u00') == "caf"  # unicode escape cut off
+    assert draft_answer('{"answer": "a\\nb') == "a\nb"

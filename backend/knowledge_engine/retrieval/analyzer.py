@@ -7,7 +7,7 @@ from typing import Any
 from knowledge_engine.context import AppContext
 from knowledge_engine.retrieval.models import QueryPlan
 from knowledge_engine.store import Store
-from knowledge_engine.text import STOPWORDS, ordered_terms
+from knowledge_engine.text import STOPWORDS, is_latin, ordered_terms
 
 Notify = Callable[[str, str], Awaitable[None]]
 
@@ -32,8 +32,10 @@ _RELATION_CUE = re.compile(
 def correct_spelling(store: Store, text: str) -> tuple[str, dict[str, str]]:
     """Fix words that occur nowhere in the corpus but are a typo away from a word that does.
 
-    Capitalised words (names) and words with digits or apostrophes are left alone: a misspelt name
-    is searched as typed, and dense search still finds passages close in meaning.
+    Capitalised words (names), words with digits or apostrophes, and words in other scripts than
+    Latin are left alone: in uncased scripts a name cannot be told from a typo and an inflected form
+    is one edit from its stem, so those are searched as typed; dense search still finds passages
+    close in meaning.
     """
     pieces = list(re.finditer(r"\S+", text))
     cores: list[tuple[int, int, str, bool]] = []  # (start, end, word, has inner punctuation)
@@ -41,6 +43,8 @@ def correct_spelling(store: Store, text: str) -> tuple[str, dict[str, str]]:
         lead, core, _ = re.fullmatch(r"(\W*)(.*?)(\W*)", m.group(), re.S).groups()  # type: ignore[union-attr]
         bare = re.sub(r"[\W_]+", "", core)
         if not bare or any(c.isdigit() for c in bare) or "'" in core or "’" in core:
+            continue
+        if not is_latin(bare):
             continue
         if core[:1].isupper() or bare.casefold() in STOPWORDS:
             continue  # names (even first in the sentence) and function words are never "typos"

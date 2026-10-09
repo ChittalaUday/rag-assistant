@@ -11,11 +11,19 @@ import math
 import re
 import uuid
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+import numpy as np
+
 from knowledge_engine.context import AppContext
-from knowledge_engine.ingestion.chunker import Chunk, chunk_document
+from knowledge_engine.ingestion.chunker import (
+    Chunk,
+    chunk_document,
+    refers_back,
+    sentence_spans,
+    split_chunk,
+)
 from knowledge_engine.ingestion.parser import parse
 from knowledge_engine.ingestion.situate import situate
 from knowledge_engine.store import ChunkRow
@@ -23,6 +31,8 @@ from knowledge_engine.text import normalize_text
 
 PIPELINE_VERSION = 5  # 4: no entity graph; 5: contextual summaries on by default
 EMBED_BATCH = 16
+# tokens of the embedding window kept for the task prefix, title, heading, table header and summary
+TOKEN_RESERVE = 384
 
 
 def document_title(name: str) -> str:
@@ -33,6 +43,61 @@ def chunk_context(title: str, chunk: Chunk) -> str:
     """Text prepended to a chunk for embedding and full-text search (not part of the evidence)."""
     parts = [title, chunk.heading, (chunk.table_header or "")[:160] or None]
     return " › ".join(p for p in parts if p)
+
+
+SENTENCE_CHARS = 400  # a long sentence is embedded from its start
+
+
+async def boundary_scores(ctx: AppContext, text: str) -> dict[int, float]:
+    """Hybrid chunking: score every sentence end as a cut (higher = better). The score is
+    1 - cosine similarity of the sentences on either side (a topic change), minus 1 when the next
+    sentence refers back ("This policy…", "वह…") so connected statements stay together."""
+    spans = sentence_spans(text)
+    if len(spans) < 3:
+        return {}
+    sentences = [text[a:b].strip() for a, b in spans]
+    prefix = ctx.settings.embedding_document_prefix
+    vectors: list[list[float]] = []
+    for i in range(0, len(sentences), EMBED_BATCH):
+        batch = [prefix + x[:SENTENCE_CHARS] for x in sentences[i : i + EMBED_BATCH]]
+        vectors.extend(await ctx.model.embed(batch))
+    unit = np.asarray(vectors, dtype=float)
+    unit /= np.linalg.norm(unit, axis=1, keepdims=True) + 1e-12
+    similarity = (unit[:-1] * unit[1:]).sum(axis=1)
+    return {
+        spans[k][1]: float(1.0 - similarity[k]) - (1.0 if refers_back(sentences[k + 1]) else 0.0)
+        for k in range(len(spans) - 1)
+    }
+
+
+async def fit_to_tokens(ctx: AppContext, text: str, chunks: list[Chunk]) -> tuple[list[Chunk], int]:
+    """Split passages until each fits the embedding model's input window (a hard token limit).
+
+    A passage cannot have more tokens than UTF-8 bytes (every tokenizer here falls back to bytes),
+    so only passages longer than the budget in bytes are counted with the model's own tokenizer;
+    Indian-script text takes three bytes per character and often needs counting. A passage over the
+    budget is cut at sentence ends (word boundaries as a fallback) and checked again."""
+    s = ctx.settings
+    limit = s.embedding_max_tokens or await ctx.model.embedding_context()
+    budget = max(64, limit - TOKEN_RESERVE)
+    fitted: list[Chunk] = []
+    queue, split = list(chunks), 0
+    while queue:
+        chunk = queue.pop(0)
+        probe = s.embedding_document_prefix + chunk.text
+        if (
+            len(probe.encode()) + 2 <= budget
+            or (tokens := await ctx.model.count_tokens(probe)) <= budget
+        ):
+            fitted.append(chunk)
+            continue
+        parts = split_chunk(text, chunk, -(-tokens // budget))
+        if len(parts) < 2:  # a single unbreakable run: embedded truncated, still searchable as text
+            fitted.append(chunk)
+            continue
+        split += 1
+        queue = parts + queue
+    return [replace(c, position=n) for n, c in enumerate(fitted)], split
 
 
 @dataclass
@@ -48,14 +113,22 @@ async def build(ctx: AppContext, id: str, name: str, path: Path) -> Built:
     s, store = ctx.settings, ctx.store
     store.documents.progress(id, "parsing", "Reading and parsing the document")
     text = normalize_text(await parse(path))
-    chunks = chunk_document(text, max_chars=s.chunk_chars)
+    scores = (
+        await boundary_scores(ctx, text)
+        if s.chunker == "hybrid" and len(text) > s.chunk_chars
+        else None
+    )
+    chunks = chunk_document(text, max_chars=s.chunk_chars, break_scores=scores)
     if not chunks:
         raise ValueError("Document contains no readable text")
+    chunks, split = await fit_to_tokens(ctx, text, chunks)
     if len(chunks) > s.max_chunks:
         raise ValueError(f"Document exceeds {s.max_chunks} chunks; split it into smaller files")
     title = document_title(name)
     contexts = [chunk_context(title, c) for c in chunks]
     warnings: list[str] = []
+    if split:
+        warnings.append(f"{split} passage(s) were split to fit the embedding model's input window")
     if s.contextual_chunks:
         stage = "Summarising where each passage sits in the document"
         store.documents.progress(id, "situating", stage, 0, len(chunks))

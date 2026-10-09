@@ -5,6 +5,7 @@ describe("local API boundary", () => {
   it("handles fragmented SSE and authoritative result", async () => {
     const encoder = new TextEncoder();
     const pieces = [
+      'event: draft\ndata: {"text":"Hel"}\n\n',
       'event: token\ndata: {"te',
       'xt":"Hello"}\n\n',
       'event: result\ndata: {"answer":"Hello","conversation_id":"c","citations":[],"warnings":[],"model":"local","statements":[],"trace":{"search_text":"Question","rewritten":false,"corrections":{},"intent":"lookup","counts":{"dense":1,"sparse":1,"candidates":1},"reranked":false,"bridge_terms":[],"passages":[]}}\n\n',
@@ -23,7 +24,18 @@ describe("local API boundary", () => {
       ),
     );
     const token = vi.fn();
-    const result = await streamChat("Question", null, token, () => {});
+    const draft = vi.fn();
+    const result = await streamChat(
+      "Question",
+      null,
+      token,
+      () => {},
+      undefined,
+      [],
+      undefined,
+      draft,
+    );
+    expect(draft).toHaveBeenCalledWith("Hel");
     expect(token).toHaveBeenCalledWith("Hello");
     expect(result.conversation_id).toBe("c");
   });
@@ -73,5 +85,37 @@ describe("local API boundary", () => {
         ),
     );
     await expect(api.documents()).rejects.toThrow("Upload exceeds 20 MB");
+  });
+});
+describe("answer language", () => {
+  const done =
+    'event: result\ndata: {"answer":"A","conversation_id":"c","citations":[],"warnings":[],"model":"m","statements":[],"trace":{"search_text":"q","rewritten":false,"corrections":{},"intent":"lookup","counts":{"dense":1,"sparse":1,"candidates":1},"reranked":false,"bridge_terms":[],"passages":[]}}\n\n';
+  it("is sent only when one is chosen", async () => {
+    const fetch = vi.fn(async () => new Response(done));
+    vi.stubGlobal("fetch", fetch);
+    const body = (call: number) =>
+      JSON.parse(
+        (fetch.mock.calls[call] as unknown as [string, RequestInit])[1]
+          .body as string,
+      );
+    await streamChat(
+      "q",
+      null,
+      () => {},
+      () => {},
+    );
+    expect(body(0)).not.toHaveProperty("answer_language");
+    await streamChat(
+      "q",
+      null,
+      () => {},
+      () => {},
+      undefined,
+      [],
+      undefined,
+      undefined,
+      "Telugu",
+    );
+    expect(body(1).answer_language).toBe("Telugu");
   });
 });

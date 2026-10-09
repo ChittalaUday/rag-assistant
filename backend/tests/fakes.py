@@ -6,6 +6,7 @@ output chosen by which JSON schema the pipeline asked for.
 """
 
 import hashlib
+import json
 import math
 import re
 import time
@@ -30,10 +31,25 @@ class FakeModel:
     async def embed(self, texts):
         return [hash_embedding(t) for t in texts]
 
-    async def generate(self, prompt, schema, max_tokens=None, think=False, model=None):
+    context = 2048  # the fake embedding model's input window
+
+    async def embedding_context(self):
+        return self.context
+
+    async def count_tokens(self, text):
+        return len(text.encode()) // 3  # deterministic stand-in for a tokenizer
+
+    async def generate(
+        self, prompt, schema, max_tokens=None, think=False, model=None, on_text=None
+    ):
         props = schema.get("properties", {})
         if "citation_ids" in props:
-            return self.answer(prompt)
+            value = self.answer(prompt)
+            if on_text:  # stream the JSON in two pieces, as a streaming model would
+                output = json.dumps(value)
+                await on_text(output[: len(output) // 2])
+                await on_text(output)
+            return value
         if "question" in props:
             return {"question": prompt.rsplit("FINAL QUESTION:", 1)[1].strip()}
         if "statements" in props:  # attribution: every statement rests on the first passage

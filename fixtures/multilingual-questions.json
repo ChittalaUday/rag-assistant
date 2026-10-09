@@ -1,0 +1,500 @@
+[
+ {
+  "id": "HI1",
+  "type": "native",
+  "question": "जयपुर ज़िला जल सहकारी समिति के कितने सदस्य हैं?",
+  "expected_keywords": [
+   "340"
+  ],
+  "source_documents": [
+   "hi-jaipur-water-cooperative.md"
+  ]
+ },
+ {
+  "id": "HI2",
+  "type": "native",
+  "question": "जयपुर जल सहकारी समिति की अध्यक्ष कौन हैं?",
+  "expected_keywords": [
+   "सुनीता वर्मा"
+  ],
+  "source_documents": [
+   "hi-jaipur-water-cooperative.md"
+  ]
+ },
+ {
+  "id": "HI3",
+  "type": "crosslingual",
+  "question": "What is the annual membership fee of the Jaipur district water cooperative?",
+  "expected_keywords": [
+   "600"
+  ],
+  "source_documents": [
+   "hi-jaipur-water-cooperative.md"
+  ]
+ },
+ {
+  "id": "HI4",
+  "type": "romanised",
+  "question": "jaipur jal sahkari samiti mein shikayat kitne din mein nipatai jaati hai?",
+  "expected_keywords": [
+   "7"
+  ],
+  "source_documents": [
+   "hi-jaipur-water-cooperative.md"
+  ]
+ },
+ {
+  "id": "HI5",
+  "type": "unknown",
+  "question": "जयपुर जल सहकारी समिति के कोषाध्यक्ष कौन हैं?",
+  "expected_keywords": [],
+  "source_documents": []
+ },
+ {
+  "id": "BN1",
+  "type": "native",
+  "question": "নদিয়া তাঁতশিল্পী সমবায়ে কতজন তাঁতি সদস্য আছেন?",
+  "expected_keywords": [
+   "215"
+  ],
+  "source_documents": [
+   "bn-nadia-weavers-cooperative.md"
+  ]
+ },
+ {
+  "id": "BN2",
+  "type": "native",
+  "question": "নদিয়া তাঁতশিল্পী সমবায়ের সভাপতি কে?",
+  "expected_keywords": [
+   "রফিক আহমেদ"
+  ],
+  "source_documents": [
+   "bn-nadia-weavers-cooperative.md"
+  ]
+ },
+ {
+  "id": "BN3",
+  "type": "crosslingual",
+  "question": "What is the maximum loan a member of the Nadia weavers' cooperative can take?",
+  "expected_keywords": [
+   "25,000"
+  ],
+  "source_documents": [
+   "bn-nadia-weavers-cooperative.md"
+  ]
+ },
+ {
+  "id": "BN4",
+  "type": "romanised",
+  "question": "nadia tant shilpi somobay kon sale protishthito hoy?",
+  "expected_keywords": [
+   "1998"
+  ],
+  "source_documents": [
+   "bn-nadia-weavers-cooperative.md"
+  ]
+ },
+ {
+  "id": "TA1",
+  "type": "native",
+  "question": "மதுரை பள்ளி நூலகத் திட்டம் எத்தனை பள்ளிகளில் நூலகங்களை நடத்துகிறது?",
+  "expected_keywords": [
+   "48"
+  ],
+  "source_documents": [
+   "ta-madurai-school-library.md"
+  ]
+ },
+ {
+  "id": "TA2",
+  "type": "native",
+  "question": "மதுரை பள்ளி நூலகத் திட்டத்தின் ஒருங்கிணைப்பாளர் யார்?",
+  "expected_keywords": [
+   "கவிதா ராஜன்"
+  ],
+  "source_documents": [
+   "ta-madurai-school-library.md"
+  ]
+ },
+ {
+  "id": "TA3",
+  "type": "crosslingual",
+  "question": "For how many days can students borrow books under the Madurai school library programme?",
+  "expected_keywords": [
+   "14"
+  ],
+  "source_documents": [
+   "ta-madurai-school-library.md"
+  ]
+ },
+ {
+  "id": "TA4",
+  "type": "romanised",
+  "question": "madurai palli noolaga thittathil puthagangalai evvalavu naatkal edukkalaam?",
+  "expected_keywords": [
+   "14"
+  ],
+  "source_documents": [
+   "ta-madurai-school-library.md"
+  ]
+ },
+ {
+  "id": "TE1",
+  "type": "native",
+  "question": "గుంటూరు రైతు విత్తన బ్యాంకులో ఎంతమంది రైతులు సభ్యులుగా ఉన్నారు?",
+  "expected_keywords": [
+   "1,200"
+  ],
+  "source_documents": [
+   "te-guntur-seed-bank.md"
+  ]
+ },
+ {
+  "id": "TE2",
+  "type": "native",
+  "question": "గుంటూరు విత్తన బ్యాంకు నిర్వాహకుడు ఎవరు?",
+  "expected_keywords": [
+   "వెంకట రెడ్డి"
+  ],
+  "source_documents": [
+   "te-guntur-seed-bank.md"
+  ]
+ },
+ {
+  "id": "TE3",
+  "type": "crosslingual",
+  "question": "Within how many days must farmers return seeds to the Guntur seed bank?",
+  "expected_keywords": [
+   "30"
+  ],
+  "source_documents": [
+   "te-guntur-seed-bank.md"
+  ]
+ },
+ {
+  "id": "MR1",
+  "type": "native",
+  "question": "पुणे आरोग्य शिबिर किती गावांमध्ये भरते?",
+  "expected_keywords": [
+   "12"
+  ],
+  "source_documents": [
+   "mr-pune-health-camp.md"
+  ]
+ },
+ {
+  "id": "MR2",
+  "type": "native",
+  "question": "पुणे आरोग्य शिबिर उपक्रमाच्या प्रमुख कोण आहेत?",
+  "expected_keywords": [
+   "अनिता देशपांडे"
+  ],
+  "source_documents": [
+   "mr-pune-health-camp.md"
+  ]
+ },
+ {
+  "id": "MR3",
+  "type": "crosslingual",
+  "question": "In which year did the Pune health camp initiative start?",
+  "expected_keywords": [
+   "2019"
+  ],
+  "source_documents": [
+   "mr-pune-health-camp.md"
+  ]
+ },
+ {
+  "id": "GU1",
+  "type": "native",
+  "question": "સુરત હીરા કારીગર કલ્યાણ મંડળમાં કેટલા સભ્યો છે?",
+  "expected_keywords": [
+   "850"
+  ],
+  "source_documents": [
+   "gu-surat-diamond-workers.md"
+  ]
+ },
+ {
+  "id": "GU2",
+  "type": "native",
+  "question": "સુરત હીરા કારીગર કલ્યાણ મંડળના પ્રમુખ કોણ છે?",
+  "expected_keywords": [
+   "મહેશ પટેલ"
+  ],
+  "source_documents": [
+   "gu-surat-diamond-workers.md"
+  ]
+ },
+ {
+  "id": "GU3",
+  "type": "crosslingual",
+  "question": "When was the Surat diamond workers' welfare board founded?",
+  "expected_keywords": [
+   "2005"
+  ],
+  "source_documents": [
+   "gu-surat-diamond-workers.md"
+  ]
+ },
+ {
+  "id": "KN1",
+  "type": "native",
+  "question": "ಮೈಸೂರು ರೇಷ್ಮೆ ಬೆಳೆಗಾರರ ಸಂಘದಲ್ಲಿ ಎಷ್ಟು ಸದಸ್ಯರಿದ್ದಾರೆ?",
+  "expected_keywords": [
+   "560"
+  ],
+  "source_documents": [
+   "kn-mysuru-silk-growers.md"
+  ]
+ },
+ {
+  "id": "KN2",
+  "type": "native",
+  "question": "ಮೈಸೂರು ರೇಷ್ಮೆ ಬೆಳೆಗಾರರ ಸಂಘದ ಅಧ್ಯಕ್ಷೆ ಯಾರು?",
+  "expected_keywords": [
+   "ಲಕ್ಷ್ಮಿ ಗೌಡ"
+  ],
+  "source_documents": [
+   "kn-mysuru-silk-growers.md"
+  ]
+ },
+ {
+  "id": "KN3",
+  "type": "crosslingual",
+  "question": "In which year was the Mysuru silk growers' association founded?",
+  "expected_keywords": [
+   "1987"
+  ],
+  "source_documents": [
+   "kn-mysuru-silk-growers.md"
+  ]
+ },
+ {
+  "id": "ML1",
+  "type": "native",
+  "question": "കൊച്ചി മത്സ്യത്തൊഴിലാളി സുരക്ഷാ പദ്ധതിയിൽ എത്ര തൊഴിലാളികൾ ഉണ്ട്?",
+  "expected_keywords": [
+   "2,300"
+  ],
+  "source_documents": [
+   "ml-kochi-fisher-safety.md"
+  ]
+ },
+ {
+  "id": "ML2",
+  "type": "native",
+  "question": "കൊച്ചി സുരക്ഷാ പദ്ധതിയുടെ കോർഡിനേറ്റർ ആരാണ്?",
+  "expected_keywords": [
+   "ജോസഫ് മാത്യു"
+  ],
+  "source_documents": [
+   "ml-kochi-fisher-safety.md"
+  ]
+ },
+ {
+  "id": "ML3",
+  "type": "crosslingual",
+  "question": "How are weather warnings sent to members of the Kochi fisher safety scheme?",
+  "expected_keywords": [
+   "SMS"
+  ],
+  "source_documents": [
+   "ml-kochi-fisher-safety.md"
+  ]
+ },
+ {
+  "id": "OR1",
+  "type": "native",
+  "question": "କଟକ ହସ୍ତତନ୍ତ ବିକ୍ରୟ ମେଳାରେ କେତୋଟି ଷ୍ଟଲ ରହେ?",
+  "expected_keywords": [
+   "120"
+  ],
+  "source_documents": [
+   "or-cuttack-handloom-fair.md"
+  ]
+ },
+ {
+  "id": "OR2",
+  "type": "native",
+  "question": "କଟକ ହସ୍ତତନ୍ତ ମେଳାର ସଂଯୋଜିକା କିଏ?",
+  "expected_keywords": [
+   "ସୁଜାତା ମହାନ୍ତି"
+  ],
+  "source_documents": [
+   "or-cuttack-handloom-fair.md"
+  ]
+ },
+ {
+  "id": "OR3",
+  "type": "crosslingual",
+  "question": "How many days does the Cuttack handloom fair last?",
+  "expected_keywords": [
+   "10"
+  ],
+  "source_documents": [
+   "or-cuttack-handloom-fair.md"
+  ]
+ },
+ {
+  "id": "PA1",
+  "type": "native",
+  "question": "ਲੁਧਿਆਣਾ ਕਿਸਾਨ ਸਿਖਲਾਈ ਕੇਂਦਰ ਦੇ ਹਰ ਕੋਰਸ ਵਿੱਚ ਕਿੰਨੀਆਂ ਸੀਟਾਂ ਹੁੰਦੀਆਂ ਹਨ?",
+  "expected_keywords": [
+   "40"
+  ],
+  "source_documents": [
+   "pa-ludhiana-farmer-training.md"
+  ]
+ },
+ {
+  "id": "PA2",
+  "type": "native",
+  "question": "ਲੁਧਿਆਣਾ ਕਿਸਾਨ ਸਿਖਲਾਈ ਕੇਂਦਰ ਦੇ ਮੁਖੀ ਕੌਣ ਹਨ?",
+  "expected_keywords": [
+   "ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ"
+  ],
+  "source_documents": [
+   "pa-ludhiana-farmer-training.md"
+  ]
+ },
+ {
+  "id": "PA3",
+  "type": "crosslingual",
+  "question": "How long is each course at the Ludhiana farmer training centre?",
+  "expected_keywords": [
+   "6"
+  ],
+  "source_documents": [
+   "pa-ludhiana-farmer-training.md"
+  ]
+ },
+ {
+  "id": "UR1",
+  "type": "native",
+  "question": "حیدرآباد اردو کتب خانے میں کتنی کتابیں موجود ہیں؟",
+  "expected_keywords": [
+   "18,000"
+  ],
+  "source_documents": [
+   "ur-hyderabad-urdu-library.md"
+  ]
+ },
+ {
+  "id": "UR2",
+  "type": "native",
+  "question": "حیدرآباد اردو کتب خانے کی نگران کون ہیں؟",
+  "expected_keywords": [
+   "ثنا خان"
+  ],
+  "source_documents": [
+   "ur-hyderabad-urdu-library.md"
+  ]
+ },
+ {
+  "id": "UR3",
+  "type": "crosslingual",
+  "question": "On which day is the Hyderabad Urdu library closed?",
+  "expected_keywords": [
+   "Friday"
+  ],
+  "source_documents": [
+   "ur-hyderabad-urdu-library.md"
+  ]
+ },
+ {
+  "id": "AS1",
+  "type": "native",
+  "question": "যোৰহাট চাহ শ্ৰমিক শিক্ষা কাৰ্যসূচীয়ে কিমানখন নৈশ বিদ্যালয় চলায়?",
+  "expected_keywords": [
+   "35"
+  ],
+  "source_documents": [
+   "as-jorhat-tea-education.md"
+  ]
+ },
+ {
+  "id": "AS2",
+  "type": "native",
+  "question": "যোৰহাট চাহ শ্ৰমিক শিক্ষা কাৰ্যসূচীৰ সঞ্চালক কোন?",
+  "expected_keywords": [
+   "বিনোদ বৰা"
+  ],
+  "source_documents": [
+   "as-jorhat-tea-education.md"
+  ]
+ },
+ {
+  "id": "AS3",
+  "type": "crosslingual",
+  "question": "How many students study in the Jorhat tea workers' education programme?",
+  "expected_keywords": [
+   "900"
+  ],
+  "source_documents": [
+   "as-jorhat-tea-education.md"
+  ]
+ },
+ {
+  "id": "XE1",
+  "type": "indic-on-english",
+  "question": "Northstar Signal में साल 2026 की तीसरी तिमाही के अंत में कितने कर्मचारी थे?",
+  "expected_keywords": [
+   "148"
+  ],
+  "source_documents": [
+   "company-overview.md"
+  ]
+ },
+ {
+  "id": "XE2",
+  "type": "indic-on-english",
+  "question": "நார்த்ஸ்டார் நிறுவனத்தின் Series B நிதி எந்த தேதியில் முடிந்தது?",
+  "expected_keywords": [
+   "2024"
+  ],
+  "source_documents": [
+   "company-overview.md"
+  ]
+ },
+ {
+  "id": "XE3",
+  "type": "indic-on-english",
+  "question": "কাল্পনিক পরীক্ষার পরিস্থিতিতে প্রত্যেক কর্মী বছরে কত দিন বার্ষিক ছুটি পান?",
+  "expected_keywords": [
+   "18"
+  ],
+  "source_documents": [
+   "fictional-leave-policy.md"
+  ]
+ },
+ {
+  "id": "XE4",
+  "type": "indic-on-english",
+  "question": "Beacon v3 ఏ సంవత్సరంలో విడుదలైంది?",
+  "expected_keywords": [
+   "2025"
+  ],
+  "source_documents": [
+   "projects-and-products.md"
+  ]
+ },
+ {
+  "id": "XE5",
+  "type": "indic-on-english",
+  "question": "Northstar के Customer PII को अनुबंध समाप्त होने के बाद कितने महीने तक रखा जाता है?",
+  "expected_keywords": [
+   "24"
+  ],
+  "source_documents": [
+   "policies-and-controls.md"
+  ]
+ },
+ {
+  "id": "XE6",
+  "type": "unknown",
+  "question": "Northstar Signal के मुख्य वित्तीय अधिकारी (CFO) कौन हैं?",
+  "expected_keywords": [],
+  "source_documents": []
+ }
+]

@@ -1,9 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Form, UploadFile
+from fastapi import APIRouter, Form, Response, UploadFile
 
 from knowledge_engine.context import Ctx
+from knowledge_engine.errors import AppError
 from knowledge_engine.ingestion import intake
+from knowledge_engine.ingestion.parser import IMAGE_SUFFIXES
 from knowledge_engine.pipeline.indexing import PIPELINE_VERSION, queue_reindex
 from knowledge_engine.schemas.common import OkResponse
 from knowledge_engine.schemas.documents import (
@@ -13,6 +15,15 @@ from knowledge_engine.schemas.documents import (
     DocumentList,
     ReindexResponse,
 )
+
+_IMAGE_MIME = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".tiff": "image/tiff",
+}
 
 router = APIRouter(tags=["documents"])
 
@@ -50,6 +61,17 @@ async def delete_document(id: str, ctx: Ctx) -> OkResponse:
 @router.get("/documents/{id}/content")
 async def document_content(id: str, ctx: Ctx) -> DocumentContent:
     return DocumentContent.model_validate(intake.document_content(ctx, id))
+
+
+@router.get("/documents/{id}/raw")
+async def document_raw(id: str, ctx: Ctx) -> Response:
+    """Serve the original uploaded file for image documents."""
+    ctx.store.documents.get(id)  # 404 if missing
+    path = ctx.upload_path(ctx.store.documents.path(id))
+    suffix = path.suffix.lower()
+    if not path.exists() or suffix not in IMAGE_SUFFIXES:
+        raise AppError(404, "Raw image not available for this document")
+    return Response(content=path.read_bytes(), media_type=_IMAGE_MIME.get(suffix, "image/png"))
 
 
 @router.get("/documents/{id}/chunks")

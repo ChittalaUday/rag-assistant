@@ -740,7 +740,7 @@ export default function App() {
         <input
           ref={uploadInput}
           type="file"
-          accept=".txt,.md,.pdf,.docx"
+          accept=".txt,.md,.csv,.pdf,.docx,.pptx,.xlsx,.html,.htm,.png,.jpg,.jpeg,.webp,.tiff,.gif"
           hidden
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -751,7 +751,7 @@ export default function App() {
         <input
           ref={replaceInput}
           type="file"
-          accept=".txt,.md,.pdf,.docx"
+          accept=".txt,.md,.csv,.pdf,.docx,.pptx,.xlsx,.html,.htm,.png,.jpg,.jpeg,.webp,.tiff,.gif"
           hidden
           onChange={(e) => {
             const file = e.target.files?.[0];

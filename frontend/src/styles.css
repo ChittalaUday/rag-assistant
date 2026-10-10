@@ -1058,6 +1058,12 @@ h1,
   margin: 0;
   overflow-wrap: anywhere;
 }
+.reader-image {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 16px 0;
+  border: 1px solid #e2e8f0;
+}
 .reader-error {
   color: #9b4844;
   line-height: 1.6;

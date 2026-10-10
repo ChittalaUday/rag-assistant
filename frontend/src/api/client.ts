@@ -76,6 +76,8 @@ export const api = {
       method: "DELETE",
     }),
   demo: () => request<{ documents: Document[] }>("/demo", { method: "POST" }),
+  documentRawUrl: (id: string) =>
+    `${API_BASE}/documents/${encodeURIComponent(id)}/raw`,
 };
 export async function streamChat(
   question: string,

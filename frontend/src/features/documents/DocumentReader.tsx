@@ -11,6 +11,10 @@ import { X } from "lucide-react";
 import { api } from "@/api/client";
 import type { DocumentContent } from "@/api/types";
 import { Activity, DocumentProgress } from "./Progress";
+
+const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp", ".tiff", ".gif"]);
+const isImage = (name: string) =>
+  IMAGE_EXTS.has(name.slice(name.lastIndexOf(".")).toLowerCase());
 function safeUrls(content: DocumentContent): string[] {
   const urls = [
     ...(content.source_urls ?? []),
@@ -159,7 +163,14 @@ export function DocumentReader({
                 </a>
               ))}
             </div>
-            <h3>Full ingested text</h3>
+            {isImage(doc.name) && (
+              <img
+                src={api.documentRawUrl(id!)}
+                alt={doc.name}
+                className="reader-image"
+              />
+            )}
+            <h3>{isImage(doc.name) ? "Extracted text (OCR)" : "Full ingested text"}</h3>
             <pre>
               {content.text ||
                 "No extracted text is available yet. Processing must finish first."}

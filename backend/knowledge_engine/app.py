@@ -15,6 +15,7 @@ from knowledge_engine.context import AppContext
 from knowledge_engine.errors import AppError
 from knowledge_engine.llm.gateway import ModelGateway
 from knowledge_engine.llm.ollama import ModelClient, Ollama
+from knowledge_engine.llm.server import Routed, ServerChat
 from knowledge_engine.pipeline.indexing import worker
 from knowledge_engine.store import Store
 from knowledge_engine.store.migrate import align_embedding_dimensions, upgrade
@@ -24,9 +25,12 @@ log = logging.getLogger(__name__)
 
 def create_context(settings: Settings, model_client: ModelClient | None = None) -> AppContext:
     """Everything the pipelines need except the database connection (opened by open_store)."""
+    client: ModelClient = model_client or Ollama(settings)
+    if settings.chat_url and model_client is None:
+        client = Routed(client, ServerChat(settings), settings)  # answers come from the server
     return AppContext(
         settings=settings,
-        model=ModelGateway(model_client or Ollama(settings), settings.model_timeout),
+        model=ModelGateway(client, settings.model_timeout, settings.model_load_timeout),
         queue=asyncio.Queue(maxsize=settings.max_jobs),
     )
 

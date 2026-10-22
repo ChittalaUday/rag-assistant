@@ -34,6 +34,9 @@ vi.mock("@/features/trace/AnswerTrace", () => ({
 vi.mock("@/api/client", () => ({
   api: {
     health: vi.fn(),
+    modelsStatus: vi.fn(),
+    answerModels: vi.fn(),
+    loadModels: vi.fn(),
     documents: vi.fn(),
     documentContent: vi.fn(),
     preview: vi.fn(),
@@ -59,10 +62,12 @@ beforeEach(() => {
     models: [],
     warnings: [],
   });
+  vi.mocked(api.modelsStatus).mockRejectedValue(new Error("not available"));
   vi.mocked(api.documents).mockResolvedValue({ documents: [] });
   vi.mocked(api.conversations).mockResolvedValue({ conversations: [] });
   vi.mocked(api.preview).mockResolvedValue({ passages: [], corrections: {} });
   vi.mocked(api.graph).mockResolvedValue({ entities: [], relations: [] });
+  vi.mocked(api.answerModels).mockResolvedValue({ models: [], errors: [] });
   vi.mocked(api.languages).mockResolvedValue({
     languages: ["English", "Telugu"],
   });
@@ -750,4 +755,233 @@ it("answers in the question's language unless an answer language is chosen", asy
   await userEvent.click(screen.getByRole("button", { name: "Send question" }));
   await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(2));
   expect(vi.mocked(streamChat).mock.calls[1][8]).toBe("Telugu");
+});
+
+const modelState = (
+  role: import("@/api/types").ModelRole,
+  model: string,
+  loaded: boolean,
+  installed = true,
+): import("@/api/types").ModelState => ({
+  role,
+  model,
+  installed,
+  loaded,
+  state: !installed ? "not_installed" : loaded ? "loaded" : "not_loaded",
+  where: "local",
+  detail: null,
+  loading_seconds: null,
+  size_bytes: loaded ? 1_000_000 : null,
+  expires_at: null,
+});
+const status = (
+  ...models: import("@/api/types").ModelState[]
+): import("@/api/types").ModelsStatus => ({
+  ollama_available: true,
+  models,
+  error: null,
+});
+const bothLoaded = status(
+  modelState("chat", "qwen3.5:9b", true),
+  modelState("embedding", "embeddinggemma", true),
+);
+const chatCold = status(
+  modelState("chat", "qwen3.5:9b", false),
+  modelState("embedding", "embeddinggemma", true),
+);
+function forgetAutoLoad() {
+  try {
+    localStorage.removeItem("auto-load-models");
+  } catch {
+    /* no storage in this environment */
+  }
+}
+async function typeQuestion(text: string) {
+  await userEvent.type(screen.getByLabelText("Ask a question"), text);
+}
+const send = () =>
+  userEvent.click(screen.getByRole("button", { name: "Send question" }));
+it("shows which models are in memory and sends straight away when they are", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(bothLoaded);
+  vi.mocked(streamChat).mockResolvedValue(reply("Answer"));
+  render(<App />);
+  expect(await screen.findByText("Answers")).toBeInTheDocument();
+  expect(screen.getAllByText("loaded")).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Load now" })).toBeNull();
+  await typeQuestion("Who?");
+  await send();
+  await screen.findByText("Answer");
+  expect(api.loadModels).not.toHaveBeenCalled();
+});
+it("holds a question until its model is loaded, then sends it", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(chatCold);
+  vi.mocked(api.loadModels).mockResolvedValue(bothLoaded);
+  vi.mocked(streamChat).mockResolvedValue(reply("Loaded answer"));
+  render(<App />);
+  await screen.findByText("not loaded");
+  await typeQuestion("Who leads?");
+  await send();
+  expect(streamChat).not.toHaveBeenCalled();
+  expect(await screen.findByText(/to answer your question/)).toBeVisible();
+  expect(screen.getByLabelText("Ask a question")).toHaveValue("Who leads?");
+  await userEvent.click(screen.getByRole("button", { name: "Load and send" }));
+  await screen.findByText("Loaded answer");
+  expect(api.loadModels).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(streamChat).mock.calls[0][0]).toBe("Who leads?");
+});
+it("lets the question be cancelled instead of loading", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(chatCold);
+  render(<App />);
+  await screen.findByText("not loaded");
+  await typeQuestion("Who?");
+  await send();
+  await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+  expect(screen.queryByText(/to answer your question/)).toBeNull();
+  expect(api.loadModels).not.toHaveBeenCalled();
+  expect(streamChat).not.toHaveBeenCalled();
+});
+it("loads automatically when asked to, and remembers the choice", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(chatCold);
+  vi.mocked(api.loadModels).mockResolvedValue(bothLoaded);
+  vi.mocked(streamChat).mockResolvedValue(reply("Auto answer"));
+  render(<App />);
+  await userEvent.click(
+    await screen.findByRole("checkbox", { name: /Load models automatically/ }),
+  );
+  expect(localStorage.getItem("auto-load-models")).toBe("1");
+  await typeQuestion("Who?");
+  await send();
+  await screen.findByText("Auto answer");
+  expect(api.loadModels).toHaveBeenCalledWith(["chat"], null); // only what was cold
+  forgetAutoLoad();
+});
+it("loads the models on request without a question", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(chatCold);
+  vi.mocked(api.loadModels).mockResolvedValue(bothLoaded);
+  render(<App />);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Load now" }),
+  );
+  await waitFor(() =>
+    expect(api.loadModels).toHaveBeenCalledWith(undefined, null),
+  );
+  await waitFor(() => expect(screen.getAllByText("loaded")).toHaveLength(2));
+  expect(streamChat).not.toHaveBeenCalled();
+});
+it("keeps the question and shows the reason when loading fails", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(chatCold);
+  vi.mocked(api.loadModels).mockRejectedValue(new Error("out of memory"));
+  render(<App />);
+  await screen.findByText("not loaded");
+  await typeQuestion("Who?");
+  await send();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Load and send" }),
+  );
+  expect(await screen.findByText(/out of memory/)).toBeInTheDocument();
+  expect(streamChat).not.toHaveBeenCalled();
+  expect(screen.getByLabelText("Ask a question")).toHaveValue("Who?");
+});
+it("does not send a question whose model is not installed and says how to install it", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(
+    status(
+      modelState("chat", "qwen3.5:9b", false, false),
+      modelState("embedding", "embeddinggemma", true),
+    ),
+  );
+  render(<App />);
+  expect(await screen.findAllByText(/ollama pull qwen3.5:9b/)).not.toHaveLength(
+    0,
+  );
+  await typeQuestion("Who?");
+  await send();
+  expect(streamChat).not.toHaveBeenCalled();
+  expect(api.loadModels).not.toHaveBeenCalled();
+});
+it("stays quiet when the API has no model status", async () => {
+  forgetAutoLoad();
+  vi.mocked(streamChat).mockResolvedValue(reply("Plain answer"));
+  render(<App />);
+  await screen.findByText(/Ollama is unavailable/);
+  expect(screen.queryByRole("region", { name: "Models" })).toBeNull();
+  await typeQuestion("Who?");
+  await send();
+  await screen.findByText("Plain answer");
+});
+const serverChat = (
+  state: import("@/api/types").ModelStateName,
+  extra: Partial<import("@/api/types").ModelState> = {},
+): import("@/api/types").ModelState => ({
+  ...modelState("chat", "nvidia/Qwen3.6-35B-A3B-NVFP4", state === "loaded"),
+  state,
+  where: "server",
+  installed: state !== "unreachable",
+  ...extra,
+});
+it("shows a sleeping server model and wakes it before the question is sent", async () => {
+  forgetAutoLoad();
+  const asleep = status(
+    serverChat("asleep"),
+    modelState("embedding", "embeddinggemma", true),
+  );
+  vi.mocked(api.modelsStatus).mockResolvedValue(asleep);
+  vi.mocked(api.loadModels).mockResolvedValue(
+    status(
+      serverChat("loaded"),
+      modelState("embedding", "embeddinggemma", true),
+    ),
+  );
+  vi.mocked(streamChat).mockResolvedValue(reply("Woken answer"));
+  render(<App />);
+  expect(await screen.findByText("asleep")).toBeInTheDocument();
+  expect(
+    screen.getByText(/asleep to free memory.*The first question would wait/),
+  ).toBeInTheDocument();
+  await typeQuestion("Who?");
+  await send();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Wake and send" }),
+  );
+  await screen.findByText("Woken answer");
+  expect(api.loadModels).toHaveBeenCalledTimes(1);
+});
+it("shows the server model loading into memory, with how long it has taken", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(
+    status(
+      serverChat("loading", { loading_seconds: 42 }),
+      modelState("embedding", "embeddinggemma", true),
+    ),
+  );
+  render(<App />);
+  expect(await screen.findByText("loading… 42 s")).toBeInTheDocument();
+  expect(
+    screen.getByRole("status", { name: "Loading models" }),
+  ).toHaveTextContent(
+    /Loading nvidia\/Qwen3\.6-35B-A3B-NVFP4 on the server into memory… 42 s/,
+  );
+});
+it("does not send a question when the model server cannot be reached", async () => {
+  forgetAutoLoad();
+  vi.mocked(api.modelsStatus).mockResolvedValue(
+    status(
+      serverChat("unreachable", { detail: "model server unreachable: down" }),
+      modelState("embedding", "embeddinggemma", true),
+    ),
+  );
+  render(<App />);
+  expect(
+    await screen.findByText(/Cannot reach the model server/),
+  ).toBeInTheDocument();
+  await typeQuestion("Who?");
+  await send();
+  expect(streamChat).not.toHaveBeenCalled();
+  expect(api.loadModels).not.toHaveBeenCalled();
 });

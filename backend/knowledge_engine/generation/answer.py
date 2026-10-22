@@ -14,8 +14,15 @@ from typing import Any
 
 from knowledge_engine.context import AppContext
 from knowledge_engine.generation.attribution import attribute, split_statements
+from knowledge_engine.generation.grounding import (
+    checkable,
+    cited_aliases,
+    remove_statements,
+    states_something,
+    supported,
+)
 from knowledge_engine.generation.prompt import build_prompt
-from knowledge_engine.reasoning.evidence import Evidence
+from knowledge_engine.reasoning.evidence import Evidence, Source
 from knowledge_engine.retrieval.models import QueryPlan
 from knowledge_engine.text import ANSWER_LANGUAGES, script_of
 
@@ -150,6 +157,50 @@ async def _ask(
     return raw
 
 
+MAX_REVISED_STATEMENTS = 15
+
+
+async def _attribute(
+    ctx: AppContext, statements: list[str], sources: list[Source], known: set[str]
+) -> list[list[str]]:
+    """Passages for each statement. After the claim check the passages the model tagged a sentence
+    with are used as they are (the sentence was just checked against all of them), and only
+    checkable sentences without a tag go to the attribution call, which costs seconds."""
+    if not ctx.settings.verify_claims:
+        return await attribute(ctx, statements, sources)
+    found = [[a for a in cited_aliases(t) if a in known] for t in statements]
+    untagged = [i for i, t in enumerate(statements) if not found[i] and checkable(t)]
+    if untagged:
+        extra = await attribute(ctx, [statements[i] for i in untagged], sources)
+        for i, aliases in zip(untagged, extra, strict=True):
+            found[i] = aliases
+    return found
+
+
+def revise_note(unsupported: list[str]) -> str:
+    listed = "\n".join(f"- {t}" for t in unsupported)
+    return (
+        f"REVISION: a check found that SOURCE does not state these sentences of your previous "
+        f"answer:\n{listed}\nWrite the answer again with only facts SOURCE states: no name, "
+        "gender or relationship it does not give. Name people instead of using pronouns. Do not "
+        "mention this revision."
+    )
+
+
+async def _ground(
+    ctx: AppContext, text: str, sources: list[Source], out: Generated, question: str
+) -> tuple[str, list[str]]:
+    """The answer without the sentences the passages do not support, and those sentences."""
+    sentences = split_statements(text)
+    try:
+        holds = await supported(ctx, sentences, sources, question)
+    except ValueError:  # a malformed verdict: keep the answer as written
+        holds = [True] * len(sentences)
+        out.warnings.append("Statements could not be checked against the passages")
+    dropped = [t for t, ok in zip(sentences, holds, strict=True) if not ok]
+    return (remove_statements(text, dropped) if dropped else text), dropped
+
+
 async def generate_answer(
     ctx: AppContext,
     plan: QueryPlan,
@@ -209,11 +260,34 @@ async def generate_answer(
         out.warnings.append("The model returned an empty answer; try rephrasing the question")
         out.text = "The local model returned an empty answer for this question."
         return out
+    if ctx.settings.verify_claims and not abstained:
+        await notify("verifying", "Checking that the passages state every sentence")
+        text, dropped = await _ground(ctx, text, ev.sources, out, plan.question)
+        # one rewrite without them, checked again; what still fails is removed. A long answer is
+        # only cut: rewriting it costs a whole new generation.
+        if dropped and len(split_statements(text)) <= MAX_REVISED_STATEMENTS:
+            out.retries.append("unsupported_statements")
+            revised = await _ask(ctx, plan, history, ev, notify, revise_note(dropped))
+            again = strip_document_names(
+                str(revised.get("answer", "")).strip(), [s.document_name for s in ev.sources]
+            )
+            if again and revised.get("status") != "insufficient_evidence" and valid_ids(revised):
+                text, dropped = await _ground(ctx, again, ev.sources, out, plan.question)
+                cited = valid_ids(revised)
+        if dropped:
+            out.warnings.append(
+                f"Removed {len(dropped)} statement(s) that the documents do not state: "
+                + " | ".join(dropped)
+            )
+        if not any(states_something(t) for t in split_statements(text)):
+            out.text = NO_EVIDENCE
+            out.warnings.append("Nothing in the answer was supported by the documents")
+            return out
     if ctx.settings.verify_citations and not abstained:
         await notify("verifying", "Matching each statement to the passages that state it")
         statements = split_statements(text)
         try:
-            support = await attribute(ctx, statements, ev.sources)
+            support = await _attribute(ctx, statements, ev.sources, set(by_alias))
         except ValueError:  # malformed or oversized verification: keep the model's citations
             support = []
             out.warnings.append("Statements could not be checked against the passages")

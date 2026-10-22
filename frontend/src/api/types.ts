@@ -142,6 +142,47 @@ export interface Conversation {
   title: string;
   created_at: string;
 }
+// the models the engine uses (GET /models/status); "loaded": held in memory, no load delay
+export type ModelRole = "chat" | "embedding" | "rerank" | "context";
+// loaded: in memory; loading: being brought into memory now; asleep: stopped to free memory and woken
+// on demand (a model server); not_loaded: installed but not in memory
+export type ModelStateName =
+  | "loaded"
+  | "loading"
+  | "asleep"
+  | "not_loaded"
+  | "not_installed"
+  | "unreachable";
+export interface ModelState {
+  role: ModelRole;
+  model: string;
+  installed: boolean;
+  loaded: boolean;
+  state: ModelStateName;
+  where: "local" | "server"; // server: a remote model server, not the local Ollama
+  detail: string | null;
+  loading_seconds: number | null; // how long the current load has taken
+  size_bytes: number | null;
+  expires_at: string | null;
+}
+export interface ModelsStatus {
+  ollama_available: boolean;
+  models: ModelState[];
+  error: string | null;
+}
+// the model that writes answers: the model server's (vllm) or a local Ollama one
+export interface AnswerChoice {
+  provider: "vllm" | "ollama";
+  model: string;
+}
+export interface AnswerModel extends AnswerChoice {
+  state: ModelStateName;
+  default: boolean;
+}
+export interface AnswerModels {
+  models: AnswerModel[];
+  errors: string[]; // a backend that could not be listed
+}
 export interface Health {
   status: string;
   ollama_available: boolean;

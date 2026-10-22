@@ -118,4 +118,23 @@ describe("answer language", () => {
     );
     expect(body(1).answer_language).toBe("Telugu");
   });
+  it("reads model status and asks the API to load models", async () => {
+    const answer = { ollama_available: true, models: [], error: null };
+    const fetcher = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify(answer), {
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    expect(await api.modelsStatus()).toEqual(answer);
+    await api.loadModels(["chat"]);
+    await api.loadModels();
+    expect(fetcher.mock.calls[0][0]).toBe("/api/models/status");
+    const [url, options] = fetcher.mock.calls[1];
+    expect(url).toBe("/api/models/load");
+    expect(options.method).toBe("POST");
+    expect(JSON.parse(options.body)).toEqual({ roles: ["chat"] });
+    expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({ roles: null });
+  });
 });

@@ -14,6 +14,7 @@ from knowledge_engine.context import AppContext
 from knowledge_engine.errors import AppError
 from knowledge_engine.generation.answer import Draft, Generated, generate_answer
 from knowledge_engine.generation.smalltalk import small_talk_reply
+from knowledge_engine.llm.answer_choice import CHOSEN, choose
 from knowledge_engine.llm.ollama import USAGE
 from knowledge_engine.pipeline.indexing import PIPELINE_VERSION
 from knowledge_engine.reasoning.evidence import build_evidence
@@ -77,6 +78,7 @@ async def chat(
         if progress:
             await progress(stage, message)
 
+    await choose(ctx, q.answer_provider, q.answer_model)
     await notify("routing", "Reading your message")
     cid = q.conversation_id or str(uuid.uuid4())
     full_history = ctx.store.conversations.messages(cid) if q.conversation_id else []
@@ -141,7 +143,7 @@ async def chat(
         },
         "request": {"answer_language": q.answer_language, "exclude_labels": q.exclude_labels},
         "models": {
-            "chat": s.chat_model,
+            "chat": (CHOSEN.get() or ("", s.chat_model))[1],
             "embedding": s.embedding_model,
             "rerank": s.rerank_model or None,
         },
@@ -184,7 +186,7 @@ async def chat(
         "statements": result.statements,
         "trace": trace,
         "metrics": metrics,
-        "model": ctx.settings.chat_model,
+        "model": (CHOSEN.get() or ("", ctx.settings.chat_model))[1],
     }
 
 

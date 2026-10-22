@@ -170,7 +170,11 @@ export function DocumentReader({
                 className="reader-image"
               />
             )}
-            <h3>{isImage(doc.name) ? "Extracted text (OCR)" : "Full ingested text"}</h3>
+            <h3>
+              {isImage(doc.name)
+                ? "Extracted text (OCR)"
+                : "Full ingested text"}
+            </h3>
             <pre>
               {content.text ||
                 "No extracted text is available yet. Processing must finish first."}

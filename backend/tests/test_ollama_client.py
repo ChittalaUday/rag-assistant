@@ -145,3 +145,14 @@ async def test_model_usage_is_counted_for_the_request_being_answered():
     }
     await Ollama(Settings()).embed(["outside a request"])  # not counted
     assert usage["embed"]["calls"] == 1
+
+
+async def test_loading_a_model_sends_no_prompt_and_keeps_it_in_memory():
+    FakeClient.script = [(200, {}), (200, {"embeddings": [[0.1]]})]
+    client = Ollama(Settings(model_keep_alive="45m"))
+    await client.load("qwen3.5:9b")
+    await client.load("embeddinggemma", embedding=True)
+    chat, embed = FakeClient.calls
+    assert chat["url"].endswith("/api/generate") and chat["prompt"] == "" and not chat["stream"]
+    assert embed["url"].endswith("/api/embed") and embed["input"] == ["load"]
+    assert chat["keep_alive"] == embed["keep_alive"] == "45m"

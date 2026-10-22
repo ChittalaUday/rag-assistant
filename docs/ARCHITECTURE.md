@@ -44,9 +44,9 @@ store / llm`.
 | `reasoning/` | evidence | `evidence` (citable passages within the context budget, in reading order) |
 | `generation/` | generate · validate · attribute | `prompt` (source-agnostic, budgeted), `answer` (cite-or-abstain, status, notices), `attribution` (each sentence → the passages that state it), `smalltalk` (greetings and thanks answered without retrieval or facts) |
 | `pipeline/` | orchestration | `indexing` (document → published passages, worker), `querying` (question → answer + trace), `preview` (likely sources for text being typed; no model) |
-| `llm/` | models | Loopback-only Ollama client (chat with JSON schema and optional thinking, embeddings, Qwen3-Reranker relevance via token log-probabilities); `gateway` serialises access to the local model server |
+| `llm/` | models | Loopback-only Ollama client; `server` (the answer model on a vLLM server you control, behind model-sleeper: asleep / loading / ready, wake on demand; embeddings and reranking stay on Ollama) (chat with JSON schema and optional thinking, embeddings, Qwen3-Reranker relevance via token log-probabilities); `gateway` serialises access to the local model server (loading a model to warm it is not serialised, so the UI can show progress during an answer) |
 | `evaluation/` | measurement | Retrieval systems and end-to-end answers on the fixtures, rescoring of saved runs |
-| `api/`, `schemas/` | HTTP | One router per resource; typed response models; OpenAPI at `/docs` |
+| `api/`, `schemas/` | HTTP | One router per resource (`models`: which models are in memory, and loading them on request); typed response models; OpenAPI at `/docs` |
 
 Entry points: `python -m knowledge_engine {ingest,reindex,export,eval}` (no web app needed) and
 `uvicorn knowledge_engine.main:app`.
@@ -93,7 +93,16 @@ Entry points: `python -m knowledge_engine {ingest,reindex,export,eval}` (no web 
    thinking (`KE_ANSWER_THINKING`) lets the model reason first, with a larger output budget.
 7. **Validate**: unknown aliases are discarded; an uncited answer gets one corrective retry, then is
    withheld with an explicit message.
-8. **Attribute** (`KE_VERIFY_CITATIONS`): the answer is split into sentences (Latin and Indic sentence
+8. **Ground** (`KE_VERIFY_CLAIMS`): before attribution each sentence is checked against the passages
+   (claim-level verification). Sentences made only of words the passages use are accepted; the rest
+   are judged by the answer model in batches of ten and each flagged sentence is confirmed on its
+   own (`KE_VERIFY_THINKING` adds reasoning to that confirmation). Unsupported sentences are reported
+   in `warnings`; the answer is rewritten once without them (short answers) and anything still
+   unsupported is removed. Passages reach the model without image file names (`![](img/Dr_Rama.png)`
+   read as a person's name). Dedicated entailment models were tried and left out: the
+   Bespoke-MiniCheck-7B weights are non-commercial (CC BY-NC), and the MIT MiniCheck-Flan-T5-Large
+   rejected true name-and-title sentences ("Shiva Ram Krishna ... CTO") and needs PyTorch.
+9. **Attribute** (`KE_VERIFY_CITATIONS`): the passages a sentence is tagged with (`[S3]`) are its sources; the answer is split into sentences (Latin and Indic sentence
    ends, list lines) and one more model call lists, for each sentence, every passage that states one
    of its facts. Those passages are added to the citations, and sentences no passage supports are
    returned with an empty list so the UI can show them.

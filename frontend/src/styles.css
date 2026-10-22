@@ -3783,3 +3783,139 @@ button.trace-num:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+/* model readiness: which models are in memory, and the prompt to load them */
+.model-bar {
+  margin: 0 23px 8px;
+  display: grid;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #5b6573;
+}
+.model-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.model-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  line-height: 1.5;
+}
+.model-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9aa3b0;
+}
+.model-chip.loaded i {
+  background: #1f9a5b;
+}
+.model-chip.not_loaded i {
+  background: #d9962b;
+}
+.model-chip.asleep i {
+  background: #8b93a1;
+}
+.model-chip.loading i {
+  background: #2f6fe0;
+  animation: model-pulse 1s ease-in-out infinite;
+}
+.model-chip.unreachable i,
+.model-chip.not_installed i {
+  background: #c8574f;
+}
+@keyframes model-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .model-chip.loading i {
+    animation: none;
+  }
+}
+.model-chip small {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+.model-prompt,
+.model-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid #eadbd0;
+  background: #fdf5ee;
+  color: #94644a;
+  line-height: 1.4;
+}
+.model-prompt button {
+  font-size: 10.5px;
+}
+.model-note.missing {
+  background: #fff0ef;
+  border-color: #f0cfcc;
+  color: #a3443e;
+}
+.model-note code {
+  font-size: 10px;
+  user-select: all;
+}
+.model-auto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+@media (max-width: 760px) {
+  .model-bar {
+    margin: 0 12px 8px;
+  }
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: #5b6573;
+  font-size: 10.5px;
+}
+@media (max-width: 900px) {
+  .topbar-right .model-chips {
+    display: none;
+  }
+}
+
+.answer-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.answer-picker select {
+  max-width: 260px;
+  font: inherit;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: #284468;
+}
+@media (max-width: 900px) {
+  .answer-picker span {
+    display: none;
+  }
+  .answer-picker select {
+    max-width: 150px;
+  }
+}

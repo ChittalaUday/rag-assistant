@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from knowledge_engine.schemas.sources import Citation
 from knowledge_engine.text import ANSWER_LANGUAGES
@@ -17,6 +17,15 @@ class Question(BaseModel):
     exclude_labels: list[str] = Field(default_factory=list, max_length=20)
     # answer in this language (a name from GET /languages); None: in the question's language
     answer_language: str | None = None
+    # write the answer with this model (see GET /models/answer); both or neither; None: the default
+    answer_provider: Literal["vllm", "ollama"] | None = None
+    answer_model: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def provider_and_model_together(self) -> "Question":
+        if (self.answer_provider is None) != (self.answer_model is None):
+            raise ValueError("answer_provider and answer_model go together")
+        return self
 
     @field_validator("answer_language")
     @classmethod

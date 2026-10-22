@@ -186,3 +186,12 @@ def clean_labels(labels: list[str] | None) -> list[str]:
     """Document labels as stored: lower-case [a-z0-9_-], at most 30 characters, distinct, sorted."""
     cleaned = {re.sub(r"[^a-z0-9_-]", "", x.strip().casefold())[:30] for x in labels or []}
     return sorted(c for c in cleaned if c)
+
+
+_IMAGE = re.compile(r"!\[([^\]]*)\]\([^)]*\)|<img\b[^>]*>")
+
+
+def strip_images(text: str) -> str:
+    """Markdown images keep their alt text and lose the file name: a name such as `Dr_Rama.png`
+    is not content, but a model reads it as one."""
+    return re.sub(r"[ \t]{2,}", " ", _IMAGE.sub(lambda m: m[1] or "", text))

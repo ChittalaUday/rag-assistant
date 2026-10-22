@@ -33,7 +33,10 @@ text, quote|null, page|null, heading|null, source_urls[]}`.
 ## Questions
 
 `POST /chat` and `POST /chat/stream` take `{question, conversation_id?, exclude_labels?: string[],
-answer_language?}`. Without `answer_language` the answer is written in the question's language
+answer_language?, answer_provider?, answer_model?}`. `answer_provider` (`vllm` or `ollama`) and
+`answer_model` (both or neither; 422 if the model is not listed by `GET /models/answer`) pick the model
+that writes this answer; without them the default one (the model server's when `KE_CHAT_URL` is set,
+else `KE_CHAT_MODEL` in Ollama) is used. Without `answer_language` the answer is written in the question's language
 (retried once if a question in a non-Latin script comes back in another script). With one of the
 names from `GET /languages` (`{languages: string[]}`: English, Hindi, Telugu, ...) the answer is
 written in that language whatever the question's, retried once if it comes back in another script;
@@ -112,6 +115,37 @@ versions that still had a knowledge graph load without their `graph` field.
 index: {documents, stale_documents, chunks}}`. Warnings include missing models (chat, embedding,
 and the reranker and summary models when configured), documents indexed by an older pipeline, and
 chunks embedded with a different model.
+
+## Models
+
+`GET /models/status` returns `{ollama_available, models: [{role, model, installed, loaded, state, where,
+detail, loading_seconds, size_bytes, expires_at}], error}` for the models the engine is configured to
+use (`role`: `chat` answers, `embedding` search, `rerank` rescoring, `context` indexing summaries).
+`state` is `loaded` (in memory, ready), `loading` (being brought into memory now; `loading_seconds` says
+for how long), `asleep` (stopped to free memory, wakes on demand), `not_loaded`, `not_installed` or
+`unreachable`; `where` is `local` (Ollama on this machine) or `server`.
+`GET /models/answer` lists every model that can write answers: `{models: [{provider, model, state, default}],
+errors}` from the model server (`vllm`; the configured model, plus the others it serves while awake) and from
+Ollama (`ollama`; installed models except embedding and reranking ones). A backend that cannot be reached is
+named in `errors`; the other one is still listed. `/models/status` and `/models/load` take the same
+`answer_provider`/`answer_model` (query parameters, resp. body fields) to report or load that answer model.
+`POST /models/load` with `{roles: [...] | null}` (null: all) brings the missing ones into memory, one at
+a time, and returns the new status. A model that is not installed in Ollama is never downloaded (409
+with the `ollama pull` command); Ollama or the model server being down is 503, a failed or too slow load
+502 or 504 (`KE_MODEL_LOAD_TIMEOUT`, 700 s). Ollama models are kept for `KE_MODEL_KEEP_ALIVE` (30m).
+
+**Answer model on a server.** With `KE_CHAT_URL` the answer model (`KE_CHAT_MODEL` is then the id the server
+serves, e.g. `nvidia/Qwen3.6-35B-A3B-NVFP4`) runs on an OpenAI-compatible server (vLLM) instead of
+Ollama: chat calls use `POST /v1/chat/completions` with the JSON schema as `response_format`;
+embeddings, reranking and any other model stay on the local Ollama. Prompts, including document
+passages, are sent to that server, so use only a machine you control.
+With `KE_CHAT_CONTROL_URL`, `KE_CHAT_CONTROL_NAME` and `KE_CHAT_CONTROL_TOKEN` (the
+[model-sleeper](../benchmark_tools/model_sleeper/README.md) beside the server) the model sleeps when idle
+and the engine sees `asleep` / `loading` / `loaded` and can wake it; waking a 35B model takes 2-4
+minutes, so keep `KE_MODEL_TIMEOUT` at 420 or more. The web app shows each model's state, asks before a
+question has to wait for a load or wake (or does it automatically when the user chose that), and never
+sends a question whose model is not installed or whose server cannot be reached.
+The evaluation tools for chunking and the legacy system still call Ollama directly.
 
 ## Behaviour that clients can rely on
 

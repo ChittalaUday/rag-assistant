@@ -8,6 +8,10 @@ import type {
   DocumentContent,
   Health,
   Message,
+  ModelRole,
+  AnswerChoice,
+  AnswerModels,
+  ModelsStatus,
   PreviewGraph,
   SearchPreview,
 } from "./types";
@@ -33,6 +37,25 @@ function upload(file: File) {
 }
 export const api = {
   health: () => request<Health>("/health"),
+  // choice: the answer model picked in the header (null: the default one)
+  modelsStatus: (choice: AnswerChoice | null = null) =>
+    request<ModelsStatus>(
+      `/models/status${choice ? `?${new URLSearchParams({ answer_provider: choice.provider, answer_model: choice.model })}` : ""}`,
+    ),
+  // every model that can write answers, from the model server and from Ollama
+  answerModels: () => request<AnswerModels>("/models/answer"),
+  // bring the models into memory (all configured ones, or only the given roles)
+  loadModels: (roles?: ModelRole[], choice: AnswerChoice | null = null) =>
+    request<ModelsStatus>("/models/load", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        roles: roles ?? null,
+        ...(choice
+          ? { answer_provider: choice.provider, answer_model: choice.model }
+          : {}),
+      }),
+    }),
   documents: () => request<{ documents: Document[] }>("/documents"),
   documentChunks: (id: string) =>
     request<DocumentChunks>(`/documents/${encodeURIComponent(id)}/chunks`),
@@ -89,6 +112,7 @@ export async function streamChat(
   onTrace?: (trace: AnswerTrace) => void,
   onDraft?: (text: string) => void,
   answerLanguage: string | null = null, // null: answer in the question's language
+  answerChoice: AnswerChoice | null = null, // null: the default answer model
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE}/chat/stream`, {
     method: "POST",
@@ -98,6 +122,12 @@ export async function streamChat(
       conversation_id,
       exclude_labels: excludeLabels,
       ...(answerLanguage ? { answer_language: answerLanguage } : {}),
+      ...(answerChoice
+        ? {
+            answer_provider: answerChoice.provider,
+            answer_model: answerChoice.model,
+          }
+        : {}),
     }),
     signal,
   });

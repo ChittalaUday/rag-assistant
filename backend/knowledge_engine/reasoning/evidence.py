@@ -5,6 +5,7 @@ from typing import Any
 
 from knowledge_engine.context import AppContext
 from knowledge_engine.retrieval.search import Retrieval
+from knowledge_engine.text import strip_images
 
 
 @dataclass
@@ -54,7 +55,7 @@ def build_evidence(ctx: AppContext, retrieval: Retrieval) -> Evidence:
                 row["id"],
                 row["document_name"],
                 row["heading"],
-                text,
+                strip_images(text),
                 list(row["labels"]),
                 rank,
             )

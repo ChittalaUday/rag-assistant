@@ -1,0 +1,8 @@
+[
+  {"name": "qwen36", "container": "vllm-qwen36", "listen_port": 8008, "backend_port": 18008,
+   "idle_seconds": 900, "start_timeout": 600, "ready_path": "/v1/models"},
+  {"name": "gpt-oss-20b", "container": "vllm-gpt-oss-20b", "listen_port": 8009, "backend_port": 18009,
+   "idle_seconds": 900, "start_timeout": 600, "ready_path": "/v1/models"},
+  {"name": "clef-flash", "container": "clef-flash", "listen_host": "127.0.0.1", "listen_port": 8090,
+   "backend_port": 18090, "idle_seconds": 600, "start_timeout": 300, "ready_path": "/health"}
+]

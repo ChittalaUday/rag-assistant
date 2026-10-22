@@ -17,7 +17,8 @@ async def health(ctx: Ctx) -> Health:
         models = []
         warnings.append(f"Ollama unavailable: {exc}")
     installed = set(models) | {m.removesuffix(":latest") for m in models}  # "x" means "x:latest"
-    for expected in [s.chat_model, s.embedding_model, s.rerank_model, s.context_model]:
+    answer = [] if s.chat_url else [s.chat_model]  # on a model server it is not an Ollama model
+    for expected in [*answer, s.embedding_model, s.rerank_model, s.context_model]:
         if expected and expected not in installed:
             warnings.append(f"Model missing: {expected}; install it explicitly with ollama pull")
     docs = ctx.store.documents.stats(PIPELINE_VERSION, s.embedding_model)

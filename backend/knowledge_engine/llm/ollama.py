@@ -70,6 +70,10 @@ def yes_probability(top: list[dict[str, Any]]) -> float:
 
 class ModelClient(Protocol):
     async def health(self) -> list[str]: ...
+    async def loaded(self) -> list[dict[str, Any]]: ...
+    async def load(self, model: str, embedding: bool = False) -> None: ...
+    async def chat_state(self) -> dict[str, Any] | None: ...  # answer model on a server; else None
+    async def server_models(self) -> list[str]: ...  # models the answer server lists; else []
     async def embed(self, texts: list[str]) -> list[list[float]]: ...
     async def relevance(self, model: str, query: str, documents: list[str]) -> list[float]: ...
     async def count_tokens(self, text: str) -> int: ...
@@ -96,6 +100,40 @@ class Ollama:
             r = await c.get(self.s.ollama_url + "/api/tags")
             r.raise_for_status()
             return [m["name"] for m in r.json()["models"]]
+
+    async def chat_state(self) -> dict[str, Any] | None:
+        return None  # the answer model is an Ollama model: loaded() covers it
+
+    async def server_models(self) -> list[str]:
+        return []
+
+    async def loaded(self) -> list[dict[str, Any]]:
+        """Models held in memory right now (name, size in bytes, when Ollama will unload them)."""
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(self.s.ollama_url + "/api/ps")
+            r.raise_for_status()
+            return [
+                {
+                    "name": m["name"],
+                    "size": int(m.get("size") or 0),
+                    "expires_at": m.get("expires_at"),
+                }
+                for m in r.json().get("models", [])
+            ]
+
+    async def load(self, model: str, embedding: bool = False) -> None:
+        """Bring a model into memory without generating anything: an empty prompt (or a one-word
+        embedding) loads it and `keep_alive` holds it, so the first real question is not slow."""
+        keep_alive = self.s.model_keep_alive
+        body: dict[str, Any]
+        async with httpx.AsyncClient(timeout=self.s.model_timeout) as c:
+            if embedding:
+                body = {"model": model, "input": ["load"], "keep_alive": keep_alive}
+                r = await c.post(self.s.ollama_url + "/api/embed", json=body)
+            else:
+                body = {"model": model, "prompt": "", "stream": False, "keep_alive": keep_alive}
+                r = await c.post(self.s.ollama_url + "/api/generate", json=body)
+            r.raise_for_status()
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         """Embed texts. Token-dense text (tables, code) can exceed the model window; rather than

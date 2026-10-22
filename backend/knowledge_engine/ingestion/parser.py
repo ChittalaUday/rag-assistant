@@ -21,9 +21,7 @@ async def parse(path: Path) -> str:
         try:
             from docling.document_converter import DocumentConverter
         except ImportError as exc:
-            raise ValueError(
-                "This format requires Docling: run uv sync --extra documents"
-            ) from exc
+            raise ValueError("This format requires Docling: run uv sync --extra documents") from exc
         result: str = DocumentConverter().convert(str(path)).document.export_to_markdown()
         return result
 

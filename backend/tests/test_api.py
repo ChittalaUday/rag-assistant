@@ -775,3 +775,86 @@ def test_a_documents_passages_are_listed_in_order_with_their_indexed_context(tmp
         assert chunks[0]["char_start"] < chunks[1]["char_start"]  # in document order
         assert chunks[0]["embedding_model"] == "all-minilm:l6-v2"
         assert c.get("/api/documents/missing/chunks").status_code == 404
+
+
+def models_by_role(c):
+    return {m["role"]: m for m in c.get("/api/models/status").json()["models"]}
+
+
+def test_models_status_reports_installed_and_loaded(tmp_path):
+    model = FakeModel()
+    model.loaded_names = ["qwen3.5:9b"]  # the answer model is in memory, the embedding model is not
+    with client(tmp_path, model) as c:
+        body = c.get("/api/models/status").json()
+        assert body["ollama_available"] is True and body["error"] is None
+        chat, embedding = models_by_role(c)["chat"], models_by_role(c)["embedding"]
+        assert (chat["model"], chat["installed"], chat["loaded"]) == ("qwen3.5:9b", True, True)
+        assert chat["size_bytes"] == 1_000_000 and chat["expires_at"]
+        assert (embedding["installed"], embedding["loaded"]) == (True, False)
+        assert embedding["size_bytes"] is None
+        assert "rerank" not in models_by_role(c)  # not configured in tests
+
+
+def test_loading_brings_missing_models_into_memory_and_skips_loaded_ones(tmp_path):
+    model = FakeModel()
+    model.loaded_names = ["qwen3.5:9b"]
+    with client(tmp_path, model) as c:
+        body = c.post("/api/models/load", json={}).json()
+        assert [(m["role"], m["loaded"]) for m in body["models"]] == [
+            ("chat", True),
+            ("embedding", True),
+        ]
+        assert model.load_calls == [("all-minilm:l6-v2", True)]  # only the missing one, as embedder
+        assert c.post("/api/models/load", json={}).status_code == 200
+        assert len(model.load_calls) == 1  # nothing left to load
+
+
+def test_loading_can_be_limited_to_one_role(tmp_path):
+    model = FakeModel()
+    model.loaded_names = []
+    with client(tmp_path, model) as c:
+        c.post("/api/models/load", json={"roles": ["chat"]})
+        assert model.load_calls == [("qwen3.5:9b", False)]
+        assert c.post("/api/models/load", json={"roles": ["anything"]}).status_code == 422
+
+
+def test_loading_never_installs_a_missing_model(tmp_path):
+    class NothingInstalled(FakeModel):
+        async def health(self):
+            return ["all-minilm:l6-v2"]
+
+    model = NothingInstalled()
+    model.loaded_names = []
+    with client(tmp_path, model) as c:
+        assert models_by_role(c)["chat"]["installed"] is False
+        reply = c.post("/api/models/load", json={"roles": ["chat"]})
+        assert reply.status_code == 409 and "ollama pull qwen3.5:9b" in reply.json()["detail"]
+        assert not model.load_calls
+
+
+def test_models_endpoints_report_an_unreachable_ollama(tmp_path):
+    class Down(FakeModel):
+        async def health(self):
+            raise ConnectionError("refused")
+
+    with client(tmp_path, Down()) as c:
+        body = c.get("/api/models/status").json()
+        assert body["ollama_available"] is False and "refused" in body["error"]
+        assert all(not m["installed"] and not m["loaded"] for m in body["models"])
+        assert c.post("/api/models/load", json={}).status_code == 503
+
+
+def test_a_failed_or_slow_load_is_reported(tmp_path):
+    class Broken(FakeModel):
+        error: Exception = RuntimeError("out of memory")
+
+        async def load(self, model, embedding=False):
+            raise self.error
+
+    model = Broken()
+    model.loaded_names = []
+    with client(tmp_path, model) as c:
+        failed = c.post("/api/models/load", json={"roles": ["chat"]})
+        assert failed.status_code == 502 and "out of memory" in failed.json()["detail"]
+        model.error = TimeoutError()
+        assert c.post("/api/models/load", json={"roles": ["chat"]}).status_code == 504

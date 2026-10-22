@@ -1,0 +1,1 @@
+Write a detailed technical explanation, at least 400 words, of how a relational database index works. Cover B-trees, how lookups and range scans use them, the cost of writes, when an index hurts performance, and give two concrete SQL examples.

@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     # models (loopback Ollama only)
     ollama_url: str = "http://127.0.0.1:11434"
     chat_model: str = "qwen3.5:9b"
+    # The answer model on an OpenAI-compatible server (vLLM) instead of Ollama; empty: Ollama.
+    # Prompts, including document passages, then leave this machine for that server, so point it
+    # only at a machine you control. Embeddings and reranking stay on the local Ollama.
+    chat_url: str = ""
+    chat_api_key: str = ""
+    # model-sleeper (benchmark_tools/model_sleeper) beside that server stops an idle model to free
+    # its memory and wakes it on the first request; with these the UI sees asleep, loading, ready.
+    chat_control_url: str = ""
+    chat_control_name: str = ""  # the model's name in the sleeper's config
+    chat_control_token: str = ""
     embedding_model: str = "embeddinggemma"
     # Vector size the Ollama embedding model produces. Changing the model or this size replaces
     # the vector column at start-up and re-embeds the documents.
@@ -37,6 +47,8 @@ class Settings(BaseSettings):
     # questions (highest 0.094) and 26 unseen small-talk messages (25 at 0.126 or more)
     small_talk_margin: float = 0.11
     model_timeout: float = 180
+    model_load_timeout: float = 700  # loading a big model into memory (a vLLM start takes minutes)
+    model_keep_alive: str = "30m"  # how long Ollama keeps a model the UI loaded in memory
     job_timeout: float = 1800
     # ingestion
     max_upload_bytes: int = 20 * 1024 * 1024
@@ -61,12 +73,25 @@ class Settings(BaseSettings):
     # match every answer sentence to the passages that state it (one extra model call): completes
     # citations and shows which statements no passage supports
     verify_citations: bool = True
+    # drop every answer sentence the passages do not support (a made-up relationship, gender, name
+    # or number): sentences with a word the passages lack are judged by the answer model
+    verify_claims: bool = True
+    verify_thinking: bool = (
+        False  # confirm flagged sentences with reasoning: fewer wrong removals, 30-60 s slower
+    )
     answer_thinking: bool = False  # let the answer model reason before answering (slower)
     # follow names in the best passage to other documents (append-only second retrieval round)
     second_hop: Literal["off", "relationship", "always"] = "always"
     label_notices: dict[str, str] = {
         "synthetic": "Synthetic test data — not real facts.",
     }
+
+    @field_validator("chat_url", "chat_control_url")
+    @classmethod
+    def http_url(cls, url: str) -> str:
+        if url and not re.match(r"^https?://[^/\s]+", url):
+            raise ValueError("must be an http:// or https:// URL")
+        return url.rstrip("/")
 
     @field_validator("database_url")
     @classmethod

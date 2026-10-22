@@ -28,6 +28,30 @@ class FakeModel:
     async def health(self):
         return ["qwen3.5:9b", "all-minilm:l6-v2"]
 
+    loaded_names = None  # models "in memory"; None: every installed one
+    load_calls = ()
+
+    server_state = None  # the answer model's state when it runs on a model server
+
+    async def chat_state(self):
+        return self.server_state
+
+    server_ids = ()  # models the answer server lists
+
+    async def server_models(self):
+        return list(self.server_ids)
+
+    async def loaded(self):
+        held = await self.health() if self.loaded_names is None else self.loaded_names
+        return [{"name": n, "size": 1_000_000, "expires_at": "2030-01-01T00:00:00Z"} for n in held]
+
+    async def load(self, model, embedding=False):
+        self.load_calls = [*self.load_calls, (model, embedding)]
+        if self.server_state is not None and not embedding:  # the server finished waking
+            self.server_state = {"state": "ready"}
+        if self.loaded_names is not None:
+            self.loaded_names = [*self.loaded_names, model]
+
     async def embed(self, texts):
         return [hash_embedding(t) for t in texts]
 
@@ -35,6 +59,8 @@ class FakeModel:
 
     async def embedding_context(self):
         return self.context
+
+    unsupported = ()  # claims containing any of these words are "not supported" by the verifier
 
     async def count_tokens(self, text):
         return len(text.encode()) // 3  # deterministic stand-in for a tokenizer
@@ -54,6 +80,11 @@ class FakeModel:
             return {"question": prompt.rsplit("FINAL QUESTION:", 1)[1].strip()}
         if "reply" in props:  # a reply to a message the embeddings routed to small talk
             return {"reply": "Hello! Ask me about your documents."}
+        if "unsupported" in props:  # claim check: the numbered statements with a flagged word
+            texts = re.findall(r"^(\d+)\. (.*)$", prompt.split("STATEMENTS:")[1], re.M)
+            return {
+                "unsupported": [int(n) for n, t in texts if any(w in t for w in self.unsupported)]
+            }
         if "statements" in props:  # attribution: every statement rests on the first passage
             count = props["statements"]["maxItems"]
             first = re.findall(r"^(S\d+):$", prompt, re.M)[:1]

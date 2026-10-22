@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spark Model Benchmark</title>
+<style>
+:root{--bg:#f6f6f3;--surface:#fcfcfb;--ink:#0d0d0c;--ink2:#4d4c48;--mut:#8a8984;--line:#e3e2dc;--chip:#efeee9;
+--vllm:#2a78d6;--ollama:#eb6834;--llama:#1baf7a;--good:#0a7f3f;--bad:#c13b3b;--hot:#fff4e0;--shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.04);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c0c0b;--surface:#171716;--ink:#f1f0ec;--ink2:#c3c2b8;--mut:#8f8e86;--line:#2b2b28;--chip:#242422;
+--vllm:#3987e5;--ollama:#d95926;--llama:#199e70;--good:#46b86d;--bad:#e66767;--hot:#2a2418;--shadow:none;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0c0c0b;--surface:#171716;--ink:#f1f0ec;--ink2:#c3c2b8;--mut:#8f8e86;--line:#2b2b28;--chip:#242422;--vllm:#3987e5;--ollama:#d95926;--llama:#199e70;--good:#46b86d;--bad:#e66767;--hot:#2a2418;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:0 20px}
+header.top{padding:34px 0 18px}
+h1{font-size:30px;line-height:1.15;letter-spacing:-.025em;margin:0 0 6px}
+.sub{color:var(--ink2);max-width:75ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pill{background:var(--chip);border-radius:999px;padding:3px 11px;font-size:12px;color:var(--ink2)}
+.theme{position:absolute;right:20px;top:22px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:12px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:6px 0 4px}@media(max-width:900px){.cards{grid-template-columns:repeat(auto-fit,minmax(235px,1fr))}}
+.qcard{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);transition:transform .12s,border-color .12s;display:block;position:relative;overflow:hidden}
+.qcard:hover{transform:translateY(-2px);border-color:var(--mut)}.qcard:focus-visible{outline:2px solid var(--vllm);outline-offset:2px}
+.qcard:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--vllm)}.qcard.ollama:before{background:var(--ollama)}.qcard.llamacpp:before{background:var(--llama)}
+.qcard small{display:block;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+.qcard b{display:block;font-size:17px;margin:3px 0 2px;letter-spacing:-.01em}.qcard .nums{display:flex;gap:12px;margin:6px 0 4px}
+.qcard .nums span{font-size:12px;color:var(--ink2);white-space:nowrap}.qcard .nums strong{display:block;font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
+.qcard em{font-style:normal;color:var(--mut);font-size:12px}
+.filters{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:18px 0 0}
+.filters .wrap{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;padding-top:10px;padding-bottom:10px}
+.fg{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.fg>label.t{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin-right:2px}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:3px 11px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip i{width:8px;height:8px;border-radius:50%;display:inline-block}.chip i.vllm{background:var(--vllm)}.chip i.ollama{background:var(--ollama)}.chip i.llamacpp{background:var(--llama)}
+.chip[aria-pressed=true] i{box-shadow:0 0 0 2px var(--bg)}
+input[type=search],select{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font:inherit;font-size:12px}
+input[type=range]{accent-color:var(--vllm);width:110px}
+.count{margin-left:auto;color:var(--mut);font-size:12px}
+section.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:18px 0;box-shadow:var(--shadow)}
+section.card>h2{font-size:18px;margin:0 0 2px;letter-spacing:-.015em}
+section.card>.lead{color:var(--ink2);margin:0 0 14px;max-width:85ch}
+.tablewrap{overflow-x:auto;margin:0 -6px}
+table.lb{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
+.lb th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:600;text-align:right;padding:8px 5px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+.lb th:first-child,.lb td:first-child{width:28px;text-align:center;cursor:default}.lb th.l,.lb td.l{text-align:left}
+.lb th:hover{color:var(--ink)}.lb th[aria-sort] {color:var(--ink)}
+.lb td{padding:6px 5px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lb tbody tr{cursor:pointer}.lb tbody tr:hover td{background:color-mix(in srgb,var(--mut) 9%,transparent)}
+.lb tbody tr.sel td{background:var(--hot)}
+.mname{display:flex;align-items:center;gap:8px;text-align:left;font-weight:600}
+.dot{width:10px;height:10px;display:inline-block;flex:none}.dot.vllm{background:var(--vllm)}.dot.ollama{background:var(--ollama)}.dot.llamacpp{background:var(--llama)}
+.dot.circle{border-radius:50%}.dot.square{border-radius:2px}.dot.diamond{transform:rotate(45deg) scale(.85);border-radius:1px}.dot.tri{clip-path:polygon(50% 0,100% 100%,0 100%);width:11px;height:10px}
+.fmt{font-size:10.5px;font-weight:600;background:var(--chip);color:var(--ink2);border-radius:5px;padding:1px 6px;letter-spacing:.02em}
+.tuned{font-size:10.5px;color:var(--bad);margin-left:2px}
+.cell{display:flex;align-items:center;gap:6px;justify-content:flex-end}.mb{width:44px;height:6px;border-radius:3px;background:color-mix(in srgb,var(--mut) 18%,transparent);overflow:hidden;flex:none}
+.mb span{display:block;height:100%;border-radius:3px}.mb .vllm{background:var(--vllm)}.mb .ollama{background:var(--ollama)}.mb .llamacpp{background:var(--llama)}.mb .neu{background:var(--mut)}
+.best{font-weight:700}.best:after{content:" ★";color:var(--good);font-size:10px}
+small.s{color:var(--mut);font-size:11px;margin-left:4px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.axes{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:12px;color:var(--ink2)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--ink2);font-size:12px;margin:2px 0 8px;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.plot{position:relative}svg{display:block;width:100%;height:auto}
+.grid{stroke:var(--line);stroke-width:1}.ax{fill:var(--mut);font-size:11px}.axt{fill:var(--ink2);font-size:12px}
+.pt{cursor:pointer}.pt.vllm{fill:var(--vllm)}.pt.ollama{fill:var(--ollama)}.pt.llamacpp{fill:var(--llama)}.pt{stroke:var(--surface);stroke-width:2}.pt.sel{stroke:var(--ink);stroke-width:3}.pt.cmp{stroke:var(--good);stroke-width:3}
+.pl{fill:var(--ink);font-size:11px;pointer-events:none}.pl.dim{fill:var(--ink2)}
+[data-tip]{cursor:help}.gl{border-bottom:1px dotted var(--mut)}
+#gtip{position:fixed;z-index:60;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:9px 12px;font-size:12px;line-height:1.5;max-width:320px;opacity:0;transition:opacity .1s;box-shadow:0 8px 24px rgba(0,0,0,.28);font-weight:400;text-transform:none;letter-spacing:0;text-align:left}
+#gtip b{display:block;margin-bottom:2px;font-size:12.5px}#gtip i{display:block;margin-top:5px;opacity:.7;font-style:normal;font-size:11px}
+.axdesc{font-size:12px;color:var(--ink2);margin:0 0 6px;display:grid;gap:2px}.axdesc b{color:var(--ink)}
+#tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.45;z-index:30;max-width:280px;opacity:0;transition:opacity .08s;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#tip b{display:block;font-size:13px;margin-bottom:2px}#tip span{opacity:.75}
+.detail h3{font-size:22px;margin:0;letter-spacing:-.02em}
+.detail .chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:10px 12px}.kpi small{display:block;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.kpi b{font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.kpi em{font-style:normal;color:var(--mut);font-size:12px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+.panel h4{font-size:13px;margin:0 0 6px;color:var(--ink2);font-weight:600}
+.cat{display:grid;grid-template-columns:92px 1fr 36px;gap:8px;align-items:center;font-size:12px;margin:5px 0}.cat .bar{height:10px;background:color-mix(in srgb,var(--mut) 18%,transparent);border-radius:5px;overflow:hidden}
+.cat .bar span{display:block;height:100%}.cat .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.fails{margin:0;padding:0;list-style:none;font-size:12.5px}.fails li{border-top:1px solid var(--line);padding:7px 0}.fails b{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--bad)}
+.fails code{background:var(--chip);border-radius:5px;padding:1px 6px;font-size:12px;word-break:break-word}.fails .q{color:var(--mut)}
+.cfg{font:11.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--chip);border-radius:8px;padding:8px 10px;color:var(--ink2);word-break:break-all}
+table.cmp{border-collapse:collapse;width:100%;font-size:13px}.cmp th,.cmp td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}.cmp th:first-child,.cmp td:first-child{text-align:left;color:var(--ink2)}
+.cmp td.w{font-weight:700;color:var(--good)}
+.heat{border-collapse:separate;border-spacing:2px;font-size:12px;min-width:760px}.heat th{font-weight:500;color:var(--ink2);padding:3px 6px}.heat tbody th{text-align:left;white-space:nowrap;color:var(--ink);font-weight:500}
+.heat td{text-align:center;padding:5px 8px;border-radius:4px;min-width:60px;font-variant-numeric:tabular-nums}
+.pair{display:grid;grid-template-columns:150px 1fr 1fr 150px;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.pair .t{position:relative;height:22px;border-radius:5px;background:color-mix(in srgb,var(--mut) 15%,transparent);overflow:hidden}
+.pair .t span{display:block;height:100%}.pair .t em{position:absolute;left:8px;top:0;line-height:22px;font-size:11.5px;font-style:normal;color:var(--ink);mix-blend-mode:normal;text-shadow:0 0 4px var(--surface)}
+.pair .d{font-weight:700;font-variant-numeric:tabular-nums}.up{color:var(--good)}.dn{color:var(--bad)}
+.pair.h{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-top:0}
+.take{margin-top:14px;padding:11px 14px;border-left:3px solid var(--vllm);background:color-mix(in srgb,var(--vllm) 9%,transparent);border-radius:0 10px 10px 0}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.note{border:1px solid var(--line);border-radius:12px;padding:12px 14px}.note b{display:block;margin-bottom:3px}.note.w{border-left:3px solid var(--bad)}.note p{margin:0;color:var(--ink2);font-size:13px}
+.empty{color:var(--mut);padding:18px;text-align:center}
+footer{color:var(--mut);font-size:12px;padding:10px 0 50px}
+@media(max-width:760px){.pair{grid-template-columns:1fr 1fr}.pair .n,.pair .d{grid-column:1/-1}.wrap{padding:0 14px}h1{font-size:25px}.theme{display:none}}
+</style>
+</head>
+<body>
+<button class="theme" id="themeBtn" aria-label="Toggle light or dark theme">◐ theme</button>
+<div class="wrap">
+<header class="top">
+  <h1>Spark model benchmark</h1>
+  <p class="sub">Which local model should run on the NVIDIA GB10 (DGX Spark)? Every model was tested alone, with 1, 2 and 4 concurrent users, a short and a long-document prompt, and 31 accuracy questions. Click anything to explore.</p>
+  <div class="meta" id="meta"></div>
+</header>
+<div class="cards" id="quick"></div>
+</div>
+
+<div class="filters"><div class="wrap">
+  <div class="fg"><label class="t">Engine</label><button class="chip" data-eng="vllm" aria-pressed="true" data-tipt="vLLM" data-tip="Serving engine with continuous batching: it handles several users at once efficiently."><i class="vllm"></i>vLLM</button><button class="chip" data-eng="ollama" aria-pressed="true" data-tipt="Ollama" data-tip="Easy local model runner (llama.cpp based). Some models process one request at a time, so extra users queue."><i class="ollama"></i>Ollama</button><button class="chip" data-eng="llamacpp" aria-pressed="true" data-tipt="llama.cpp" data-tip="The C++ inference engine behind Ollama, run directly (llama-server). Supports GGUF files, NVFP4 and MTP speculative decoding; 4 parallel slots here."><i class="llamacpp"></i>llama.cpp</button></div>
+  <div class="fg" id="fmtChips"><label class="t">Format</label></div>
+  <div class="fg"><label class="t" for="minAcc" data-tipt="Minimum accuracy" data-tip="Hide models whose rule-check accuracy is below this value.">Min accuracy</label><input type="range" id="minAcc" min="0" max="100" step="5" value="0"><b id="minAccV" style="font-size:12px;width:34px">0%</b></div>
+  <div class="fg"><button class="chip" id="smallBtn" aria-pressed="false" data-tipt="Small models" data-tip="Models of about 4 billion parameters or less.">Small models only (≤4B)</button><button class="chip" id="tunedBtn" aria-pressed="false" data-tipt="Tuned variants" data-tip="Show the extra runs where I changed server settings (flash-attention, KV cache, memory share). They did not improve results.">Show tuned variants</button></div>
+  <div class="fg"><input type="search" id="q" placeholder="Search model…" aria-label="Search model"></div>
+  <div class="count" id="count"></div>
+</div></div>
+
+<div class="wrap">
+<section class="card" id="sec-lb">
+  <h2>Leaderboard</h2>
+  <p class="lead">Hover any column title for what it means. Click a column to sort, a row to inspect it, or tick boxes to compare up to 4 models. ★ marks the best value among the models shown. Bars are scaled across all models. * = long ~3k-token document, 4 users at once.</p>
+  <div class="tablewrap"><table class="lb" id="lb"></table></div>
+</section>
+
+<section class="card" id="sec-plot">
+  <h2>Explore trade-offs</h2>
+  <p class="lead">Pick any two measures. Colour is the engine, the shape is the weight format. Hover for numbers, click a dot to inspect it.</p>
+  <div class="axes">
+    <label>X <select id="ax"></select></label><label>Y <select id="ay"></select></label>
+    <label><input type="checkbox" id="lab" checked> labels</label>
+  </div>
+  <div class="axdesc" id="axdesc"></div>
+  <div class="legend" id="plotLegend"></div>
+  <div class="plot" id="plot"></div>
+</section>
+
+<section class="card detail" id="sec-detail"></section>
+<section class="card" id="sec-cmp" hidden></section>
+
+<section class="card" id="sec-pairs">
+  <h2>NVFP4 vs FP8 — same model, different weight format</h2>
+  <p class="lead">Total tokens/s with 4 users and correct answers out of 31. Pale bar = the 4-bit NVFP4 build (Qwen3-4B: plain bf16), solid bar = FP8.</p>
+  <div id="pairs"></div>
+  <div class="take">FP8 is 35–40% slower than NVFP4 on this machine (twice the bytes per token) and uses about 6 GB more memory, for roughly the same accuracy. It is still far faster than bf16. Use NVFP4 by default.</div>
+</section>
+
+<section class="card" id="sec-llama" hidden></section>
+
+<section class="card" id="sec-heat">
+  <h2>Where does each model get answers wrong?</h2>
+  <p class="lead">Correct answers per category (darker is better). Hover a cell for the exact count. Multilingual and multi-step logic are the weak spots for almost everyone.</p>
+  <div class="tablewrap"><table class="heat" id="heat"></table></div>
+</section>
+
+<section class="card" id="sec-notes">
+  <h2>What to know</h2>
+  <div class="cols">
+    <div class="note"><b>Ollama queues users on some models</b><p>lfm2, nemotron-cascade and qwen3.5:9b ignore the 4-way parallel setting: 4 users get the same total throughput as 1 (scaling ×1.0), so the 4th user waits up to 20 s for the first token. vLLM batches requests properly.</p></div>
+    <div class="note"><b>Quantisation decides speed</b><p>Generation is memory-bandwidth bound on this box. Dense 27B models manage 12 tok/s per user; 3B-active mixture-of-experts models in NVFP4 reach 60–80.</p></div>
+    <div class="note"><b>Best small model: granite4:micro (3B)</b><p>97% accuracy at 85 tok/s alone and 210 tok/s for 4 users on Ollama — far ahead of other ≤4B models. qwen3.5:2b is also accurate (94%) but Ollama queues users on it; the tiniest models (gemma3:270m, tinyllama, smollm2:360m) are fast but score 42–55%.</p></div>
+    <div class="note"><b>Community FP4 quants are hit and miss</b><p>Small W4A4/NVFP4 builds from the community were no faster or better than the same-size Ollama models, and two would not load in vLLM (Qwen3-0.6B-FP4, gemma-3-4b W4A4).</p></div>
+    <div class="note"><b>Tuning gave nothing</b><p>Flash-attention, q8 KV cache and a larger vLLM memory share changed throughput by ≤ 3% (gpt-oss ±9% is within noise) but made vLLM reserve up to 80 GB of the shared 121 GB. Keep the current flags.</p></div>
+    <div class="note w"><b>vllm-gemma-12b can never start</b><p>Its Hugging Face model is gated and the weights were never downloaded, so the container restarts in a loop. Download with a token or remove it. A working substitute is gemma-3-12b w4a16 (tested).</p></div>
+    <div class="note w"><b>Memory was nearly full</b><p>All five original containers together used ~116 of 121 GB. Run Qwen3.6 alone, or Qwen3.6 + gpt-oss with their current limits.</p></div>
+    <div class="note"><b>Caveats</b><p>One run per setting, 20 requests per level, 31 accuracy questions judged by Qwen3.6 (which also judged its own answers), thinking mode off. The 31 questions are fairly easy, so a small model scoring 97% here is not equal to a 35B model on hard reasoning or long documents. Not tested: Qwen3.5-122B NVFP4, Qwen3.6-27B FP8, Nemotron-3-Nano FP8 (downloads too slow); llama.cpp and the Qwen3.6 MTP-GGUF are still to come.</p></div>
+  </div>
+</section>
+<footer>Generated by benchmark_tools/build_dashboard.py · raw data in benchmark_tools/outputs/spark_run_raw/ · full tables: REPORT.html</footer>
+</div>
+<div id="tip" role="tooltip"></div><div id="gtip" role="tooltip"></div>
+
+<script>
+const D=/*__DATA__*/null;
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const M=D.models,byId=Object.fromEntries(M.map(m=>[m.id,m]));
+const GL={
+ model:['Model','Model name, its weight format (the small grey badge) and the engine it ran on (colour: blue = vLLM, orange = Ollama). Click a row to inspect it.'],
+ acc:['Accuracy (rule checks)','Share of the 31 test questions answered correctly, checked automatically (expected words, numbers or format). Questions cover answering from a document, math, logic, general knowledge, following instructions, extracting data, meaning, and Hindi / Telugu / Tamil.'],
+ judge:['Accuracy (AI judge)','The same 31 questions graded by an AI judge (Qwen3.6-35B) that checks the answer is semantically and logically right, not just word-matching. Slightly stricter than the rule checks.'],
+ per1:['Speed alone','Tokens per second one person gets when using the model alone while it writes a ~256-token answer. A token is roughly ¾ of a word. Higher is better.'],
+ per4:['Speed per user, 4 users','Tokens per second each person sees, as reported by the engine, while 4 people ask at the same time. Does not include time spent waiting in a queue (see Scaling).'],
+ agg1:['Total, 1 user','Tokens per second the server produces with one person using it.'],
+ agg4:['Total, 4 users','Total tokens per second the server produces when 4 people ask at the same time — the capacity for a small team. Higher is better.'],
+ ttft1:['First token, long prompt, 1 user','Time until the first word appears (median) when the prompt contains a ~3,000-token document, with one person. Lower is better.'],
+ ttft4:['First token (long document), 4 users','Median time until the first word appears for a ~3,000-token document question when 4 people ask at once. Shows how snappy document Q&A (RAG) feels under load. Lower is better.'],
+ ragLat4:['Full answer, 95th percentile (long document), 4 users','Time to finish the whole answer to a ~3,000-token document question with 4 users; 95% of requests were faster than this. Lower is better.'],
+ power:['GPU power','Average power drawn by the GPU while generating, in watts. Lower means cheaper and cooler to run.'],
+ mem:['Peak memory','Highest system memory in use during the run, in GB of the 121 GB shared by CPU and GPU. vLLM reserves memory up front, so it can look much bigger than the model itself. Lower leaves room for other services.'],
+ scale:['Scaling, 4 users vs 1','Total throughput with 4 users divided by total throughput with 1 user. About 1× means users simply queue (the 4th waits for the others); 3–4× means requests really run in parallel.'],
+ eff:['Efficiency','Tokens generated per joule of GPU energy with 4 users. Higher is more efficient.'],
+ NVFP4:['NVFP4','NVIDIA 4-bit floating point — native to Blackwell GPUs like the GB10. Smallest and fastest; the format used by the winning model.'],
+ FP4:['FP4 (W4A4)','Community 4-bit floating-point quantisation of both weights and activations. Often less polished than NVIDIA\'s own NVFP4 builds.'],
+ FP8:['FP8','8-bit floating point weights. About twice the bytes per token of 4-bit, so ~35–40% slower here, with similar accuracy.'],
+ MXFP4:['MXFP4','4-bit micro-scaling float format (used by gpt-oss).'],
+ W4A16:['W4A16','4-bit weights with 16-bit activations (a common integer-style 4-bit quantisation).'],
+ GGUF:['GGUF (Ollama / llama.cpp)','Quantised file format used by Ollama and llama.cpp, usually about 4 bits per weight.'],
+ bf16:['bf16','Unquantised 16-bit weights. Largest and, on this memory-bandwidth-limited machine, slowest.'],
+ vllm:['vLLM','Serving engine with continuous batching: it handles several users at once efficiently.'],
+ llamacpp:['llama.cpp','The C++ inference engine behind Ollama, run directly (llama-server) with 4 parallel slots. Supports GGUF files, NVFP4 and MTP speculative decoding.'],
+ ollama:['Ollama','Easy local model runner (llama.cpp based). Some models process one request at a time, so extra users queue.'],
+ grounded:['grounded','Answer only from a given document, including saying "NOT FOUND" and choosing the newest of conflicting sources.'],
+ math:['math','Arithmetic and short word problems.'],logic:['logic','Multi-step reasoning, e.g. syllogisms and "if it rains…" deductions.'],
+ knowledge:['knowledge','Simple factual questions (capital cities, SQL, HTTP codes…).'],instruction:['instruction','Following output rules: valid JSON, an exact-length list, a one-word answer.'],
+ extraction:['extraction','Pulling invoice numbers, amounts or e-mail domains out of text.'],semantic:['semantic','Understanding meaning: summaries, paraphrase and negation.'],
+ multilingual:['multilingual','Hindi, Telugu and Tamil questions, and answering in the requested language.'],
+ overall:['overall','Total correct answers out of 31 according to the rule checks.'],
+ minacc:['Minimum accuracy','Hide models whose rule-check accuracy is below this value.'],
+ tuned:['Tuned variants','Show the extra runs where I changed server settings (flash-attention, KV cache, memory share). They did not improve results.'],
+ small:['Small models','Models of about 4 billion parameters or less.']
+};
+const tip_=k=>GL[k]?` data-tip="${esc(GL[k][1])}" data-tipt="${esc(GL[k][0])}"`:'';
+
+const FORMATS=['NVFP4','FP4','FP8','MXFP4','W4A16','GGUF','bf16'];
+const SHAPE={NVFP4:'circle',FP4:'circle',FP8:'square',bf16:'diamond',MXFP4:'tri',W4A16:'tri',GGUF:'tri'};
+const SHAPE_LABEL={circle:'NVFP4 / FP4',square:'FP8',tri:'other 4-bit (MXFP4, W4A16, GGUF)',diamond:'bf16'};
+const ENGN={vllm:'vLLM',ollama:'Ollama',llamacpp:'llama.cpp'},ENGC={vllm:'var(--vllm)',ollama:'var(--ollama)',llamacpp:'var(--llama)'};
+const S={eng:new Set(['vllm','ollama','llamacpp']),fmt:new Set(FORMATS),minAcc:0,tuned:false,q:'',sortK:'agg4',dir:-1,small:false,sel:'vllm_qwen36_baseline',cmp:new Set(),x:'agg4',y:'acc',labels:true};
+const f0=v=>v==null?'–':v.toFixed(0),f1=v=>v==null?'–':v.toFixed(1),f2=v=>v==null?'–':v.toFixed(2);
+const MET={
+ acc:{l:'Accuracy (rule checks)',f:v=>f0(v)+'%',hi:1,dom:[0,100]},
+ judge:{l:'Accuracy (judge)',f:v=>f0(v)+'%',hi:1,dom:[0,100]},
+ agg4:{l:'Total tokens/s, 4 users',f:f0,hi:1,log:1},
+ agg1:{l:'Total tokens/s, 1 user',f:f0,hi:1,log:1},
+ per1:{l:'Speed per user, 1 user (tok/s)',f:f0,hi:1,log:1},
+ per4:{l:'Speed per user, 4 users (tok/s)',f:f0,hi:1,log:1},
+ ttft1:{l:'First token, long prompt, 1 user (s)',f:f2,hi:0,log:1},
+ ttft4:{l:'First token, long prompt, 4 users (s)',f:f2,hi:0,log:1},
+ ragLat4:{l:'Full answer p95, long prompt, 4 users (s)',f:f1,hi:0,log:1},
+ power:{l:'GPU power while generating (W)',f:f0,hi:0},
+ mem:{l:'Peak memory (GB)',f:f0,hi:0},
+ scale:{l:'Scaling: 4 users vs 1 (×)',f:v=>f1(v)+'×',hi:1},
+ eff:{l:'Tokens per joule (4 users)',f:f1,hi:1}
+};
+const AXES=['agg4','per1','per4','ttft4','ragLat4','power','mem','eff','scale','acc','judge'];
+const GMAX={};for(const k in MET){GMAX[k]=Math.max(...M.map(m=>m.k[k]??0))}
+const vis=m=>S.eng.has(m.engine)&&S.fmt.has(m.fmt)&&(S.tuned||!m.tuned)&&(!S.small||m.small)&&(m.k.acc??0)>=S.minAcc&&(!S.q||(m.name+m.full+m.fmt).toLowerCase().includes(S.q.toLowerCase()));
+const V=()=>M.filter(vis);
+const dotH=m=>`<i class="dot ${m.engine} ${SHAPE[m.fmt]}"></i>`;
+
+/* ---------- header ---------- */
+function renderMeta(){
+ const base=M.filter(m=>!m.tuned);
+ $('#meta').innerHTML=[`${base.length} models · ${M.length} configurations`,'GB10 · 121 GB unified memory','1 / 2 / 4 users','31 accuracy questions each'].map(t=>`<span class="pill">${t}</span>`).join('');
+ $('#quick').innerHTML=D.quick.map(q=>{const m=byId[q.id];const k=m.k;return `<button class="qcard ${m.engine}" data-pick="${m.id}"><small>${esc(q.title)}</small><b>${esc(m.name)}</b><div class="nums"><span${tip_('acc')}><strong>${f0(k.acc)}%</strong>accuracy</span><span${tip_('per1')}><strong>${f0(k.per1)}</strong>tok/s alone</span><span${tip_('agg4')}><strong>${f0(k.agg4)}</strong>tok/s ×4 users</span></div><em>${esc(q.why)}</em></button>`}).join('');
+ $('#fmtChips').insertAdjacentHTML('beforeend',FORMATS.map(f=>`<button class="chip" data-fmt="${f}" aria-pressed="true"${tip_(f)}>${f}</button>`).join(''));
+}
+
+/* ---------- leaderboard ---------- */
+const COLS=[['name','Model','l'],['acc','Accuracy'],['per1','Speed alone'],['agg4','Total, 4 users'],['ttft4','1st token*'],['ragLat4','Answer p95*'],['power','Power'],['mem','Memory'],['scale','Scaling']];
+function bar(v,k,m,pct){if(v==null)return '–';const w=Math.max(2,(pct??v/GMAX[k]*100));return `<span class="mb"><span class="${k==='acc'||k==='agg4'||k==='per1'?m.engine:'neu'}" style="width:${Math.min(100,w)}%"></span></span>`}
+function renderTable(){
+ const rows=V();const best={};
+ for(const k in MET){const vals=rows.map(m=>m.k[k]).filter(v=>v!=null);if(vals.length)best[k]=MET[k].hi?Math.max(...vals):Math.min(...vals)}
+ rows.sort((a,b)=>{const k=S.sortK;if(k==='name')return S.dir*a.name.localeCompare(b.name);return S.dir*((a.k[k]??-1)-(b.k[k]??-1))});
+ const th=COLS.map(([k,l,c])=>`<th class="${c||''}" data-sort="${k}" ${S.sortK===k?`aria-sort="${S.dir<0?'descending':'ascending'}"`:''}><span class="gl"${tip_(k==='name'?'model':k)}>${l}</span>${S.sortK===k?(S.dir<0?' ↓':' ↑'):''}</th>`).join('');
+ const td=(m,k)=>{const v=m.k[k],b=v!=null&&v===best[k]&&rows.length>1;const mt=MET[k];
+  const pct=k==='acc'?v:null;
+  const tipt=k==='acc'&&m.acc?`rule ${m.acc.rule}/${m.acc.n} · judge ${m.acc.judge}/${m.acc.n}`:k==='per1'?`${f0(m.k.agg1)} tok/s combined with 1 user`:k==='ttft4'?`${f2(m.k.ttft1)} s with 1 user`:'';
+  const extra='';
+  const barK=['acc','agg4','per1'].includes(k)?bar(v,k,m,pct):'';
+  return `<td title="${esc(tipt)}"><div class="cell">${extra}<span class="${b?'best':''}">${v==null?'–':mt.f(v)}</span>${barK}</div></td>`};
+ $('#lb').innerHTML=`<thead><tr><th aria-label="compare"></th>${th}</tr></thead><tbody>`+rows.map(m=>`<tr data-id="${m.id}" class="${m.id===S.sel?'sel':''}"><td><input type="checkbox" data-cmp="${m.id}" ${S.cmp.has(m.id)?'checked':''} aria-label="Compare ${esc(m.name)}"></td><td class="l"><div class="mname">${dotH(m)}<span>${esc(m.name)}</span><span class="fmt"${tip_(m.fmt)}>${m.fmt}</span>${m.tuned?'<span class="tuned">tuned</span>':''}</div></td>${['acc','per1','agg4','ttft4','ragLat4','power','mem','scale'].map(k=>td(m,k)).join('')}</tr>`).join('')+`</tbody>`;
+ $('#count').textContent=`${rows.length} of ${M.length} shown`;
+ if(!rows.length)$('#lb').innerHTML+=`<tbody><tr><td colspan="10" class="empty">No models match the filters.</td></tr></tbody>`;
+}
+
+/* ---------- scatter ---------- */
+function niceTicks(lo,hi,n=6){const step0=(hi-lo)/n,mag=10**Math.floor(Math.log10(step0)),r=step0/mag,step=(r<1.5?1:r<3?2:r<7?5:10)*mag,t=[];for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step)t.push(+v.toFixed(10));return t}
+function logTicks(lo,hi){const t=[];for(let e=Math.floor(Math.log10(lo));e<=Math.ceil(Math.log10(hi));e++)for(const m of[1,2,5]){const v=m*10**e;if(v>=lo&&v<=hi)t.push(v)}return t}
+function shapePath(s,x,y,r){if(s==='circle')return `<circle cx="${x}" cy="${y}" r="${r}"`;
+ if(s==='square')return `<rect x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" rx="2"`;
+ if(s==='diamond')return `<path d="M${x} ${y-r*1.3}L${x+r*1.3} ${y}L${x} ${y+r*1.3}L${x-r*1.3} ${y}Z"`;
+ return `<path d="M${x} ${y-r*1.2}L${x+r*1.2} ${y+r}L${x-r*1.2} ${y+r}Z"`}
+function renderPlot(){
+ const pts=V().filter(m=>m.k[S.x]!=null&&m.k[S.y]!=null);const W=1100,H=620,L=62,R=24,T=18,B=54;
+ if(!pts.length){$('#plot').innerHTML='<div class="empty">No models match the filters.</div>';return}
+ const dom=k=>{const vs=pts.map(m=>m.k[k]);let lo=Math.min(...vs),hi=Math.max(...vs);const mt=MET[k];
+  if(mt.dom){lo=Math.max(0,lo-8);hi=Math.min(104,hi+4);return [lo,hi]}
+  if(mt.log){return [lo/1.25,hi*1.25]}const p=(hi-lo||1)*.08;return [Math.max(0,lo-p),hi+p]};
+ const [x0,x1]=dom(S.x),[y0,y1]=dom(S.y),mx=MET[S.x],my=MET[S.y];
+ $('#axdesc').innerHTML=`<span><b>X · ${esc(GL[S.x]?GL[S.x][0]:mx.l)}:</b> ${esc(GL[S.x]?GL[S.x][1]:'')}</span><span><b>Y · ${esc(GL[S.y]?GL[S.y][0]:my.l)}:</b> ${esc(GL[S.y]?GL[S.y][1]:'')}</span>`;
+ const sx=v=>L+((mx.log?Math.log10(v)-Math.log10(x0):v-x0)/(mx.log?Math.log10(x1)-Math.log10(x0):x1-x0))*(W-L-R);
+ const sy=v=>T+(1-((my.log?Math.log10(v)-Math.log10(y0):v-y0)/(my.log?Math.log10(y1)-Math.log10(y0):y1-y0)))*(H-T-B);
+ let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(my.l)} versus ${esc(mx.l)}">`;
+ for(const v of (my.log?logTicks(y0,y1):niceTicks(y0,y1)))s+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${sy(v)}" y2="${sy(v)}"/><text class="ax" x="${L-8}" y="${sy(v)+4}" text-anchor="end">${my.dom?v+'%':v}</text>`;
+ for(const v of (mx.log?logTicks(x0,x1):niceTicks(x0,x1)))s+=`<line class="grid" y1="${T}" y2="${H-B}" x1="${sx(v)}" x2="${sx(v)}"/><text class="ax" x="${sx(v)}" y="${H-B+18}" text-anchor="middle">${mx.dom?v+'%':v}</text>`;
+ s+=`<text class="axt" x="${(L+W-R)/2}" y="${H-8}" text-anchor="middle">${esc(mx.l)} ${mx.hi?'→ better':'← better'}${mx.log?' (log scale)':''}</text>`;
+ s+=`<text class="axt" transform="translate(16 ${(T+H-B)/2}) rotate(-90)" text-anchor="middle">${esc(my.l)} ${my.hi?'↑ better':'↓ better'}${my.log?' (log)':''}</text>`;
+ const dots=pts.map(m=>[sx(m.k[S.x]),sy(m.k[S.y]),m]);
+ let dsvg='',placed=[],lsvg='';
+ const order=[...dots].sort((a,b)=>(b[2].id===S.sel)-(a[2].id===S.sel)||b[0]-a[0]);
+ for(const [x,y,m] of dots){const sel=m.id===S.sel,cm=S.cmp.has(m.id);dsvg+=`${shapePath(SHAPE[m.fmt],+x.toFixed(1),+y.toFixed(1),sel?9:7.5)} class="pt ${m.engine} ${sel?'sel':''} ${cm?'cmp':''}" data-id="${m.id}" tabindex="0" role="button" aria-label="${esc(m.name)}"/>`}
+ if(S.labels){for(const [x,y,m] of order){const lab=m.name+(m.tuned?' (tuned)':'');const w=lab.length*5.7;
+  for(const [dx,dy,an] of [[11,4,'start'],[-11,4,'end'],[11,-10,'start'],[-11,-10,'end'],[11,18,'start'],[-11,18,'end'],[11,-24,'start'],[-11,-24,'end'],[0,-14,'middle'],[0,24,'middle']]){
+   const lx=x+dx,b0=an==='start'?lx:an==='end'?lx-w:lx-w/2,b1=b0+w,by=y+dy;
+   if(b0<L||b1>W-R||by<T+8||by>H-B)continue;
+   if(placed.every(([a0,a1,ay])=>b1<a0||b0>a1||Math.abs(by-ay)>12)&&dots.every(([ox,oy,om])=>om===m||b1<ox-10||b0>ox+10||by<oy-8||by-10>oy+10)){placed.push([b0,b1,by]);lsvg+=`<text class="pl ${m.id===S.sel?'':'dim'}" x="${lx.toFixed(1)}" y="${by.toFixed(1)}" text-anchor="${an}">${esc(lab)}</text>`;break}}}}
+ $('#plot').innerHTML=s+dsvg+lsvg+'</svg>';
+}
+function renderLegend(){$('#plotLegend').innerHTML=`<span><i class="dot vllm circle"></i>vLLM</span><span><i class="dot ollama circle"></i>Ollama</span><span><i class="dot llamacpp circle"></i>llama.cpp</span><span style="color:var(--mut)">|</span>`+Object.entries(SHAPE_LABEL).map(([s,l])=>`<span><i class="dot ${s}" style="background:var(--mut)"></i>${l}</span>`).join('')+`<span style="margin-left:auto">green ring = ticked for comparison</span>`}
+
+/* ---------- detail ---------- */
+function lineChart(series,{ylab,fmt=f1,H=190}={}){
+ const W=420,L=40,R=16,T=14,B=28,xs=[1,2,4];const all=series.flatMap(s=>s.v).filter(v=>v!=null);if(!all.length)return '';
+ const hi=Math.max(...all)*1.15;const sx=u=>L+(xs.indexOf(u)/2)*(W-L-R),sy=v=>T+(1-v/hi)*(H-T-B);
+ let o=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(ylab)}">`;
+ for(const v of niceTicks(0,hi,4))o+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${sy(v)}" y2="${sy(v)}"/><text class="ax" x="${L-6}" y="${sy(v)+4}" text-anchor="end">${v}</text>`;
+ for(const u of xs)o+=`<text class="ax" x="${sx(u)}" y="${H-8}" text-anchor="middle">${u} user${u>1?'s':''}</text>`;
+ for(const s of series){const p=xs.map((u,i)=>s.v[i]==null?null:[sx(u),sy(s.v[i])]).filter(Boolean);
+  o+=`<polyline fill="none" stroke="${s.c}" stroke-width="2.5" stroke-linejoin="round" ${s.dash?'stroke-dasharray="5 4"':''} points="${p.map(q=>q.join(',')).join(' ')}"/>`;
+  p.forEach((q,i)=>{o+=`<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="${s.c}" stroke="var(--surface)" stroke-width="2"/><text class="pl" x="${Math.min(Math.max(q[0],L+8),W-R-8)}" y="${q[1]+(s.dash?17:-9)}" text-anchor="middle">${fmt(s.v[i])}</text>`})}
+ const lg=`<div class="legend" style="margin:0 0 4px">`+series.map(s=>`<span><svg width="22" height="8" style="width:22px"><line x1="0" x2="22" y1="4" y2="4" stroke="${s.c}" stroke-width="2.5" ${s.dash?'stroke-dasharray="5 4"':''}/></svg>${esc(s.n)}</span>`).join('')+`</div>`;
+ return lg+o+'</svg>'}
+function powerChart(m){
+ const t=m.tl;if(!t||!t.pts.length)return '<div class="empty">no hardware log</div>';const W=420,H=190,L=40,R=10,T=14,B=30;const tm=t.pts[t.pts.length-1][0]||1,ph=Math.max(100,Math.ceil(Math.max(...t.pts.map(p=>p[1]))/20)*20);
+ const sx=v=>L+v/tm*(W-L-R),sy=v=>T+(1-v/ph)*(H-T-B);const nm={accuracy:'accuracy',bench_gen:'decode',bench_rag:'long prompt'};
+ let o=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="GPU power over time">`;
+ for(const v of niceTicks(0,ph,4))o+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${sy(v)}" y2="${sy(v)}"/><text class="ax" x="${L-6}" y="${sy(v)+4}" text-anchor="end">${v}</text>`;
+ t.ph.forEach((p,i)=>{o+=`<rect x="${sx(p.a)}" y="${T}" width="${Math.max(0,sx(p.b)-sx(p.a))}" height="${H-T-B}" fill="var(--mut)" opacity="${i%2?.16:.07}"/><text class="ax" x="${(sx(p.a)+sx(p.b))/2}" y="${H-10}" text-anchor="middle">${nm[p.n]||p.n}</text>`});
+ o+=`<polyline fill="none" stroke="var(--ink)" stroke-width="1.5" points="${t.pts.map(p=>sx(p[0]).toFixed(1)+','+sy(p[1]).toFixed(1)).join(' ')}"/>`;
+ return o+`<text class="axt" x="${W-R}" y="11" text-anchor="end">GPU power, W</text></svg>`}
+function renderDetail(){
+ const m=byId[S.sel];const sec=$('#sec-detail');if(!m){sec.innerHTML='<div class="empty">Click a model to inspect it.</div>';return}
+ const k=m.k,a=m.acc,c=ENGC[m.engine];
+ const bg=(p,u,key)=>m.bench[p]&&m.bench[p][u]?m.bench[p][u][key]:null;
+ const kp=[['Accuracy',k.acc!=null?f0(k.acc)+'%':'–',a?`${a.rule}/${a.n} rule · judge ${a.judge}/${a.n}`:'','acc'],['Speed alone',f0(k.per1),'tok/s, 1 user','per1'],['Total, 4 users',f0(k.agg4),'tok/s combined','agg4'],['First token (long)',f2(k.ttft4)+' s','4 users · '+f2(k.ttft1)+' s alone','ttft4'],['GPU power',f0(k.power)+' W','while generating','power'],['Peak memory',f0(k.mem)+' GB','of 121 GB','mem']];
+ const cats=a?D.cats.map(ct=>{const v=a.cats[ct]||[0,0,0,0];const fr=v[0]?v[1]/v[0]:0;return `<div class="cat"><span${tip_(ct)} class="gl">${ct}</span><div class="bar"><span style="width:${fr*100}%;background:${fr<.67?'var(--bad)':c}"></span></div><span class="v">${v[1]}/${v[0]}</span></div>`}).join(''):'';
+ const fails=a&&a.fails.length?`<ul class="fails">`+a.fails.map(f=>`<li><b>${esc(f.cat)} · ${esc(f.id)}</b><br><span class="q">answered</span> <code>${esc(f.a||'(empty)')}</code>${f.why?`<br><span class="q">rule:</span> ${esc(f.why)}`:''}${f.jp===false&&f.jr?`<br><span class="q">judge:</span> ${esc(f.jr)}`:''}</li>`).join('')+'</ul>':'<div class="empty">No failed questions 🎉</div>';
+ const ser=(p)=>[{n:'all users combined',c:c,v:[1,2,4].map(u=>bg(p,u,'agg'))},{n:'each user',c:'var(--mut)',dash:1,v:[1,2,4].map(u=>bg(p,u,'per'))}];
+ const ttf=[{n:'first token (median)',c:c,v:[1,2,4].map(u=>bg('rag',u,'t50'))},{n:'full answer (p95)',c:'var(--mut)',dash:1,v:[1,2,4].map(u=>bg('rag',u,'p95'))}];
+ sec.innerHTML=`<h3>${dotH(m)} ${esc(m.name)}</h3><div class="chips"><span class="fmt"${tip_(m.fmt)}>${m.fmt}</span><span class="pill"${tip_(m.engine)}>${ENGN[m.engine]}</span><span class="pill">${esc(m.note)}</span>${m.tuned?'<span class="pill" style="color:var(--bad)">tuned variant</span>':''}<span class="pill">${esc(m.full)}</span></div>
+ <div class="kpis">${kp.map(([l,v,s,g])=>`<div class="kpi"${tip_(g)}><small>${l}</small><b>${v}</b><br><em>${esc(s)}</em></div>`).join('')}</div>
+ <div class="grid3">
+  <div class="panel"><h4>Short prompt, generating 256 tokens — throughput as users are added</h4>${lineChart(ser('gen'),{ylab:'tokens per second',fmt:f0})}</div>
+  <div class="panel"><h4>Long document (≈3k tokens) — wait time as users are added (s)</h4>${lineChart(ttf,{ylab:'seconds',fmt:f1})}</div>
+  <div class="panel"><h4>GPU power during the whole test</h4>${powerChart(m)}</div>
+  <div class="panel"><h4>Accuracy by category <small class="s">(hover a category)</small></h4>${cats||'<div class="empty">no accuracy data</div>'}</div>
+  <div class="panel" style="grid-column:span 2;min-width:0"><h4>Questions it got wrong (${a?a.fails.length:0})</h4>${fails}</div>
+ </div>
+ <h4 style="margin:16px 0 6px;color:var(--ink2)">Run configuration</h4><div class="cfg">${esc(m.cfg||'default')}${m.think?` · thinking: ${esc(m.think)}`:''}</div>`;
+}
+
+/* ---------- compare ---------- */
+function renderCompare(){
+ const sec=$('#sec-cmp'),ms=[...S.cmp].map(i=>byId[i]).filter(Boolean);
+ if(ms.length<2){sec.hidden=true;return}sec.hidden=false;
+ const keys=['acc','judge','per1','agg4','scale','ttft4','ragLat4','power','mem','eff'];
+ sec.innerHTML=`<h2>Compare (${ms.length})</h2><p class="lead">Best value in each row is highlighted green.</p><div class="tablewrap"><table class="cmp"><thead><tr><th></th>${ms.map(m=>`<th>${dotH(m)} ${esc(m.name)}</th>`).join('')}</tr></thead><tbody>`+
+ keys.map(k=>{const mt=MET[k],vals=ms.map(m=>m.k[k]),vv=vals.filter(v=>v!=null),b=vv.length?(mt.hi?Math.max(...vv):Math.min(...vv)):null;
+  return `<tr><td${tip_(k)}><span class="gl">${mt.l}</span></td>${vals.map(v=>`<td class="${v!=null&&v===b?'w':''}">${v==null?'–':mt.f(v)}</td>`).join('')}</tr>`}).join('')+`</tbody></table></div>`;
+}
+
+/* ---------- pairs, heat ---------- */
+function renderPairs(){
+ $('#pairs').innerHTML=`<div class="pair h"><span>Model</span><span>Before</span><span>FP8</span><span>Change</span></div>`+D.pairs.map(p=>{const a=byId[p.a],b=byId[p.b],mx=Math.max(a.k.agg4,b.k.agg4)*1.02,d=(b.k.agg4/a.k.agg4-1)*100;
+  return `<div class="pair"><div class="n"><b>${esc(p.name)}</b><br><small class="s">${p.al} → FP8</small></div>
+  <div class="t"><span style="width:${a.k.agg4/mx*100}%;background:var(--vllm);opacity:.4"></span><em>${p.al} · ${f0(a.k.agg4)} tok/s · ${a.acc.rule}/31 correct</em></div>
+  <div class="t"><span style="width:${b.k.agg4/mx*100}%;background:var(--vllm)"></span><em style="color:#fff">FP8 · ${f0(b.k.agg4)} tok/s · ${b.acc.rule}/31 correct</em></div>
+  <div class="d ${d>3?'up':d<-3?'dn':''}">${d>3?'▲':d<-3?'▼':'≈'} ${d>0?'+':''}${f0(d)}% speed<br><small class="s">memory ${f0(a.k.mem)}→${f0(b.k.mem)} GB</small></div></div>`}).join('')}
+const BL=['#e9eef6','#cde2fb','#9ec5f4','#5598e7','#2a78d6','#184f95','#0d366b'];
+function renderHeat(){
+ const rows=V().filter(m=>m.acc).sort((a,b)=>b.k.acc-a.k.acc||(b.acc.judge-a.acc.judge));
+ const cell=(fr,txt,tip)=>{const i=fr<.5?0:Math.min(6,1+Math.floor((fr-.5)/.5*5.99));const dark=i>=4;return `<td title="${esc(tip)}" style="background:${BL[i]};color:${dark?'#fff':'#0b0b0b'}">${txt}</td>`};
+ $('#heat').innerHTML=`<thead><tr><th></th><th${tip_('overall')}><span class="gl">overall</span></th>${D.cats.map(c=>`<th${tip_(c)}><span class="gl">${c}</span></th>`).join('')}</tr></thead><tbody>`+rows.map(m=>{const a=m.acc;
+  return `<tr><th>${dotH(m)} ${esc(m.name)}</th>${cell(a.rule/a.n,f0(m.k.acc)+'%',`${m.name}: ${a.rule}/${a.n} rule, judge ${a.judge}/${a.n}`)}${D.cats.map(c=>{const v=a.cats[c]||[0,0];return cell(v[0]?v[1]/v[0]:0,`${v[1]}/${v[0]}`,`${m.name} · ${c}: ${v[1]}/${v[0]}`)}).join('')}</tr>`}).join('')+'</tbody>';
+}
+
+
+function renderLlama(){
+ const L=D.llama,sec=$('#sec-llama');if(!L||!L.ids.length){sec.hidden=true;return}sec.hidden=false;
+ const rows=[byId[L.ref],...L.ids.map(i=>byId[i])].filter(Boolean),mx=Math.max(...rows.map(m=>m.k.agg4||0))*1.02,ref=rows[0];
+ const det=m=>!m.det?'–':m.det.sequential_distinct===1?`<span class="up">yes in a row</span> <small class="s">${m.det.sequential_n}/${m.det.sequential_n}</small>${m.det.concurrent_distinct===1?'':` · <span class="dn">${m.det.concurrent_distinct} different of ${m.det.concurrent_n} at once</span>`}`:`<span class="dn">no: ${m.det.sequential_distinct} different in a row</span>`;
+ sec.innerHTML=`<h2>llama.cpp vs vLLM — the same Qwen3.6-35B-A3B, with and without MTP</h2>
+ <p class="lead">${esc(L.intro)} Reference (top row) is the vLLM NVFP4 winner. “Reproducible” = the same temperature-0 request sent 6 times in a row and 8 times at once gave the same answer; MTP speculative decoding has a known state-leak bug in llama.cpp.</p>
+ <div class="tablewrap"><table class="lb" style="min-width:860px"><thead><tr><th class="l" style="cursor:default">Run</th><th style="cursor:default">Speed alone</th><th style="cursor:default">Total, 4 users</th><th style="cursor:default">vs vLLM</th><th style="cursor:default">1st token*</th><th style="cursor:default">Accuracy</th><th style="cursor:default">Memory</th><th style="cursor:default">Reproducible</th></tr></thead><tbody>`+
+ rows.map(m=>{const k=m.k,r=k.agg4/ref.k.agg4;return `<tr data-id="${m.id}" class="${m.id===L.ref?'sel':''}"><td class="l"><div class="mname">${dotH(m)}<span>${esc(m.name)}</span><span class="fmt"${tip_(m.fmt)}>${m.fmt}</span>${/MTP/.test(m.name)?'<span class="fmt" style="background:var(--hot)">MTP</span>':''}</div></td>
+ <td>${f0(k.per1)} <small class="s">tok/s</small></td><td><div class="cell"><span>${f0(k.agg4)}</span><span class="mb"><span class="${m.engine}" style="width:${k.agg4/mx*100}%"></span></span></div></td>
+ <td class="${m.id===L.ref?'':r>=1?'up':'dn'}">${m.id===L.ref?'reference':(r>=1?'▲ ':'▼ ')+Math.abs((r-1)*100).toFixed(0)+'%'}</td><td>${f2(k.ttft4)} s</td><td>${f0(k.acc)}% <small class="s">${m.acc&&m.acc.judge!=null?'judge '+m.acc.judge+'/31':'judge pending'}</small></td><td>${f0(k.mem)} GB</td><td>${det(m)}</td></tr>`}).join('')+`</tbody></table></div><p class="lead" style="margin-top:6px;font-size:12px">* long ~3k-token document, 4 users at once.</p>${L.note?`<div class="take">${esc(L.note)}</div>`:''}`;
+}
+/* ---------- events ---------- */
+const tip=$('#tip');
+function showTip(e,m){const k=m.k;tip.innerHTML=`<b>${esc(m.name)}</b><span>${m.fmt} · ${ENGN[m.engine]}</span><br>accuracy ${f0(k.acc)}% · ${f0(k.per1)} tok/s alone<br>${f0(k.agg4)} tok/s with 4 users · first token ${f2(k.ttft4)} s<br>${f0(k.power)} W · ${f0(k.mem)} GB`;
+ const r=$('#plot').getBoundingClientRect();let x=e.clientX-r.left+14,y=e.clientY-r.top+14;if(x>r.width-290)x-=300;tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;$('#plot').appendChild(tip)}
+document.addEventListener('mousemove',e=>{const t=e.target.closest&&e.target.closest('.pt');if(t)showTip(e,byId[t.dataset.id]);else tip.style.opacity=0});
+document.addEventListener('click',e=>{
+ const t=e.target;let el;
+ if(el=t.closest('[data-pick]')){S.sel=el.dataset.pick;if(!vis(byId[S.sel])){S.tuned=true}render();$('#sec-detail').scrollIntoView({behavior:'smooth',block:'start'});return}
+ if(el=t.closest('[data-eng]')){const v=el.dataset.eng;S.eng.has(v)?S.eng.delete(v):S.eng.add(v);render();return}
+ if(el=t.closest('[data-fmt]')){const v=el.dataset.fmt;S.fmt.has(v)?S.fmt.delete(v):S.fmt.add(v);render();return}
+ if(t.closest('#tunedBtn')){S.tuned=!S.tuned;render();return}
+ if(t.closest('#smallBtn')){S.small=!S.small;render();return}
+ if(el=t.closest('[data-cmp]')){const id=el.dataset.cmp;if(el.checked){if(S.cmp.size>=4){el.checked=false;return}S.cmp.add(id)}else S.cmp.delete(id);renderCompare();renderPlot();return}
+ if(el=t.closest('[data-sort]')){const k=el.dataset.sort;if(S.sortK===k)S.dir*=-1;else{S.sortK=k;S.dir=MET[k]&&!MET[k].hi?1:-1;if(k==='name')S.dir=1}renderTable();return}
+ if(el=t.closest('.pt')){S.sel=el.dataset.id;render();return}
+ if(el=t.closest('#lb tbody tr[data-id]')){S.sel=el.dataset.id;renderTable();renderDetail();renderPlot();$('#sec-detail').scrollIntoView({behavior:'smooth',block:'start'})}
+});
+const gt=$('#gtip');
+function showG(el){const t=el.dataset.tipt,x=el.dataset.tip;gt.innerHTML=(t?`<b>${esc(t)}</b>`:'')+esc(x);gt.style.opacity=1;const r=el.getBoundingClientRect(),w=gt.offsetWidth,h=gt.offsetHeight;
+ let l=Math.min(Math.max(8,r.left+r.width/2-w/2),innerWidth-w-8),tp=r.bottom+8;if(tp+h>innerHeight-8)tp=Math.max(8,r.top-h-8);gt.style.left=l+'px';gt.style.top=tp+'px'}
+document.addEventListener('mouseover',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el)showG(el);else gt.style.opacity=0});
+document.addEventListener('focusin',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el)showG(el)});
+document.addEventListener('focusout',()=>{gt.style.opacity=0});
+document.addEventListener('scroll',()=>{gt.style.opacity=0},{passive:true});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('pt')){e.preventDefault();S.sel=e.target.dataset.id;render()}});
+$('#minAcc').addEventListener('input',e=>{S.minAcc=+e.target.value;$('#minAccV').textContent=S.minAcc+'%';render()});
+$('#q').addEventListener('input',e=>{S.q=e.target.value;render()});
+$('#ax').addEventListener('change',e=>{S.x=e.target.value;renderPlot()});
+$('#ay').addEventListener('change',e=>{S.y=e.target.value;renderPlot()});
+$('#lab').addEventListener('change',e=>{S.labels=e.target.checked;renderPlot()});
+$('#themeBtn').addEventListener('click',()=>{const r=document.documentElement,dark=(r.dataset.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'))==='dark';r.dataset.theme=dark?'light':'dark'});
+function render(){
+ document.querySelectorAll('[data-eng]').forEach(b=>b.setAttribute('aria-pressed',S.eng.has(b.dataset.eng)));
+ document.querySelectorAll('[data-fmt]').forEach(b=>b.setAttribute('aria-pressed',S.fmt.has(b.dataset.fmt)));
+ $('#tunedBtn').setAttribute('aria-pressed',S.tuned);$('#smallBtn').setAttribute('aria-pressed',S.small);
+ renderTable();renderPlot();renderDetail();renderCompare();renderHeat();renderLlama();
+}
+renderMeta();
+$('#ax').innerHTML=AXES.map(k=>`<option value="${k}" ${k===S.x?'selected':''}>${MET[k].l}</option>`).join('');
+$('#ay').innerHTML=AXES.map(k=>`<option value="${k}" ${k===S.y?'selected':''}>${MET[k].l}</option>`).join('');
+renderLegend();renderPairs();render();
+</script>
+</body>
+</html>

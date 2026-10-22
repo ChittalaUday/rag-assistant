@@ -52,6 +52,12 @@ import {
 } from "lucide-react";
 import { api, streamChat } from "@/api/client";
 import { DocumentProgress } from "@/features/documents/Progress";
+import {
+  AnswerModelPicker,
+  ModelChips,
+  ModelReadiness,
+  questionModels,
+} from "@/features/models/ModelReadiness";
 import { DocumentReader } from "@/features/documents/DocumentReader";
 import { AnswerTrace } from "@/features/trace/AnswerTrace";
 import { KnowledgeGraph } from "@/features/graph/KnowledgeGraph";
@@ -73,6 +79,10 @@ import type {
   Document,
   Health,
   Message,
+  ModelRole,
+  AnswerChoice,
+  AnswerModels,
+  ModelsStatus,
   PreviewGraph,
   SearchPreview,
 } from "@/api/types";
@@ -111,6 +121,17 @@ export default function App() {
   const reducedMotion = useReducedMotion();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [health, setHealth] = useState<Health | null>(null);
+  // which models are in memory; a question whose models are not is held until they are loaded
+  const [modelStatus, setModelStatus] = useState<ModelsStatus | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [loadPrompt, setLoadPrompt] = useState(false);
+  const [autoLoadModels, setAutoLoadModels] = useState(() => {
+    try {
+      return localStorage.getItem("auto-load-models") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -161,6 +182,60 @@ export default function App() {
       /* the choice still holds for this visit */
     }
   };
+  // the model that writes answers: null is the default one; a saved pick that is no longer
+  // listed falls back to it
+  const [available, setAvailable] = useState<AnswerModels | null>(null);
+  const [savedChoice, setSavedChoice] = useState<AnswerChoice | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("answer-model") ?? "null");
+    } catch {
+      return null;
+    }
+  });
+  const answerChoice =
+    available?.models.some(
+      (m) =>
+        m.provider === savedChoice?.provider && m.model === savedChoice?.model,
+    ) && savedChoice
+      ? savedChoice
+      : null;
+  const choiceRef = useRef(answerChoice);
+  choiceRef.current = answerChoice;
+  const chooseAnswerModel = (choice: AnswerChoice | null) => {
+    setSavedChoice(choice);
+    choiceRef.current = choice;
+    try {
+      localStorage.setItem("answer-model", JSON.stringify(choice));
+    } catch {
+      /* the choice still holds for this visit */
+    }
+    void api
+      .modelsStatus(choice)
+      .then(setModelStatus)
+      .catch(() => undefined);
+  };
+  const chooseAutoLoad = (value: boolean) => {
+    setAutoLoadModels(value);
+    try {
+      localStorage.setItem("auto-load-models", value ? "1" : "0");
+    } catch {
+      /* the choice still holds for this visit */
+    }
+  };
+  // Bring the models into memory; false (with the reason shown) when that failed.
+  const loadModels = useCallback(async (roles?: ModelRole[]) => {
+    setModelsLoading(true);
+    setError("");
+    try {
+      setModelStatus(await api.loadModels(roles, choiceRef.current));
+      return true;
+    } catch (e) {
+      setError(errorText(e));
+      return false;
+    } finally {
+      setModelsLoading(false);
+    }
+  }, []);
   const [includeSynthetic, setIncludeSynthetic] = useState(true);
   const [sidebar, setSidebar] = useState(false);
   // the document whose processing state machine is open
@@ -180,13 +255,17 @@ export default function App() {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const refresh = useCallback(async () => {
-    const [docs, model, history] = await Promise.all([
+    const [docs, model, history, models, answers] = await Promise.all([
       api.documents(),
       api.health(),
       api.conversations(),
+      api.modelsStatus(choiceRef.current).catch(() => null), // an older API without it: no model prompts
+      api.answerModels().catch(() => null),
     ]);
+    if (answers) setAvailable(answers);
     setDocuments(docs.documents);
     setHealth(model);
+    if (models) setModelStatus(models);
     setConversations(history.conversations);
   }, []);
   useEffect(() => {
@@ -379,9 +458,32 @@ export default function App() {
       setUploading(false);
     }
   }
-  async function send() {
+  async function send(modelsReady = false) {
     const text = question.trim();
-    if (!text || busy) return;
+    if (!text || busy || modelsLoading) return;
+    if (!modelsReady) {
+      const { cold, absent, unreachable } = questionModels(modelStatus);
+      if (unreachable.length) {
+        setError(
+          `Cannot reach the model server for ${unreachable.map((m) => m.model).join(", ")}. ${unreachable[0].detail ?? ""}`,
+        );
+        return;
+      }
+      if (absent.length) {
+        setError(
+          `${absent.map((m) => m.model).join(", ")} ${absent.length > 1 ? "are" : "is"} not installed. Run: ollama pull ${absent[0].model}`,
+        );
+        return;
+      }
+      if (cold.length) {
+        if (!autoLoadModels) {
+          setLoadPrompt(true); // the question stays in the box until the models are loaded
+          return;
+        }
+        if (!(await loadModels(cold.map((m) => m.role)))) return;
+      }
+    }
+    setLoadPrompt(false);
     historyRequest.current += 1;
     setQuestion("");
     setError("");
@@ -445,6 +547,7 @@ export default function App() {
             ),
           ),
         languages.includes(answerLanguage) ? answerLanguage : null,
+        answerChoice,
       );
       setConversationId(result.conversation_id);
       setMessages([
@@ -777,12 +880,20 @@ export default function App() {
               <small>Company knowledge, connected.</small>
             </div>
           </div>
-          {pending > 0 && (
-            <span className="topbar-state">
-              <span className="status-dot" />
-              {pending} processing
-            </span>
-          )}
+          <div className="topbar-right">
+            <AnswerModelPicker
+              available={available}
+              choice={answerChoice}
+              onChoose={chooseAnswerModel}
+            />
+            <ModelChips status={modelStatus} />
+            {pending > 0 && (
+              <span className="topbar-state">
+                <span className="status-dot" />
+                {pending} processing
+              </span>
+            )}
+          </div>
         </header>
         {error && (
           <div role="alert" className="error-banner">
@@ -1011,6 +1122,20 @@ export default function App() {
                 </article>
               ))}
             </div>
+            <ModelReadiness
+              status={modelStatus}
+              loading={modelsLoading}
+              waitingQuestion={loadPrompt && question.trim().length > 0}
+              autoLoad={autoLoadModels}
+              onAutoLoad={chooseAutoLoad}
+              onLoad={() =>
+                void loadModels().then((ok) => {
+                  if (ok && loadPrompt && question.trim()) void send(true);
+                  setLoadPrompt(false);
+                })
+              }
+              onCancel={() => setLoadPrompt(false)}
+            />
             <form
               className="composer"
               onSubmit={(e) => {
@@ -1034,7 +1159,7 @@ export default function App() {
                     void send();
                   }
                 }}
-                disabled={busy}
+                disabled={busy || modelsLoading}
               />
               <div className="composer-bottom">
                 <span>

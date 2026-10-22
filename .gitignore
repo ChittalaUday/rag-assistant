@@ -13,5 +13,6 @@ data/
 .env
 .DS_Store
 work/
+benchmark_tools/outputs/
 
 *.tsbuildinfo
